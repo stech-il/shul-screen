@@ -84,6 +84,7 @@ export function normalizeConfig(config: SynagogueConfig): SynagogueConfig {
       backgroundDataUrl: config.media?.backgroundDataUrl ?? '',
       eventImageUrl: config.media?.eventImageUrl ?? '',
       loopVideoUrl: config.media?.loopVideoUrl ?? '',
+      customFonts: config.media?.customFonts ?? [],
     },
     yahrzeits: config.yahrzeits ?? [],
     canvas: normalizeCanvas(config.canvas),

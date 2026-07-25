@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { BillingCard } from '../components/BillingCard';
 import { DesignStudio } from '../components/DesignStudio';
 import { CanvasBuilder } from '../components/canvas/CanvasBuilder';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
@@ -733,6 +734,19 @@ export function Admin({ synagogueId }: Props) {
 
         {tab === 'settings' ? (
           <>
+            {isOwner ? (
+              <BillingCard
+                synagogueId={synagogueId}
+                onRenewed={() => {
+                  void createDefaultConfig(synagogueId, 'בית כנסת חדש').then((fallback) =>
+                    syncConfig(synagogueId, fallback).then((r) => {
+                      setConfigRaw(r.bundle.config);
+                      setStatus('הרישיון חודש — תודה על התשלום');
+                    }),
+                  );
+                }}
+              />
+            ) : null}
             <section className="card">
               <h2>פרטי בית הכנסת</h2>
               <label>

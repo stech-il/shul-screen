@@ -14,13 +14,117 @@ const GH_REPO = (process.env.CLOUD_GITHUB_REPO || 'stech-il/shul-screen-data').t
 const GH_BRANCH = (process.env.CLOUD_GITHUB_BRANCH || 'main').trim();
 const GH_PREFIX = 'synagogues';
 
-function ensureLocalDir() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+function ensureLocalDir(dir = DATA_DIR) {
+  fs.mkdirSync(dir, { recursive: true });
 }
 
 function localPath(id) {
   const safe = String(id).replace(/[^a-zA-Z0-9_\u0590-\u05FF-]/g, '_').slice(0, 80);
   return path.join(DATA_DIR, `${safe}.json`);
+}
+
+// —— Generic prefixed JSON records (e.g. billing) ——
+
+function recordDir(prefix) {
+  return path.join(__dirname, 'data', prefix);
+}
+
+function recordPath(prefix, id) {
+  const safe = String(id).replace(/[^a-zA-Z0-9_\u0590-\u05FF-]/g, '_').slice(0, 80);
+  return path.join(recordDir(prefix), `${safe}.json`);
+}
+
+async function ghGetRecord(prefix, id) {
+  const res = await ghFetch(
+    `/repos/${GH_REPO}/contents/${prefix}/${encodeURIComponent(id)}.json?ref=${GH_BRANCH}`,
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub get ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const body = await res.json();
+  return { sha: body.sha, record: decodeContent(body.content) };
+}
+
+export async function getRecord(prefix, id) {
+  if (GH_TOKEN) {
+    try {
+      const file = await ghGetRecord(prefix, id);
+      return file ? file.record : null;
+    } catch (err) {
+      console.error(`record get ${prefix}/${id} github failed, fallback local`, err);
+    }
+  }
+  const p = recordPath(prefix, id);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export async function putRecord(prefix, id, record) {
+  ensureLocalDir(recordDir(prefix));
+  fs.writeFileSync(recordPath(prefix, id), JSON.stringify(record, null, 2), 'utf8');
+  if (!GH_TOKEN) return;
+  const existing = await ghGetRecord(prefix, id).catch(() => null);
+  const payload = {
+    message: `upsert ${prefix}/${id}`,
+    content: encodeContent(record),
+    branch: GH_BRANCH,
+  };
+  if (existing?.sha) payload.sha = existing.sha;
+  const res = await ghFetch(
+    `/repos/${GH_REPO}/contents/${prefix}/${encodeURIComponent(id)}.json`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub put ${res.status}: ${text.slice(0, 200)}`);
+  }
+}
+
+export async function listRecords(prefix) {
+  if (GH_TOKEN) {
+    try {
+      const res = await ghFetch(`/repos/${GH_REPO}/contents/${prefix}?ref=${GH_BRANCH}`);
+      if (res.status === 404) return [];
+      if (!res.ok) throw new Error(`GitHub list ${res.status}`);
+      const items = await res.json();
+      if (!Array.isArray(items)) return [];
+      const out = [];
+      for (const item of items) {
+        if (!item.name?.endsWith('.json') || item.type !== 'file') continue;
+        const id = item.name.replace(/\.json$/, '');
+        try {
+          const file = await ghGetRecord(prefix, id);
+          if (file?.record) out.push(file.record);
+        } catch {
+          /* skip broken */
+        }
+      }
+      return out;
+    } catch (err) {
+      console.error(`record list ${prefix} github failed, fallback local`, err);
+    }
+  }
+  const dir = recordDir(prefix);
+  if (!fs.existsSync(dir)) return [];
+  const out = [];
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.json'))) {
+    try {
+      out.push(JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
+    } catch {
+      /* skip */
+    }
+  }
+  return out;
 }
 
 export function cloudBackend() {

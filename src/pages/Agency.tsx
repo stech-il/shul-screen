@@ -34,6 +34,16 @@ import {
   saveConfig,
   syncSynagogueIndexFromCloud,
 } from '../lib/storage';
+import {
+  cancelBilling,
+  chargeBillingNow,
+  fetchBillingConfig,
+  fetchSubscription,
+  formatBillingDate,
+  formatIls,
+  saveBillingSettings,
+  type BillingSubscription,
+} from '../lib/billing';
 import type { LicenseInfo, SynagogueConfig } from '../types';
 import './Agency.css';
 
@@ -56,7 +66,8 @@ type Modal =
   | { kind: 'duplicate'; config: SynagogueConfig }
   | { kind: 'delete'; config: SynagogueConfig }
   | { kind: 'license'; config: SynagogueConfig }
-  | { kind: 'resetPassword'; config: SynagogueConfig };
+  | { kind: 'resetPassword'; config: SynagogueConfig }
+  | { kind: 'billing'; config: SynagogueConfig };
 
 export function Agency() {
   const navigate = useNavigate();
@@ -84,6 +95,12 @@ export function Agency() {
   const [resetMemberId, setResetMemberId] = useState('');
   const [resetPassword, setResetPassword] = useState('admin123');
   const [resetPassword2, setResetPassword2] = useState('admin123');
+
+  const [billingConfigured, setBillingConfigured] = useState<boolean | null>(null);
+  const [billingSub, setBillingSub] = useState<BillingSubscription | null>(null);
+  const [billingAmount, setBillingAmount] = useState('99');
+  const [billingActive, setBillingActive] = useState(true);
+  const [billingMsg, setBillingMsg] = useState('');
 
   const heartbeats = useMemo(() => listHeartbeats(), [tick, msg]);
 
@@ -221,6 +238,83 @@ export function Agency() {
       platformUsername: loadPlatformSession()?.username,
     });
     navigate(`/admin/${config.id}`);
+  }
+
+  async function openBilling(config: SynagogueConfig) {
+    setBillingMsg('');
+    setBillingSub(null);
+    setModal({ kind: 'billing', config });
+    try {
+      const cfg = await fetchBillingConfig();
+      setBillingConfigured(cfg.configured);
+      if (!cfg.configured) return;
+      const sub = await fetchSubscription(config.id);
+      setBillingSub(sub);
+      setBillingAmount(String(sub.amount > 0 ? sub.amount : 99));
+      setBillingActive(sub.amount > 0 ? sub.active : true);
+    } catch (err) {
+      setBillingConfigured(false);
+      setBillingMsg(err instanceof Error ? err.message : 'טעינת נתוני חיוב נכשלה');
+    }
+  }
+
+  async function saveBilling(e: FormEvent) {
+    e.preventDefault();
+    if (!modal || modal.kind !== 'billing') return;
+    const amount = Number(billingAmount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      setBillingMsg('סכום לא תקין');
+      return;
+    }
+    setBusy(true);
+    setBillingMsg('');
+    try {
+      const sub = await saveBillingSettings(modal.config.id, {
+        amount,
+        active: billingActive,
+      });
+      setBillingSub(sub);
+      setBillingMsg('הגדרות החיוב נשמרו — בית הכנסת יכול להזין כרטיס בניהול שלו');
+    } catch (err) {
+      setBillingMsg(err instanceof Error ? err.message : 'שמירה נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function billingChargeNow() {
+    if (!modal || modal.kind !== 'billing') return;
+    setBusy(true);
+    setBillingMsg('');
+    try {
+      const sub = await chargeBillingNow(modal.config.id);
+      setBillingSub(sub);
+      setBillingMsg(
+        `חויב ${formatIls(sub.amount)} — הרישיון חודש עד ${formatBillingDate(sub.paidUntil)}`,
+      );
+      void reloadFromCloud();
+    } catch (err) {
+      setBillingMsg(err instanceof Error ? err.message : 'החיוב נכשל');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function billingCancel() {
+    if (!modal || modal.kind !== 'billing') return;
+    if (!confirm(`לבטל את הוראת הקבע של «${modal.config.name}»?`)) return;
+    setBusy(true);
+    setBillingMsg('');
+    try {
+      const sub = await cancelBilling(modal.config.id);
+      setBillingSub(sub);
+      setBillingActive(false);
+      setBillingMsg('הוראת הקבע בוטלה — הרישיון יפוג בתום התקופה ששולמה');
+    } catch (err) {
+      setBillingMsg(err instanceof Error ? err.message : 'הביטול נכשל');
+    } finally {
+      setBusy(false);
+    }
   }
 
   function openResetPassword(config: SynagogueConfig) {
@@ -599,6 +693,14 @@ export function Agency() {
                       <button
                         type="button"
                         className="act"
+                        onClick={() => void openBilling(c)}
+                        title="הוראת קבע חודשית דרך SUMIT"
+                      >
+                        הו״ק
+                      </button>
+                      <button
+                        type="button"
+                        className="act"
                         onClick={() => openResetPassword(c)}
                       >
                         אפס סיסמה
@@ -850,6 +952,113 @@ export function Agency() {
                   <button type="submit" className="btn primary" disabled={busy}>
                     {busy ? 'מפעיל…' : 'הפעל מסך'}
                   </button>
+                </div>
+              </form>
+            ) : null}
+
+            {modal.kind === 'billing' ? (
+              <form onSubmit={(e) => void saveBilling(e)}>
+                <h2>הוראת קבע — {modal.config.name}</h2>
+                {billingConfigured === false ? (
+                  <p className="hint warn">
+                    סליקת SUMIT לא מוגדרת בשרת. הוסף את משתני הסביבה{' '}
+                    <code dir="ltr">SUMIT_COMPANY_ID</code>,{' '}
+                    <code dir="ltr">SUMIT_API_KEY</code>,{' '}
+                    <code dir="ltr">SUMIT_API_PUBLIC_KEY</code> ב־Render.
+                  </p>
+                ) : billingConfigured === null ? (
+                  <p className="hint">טוען…</p>
+                ) : (
+                  <>
+                    <p className="hint">
+                      קבע סכום חודשי. בית הכנסת מזין כרטיס אשראי בפאנל הניהול שלו
+                      (לשונית הגדרות), וכל חיוב מוצלח מחדש את הרישיון לחודש נוסף.
+                    </p>
+                    <label>
+                      סכום חודשי (₪, כולל מע״מ)
+                      <input
+                        value={billingAmount}
+                        onChange={(e) => setBillingAmount(e.target.value)}
+                        inputMode="decimal"
+                        required
+                        dir="ltr"
+                        style={{ textAlign: 'left' }}
+                      />
+                    </label>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={billingActive}
+                        onChange={(e) => setBillingActive(e.target.checked)}
+                      />
+                      חיוב חודשי אוטומטי פעיל
+                    </label>
+                    {billingSub ? (
+                      <p className="hint">
+                        סטטוס:{' '}
+                        {billingSub.status === 'active'
+                          ? 'פעיל'
+                          : billingSub.status === 'failed'
+                            ? 'חיוב נכשל'
+                            : billingSub.status === 'canceled'
+                              ? 'מבוטל'
+                              : 'טרם הוזן כרטיס'}
+                        {billingSub.hasPaymentMethod
+                          ? ` · כרטיס •••• ${billingSub.cardMask || '????'}`
+                          : ''}
+                        {billingSub.paidUntil
+                          ? ` · שולם עד ${formatBillingDate(billingSub.paidUntil)}`
+                          : ''}
+                        {billingSub.lastError ? ` · שגיאה: ${billingSub.lastError}` : ''}
+                      </p>
+                    ) : null}
+                    {billingSub?.history?.length ? (
+                      <ul className="hint" style={{ margin: 0, paddingInlineStart: '1.1rem' }}>
+                        {billingSub.history
+                          .slice(-4)
+                          .reverse()
+                          .map((h, i) => (
+                            <li key={i}>
+                              {formatBillingDate(h.at)} · {formatIls(h.amount)} ·{' '}
+                              {h.ok ? 'הצליח' : `נכשל${h.error ? ` (${h.error})` : ''}`}
+                            </li>
+                          ))}
+                      </ul>
+                    ) : null}
+                  </>
+                )}
+                {billingMsg ? <p className="hint">{billingMsg}</p> : null}
+                <div className="modal-actions">
+                  <button type="button" className="btn ghost" onClick={() => setModal(null)}>
+                    סגור
+                  </button>
+                  {billingConfigured ? (
+                    <>
+                      {billingSub?.hasPaymentMethod ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn ghost"
+                            disabled={busy}
+                            onClick={() => void billingCancel()}
+                          >
+                            בטל הו״ק
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost"
+                            disabled={busy}
+                            onClick={() => void billingChargeNow()}
+                          >
+                            {busy ? 'מחייב…' : 'חייב עכשיו'}
+                          </button>
+                        </>
+                      ) : null}
+                      <button type="submit" className="btn primary" disabled={busy}>
+                        {busy ? 'שומר…' : 'שמור הגדרות'}
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </form>
             ) : null}

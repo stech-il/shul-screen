@@ -1,0 +1,154 @@
+/**
+ * SUMIT billing client — recurring monthly license payments (הוראת קבע).
+ * Card details are tokenized in the browser directly against SUMIT;
+ * only a SingleUseToken reaches our server.
+ */
+
+export interface BillingHistoryItem {
+  at: string;
+  amount: number;
+  ok: boolean;
+  error?: string;
+  paymentId?: number | string | null;
+  documentId?: number | string | null;
+}
+
+export interface BillingSubscription {
+  synagogueId: string;
+  amount: number;
+  active: boolean;
+  status: 'none' | 'active' | 'failed' | 'canceled';
+  hasPaymentMethod: boolean;
+  cardMask: string;
+  payerName: string;
+  payerEmail: string;
+  paidUntil: string | null;
+  lastChargeAt: string | null;
+  lastError: string | null;
+  history: BillingHistoryItem[];
+}
+
+export interface BillingConfig {
+  configured: boolean;
+  companyId: number | null;
+  publicKey: string | null;
+}
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  });
+  const body = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) {
+    throw new Error(body?.error || `שגיאת שרת ${res.status}`);
+  }
+  return body;
+}
+
+export function fetchBillingConfig(): Promise<BillingConfig> {
+  return api<BillingConfig>('/api/billing/config');
+}
+
+export function fetchSubscription(id: string): Promise<BillingSubscription> {
+  return api<BillingSubscription>(`/api/billing/subscriptions/${encodeURIComponent(id)}`);
+}
+
+export function fetchAllSubscriptions(): Promise<BillingSubscription[]> {
+  return api<{ items: BillingSubscription[] }>('/api/billing/subscriptions').then(
+    (r) => r.items ?? [],
+  );
+}
+
+export function saveBillingSettings(
+  id: string,
+  settings: { amount?: number; active?: boolean },
+): Promise<BillingSubscription> {
+  return api<BillingSubscription>(
+    `/api/billing/subscriptions/${encodeURIComponent(id)}/settings`,
+    { method: 'PUT', body: JSON.stringify(settings) },
+  );
+}
+
+export function subscribeBilling(
+  id: string,
+  payload: { singleUseToken: string; name?: string; email?: string; phone?: string },
+): Promise<BillingSubscription> {
+  return api<{ ok: boolean; subscription: BillingSubscription }>(
+    `/api/billing/subscriptions/${encodeURIComponent(id)}/subscribe`,
+    { method: 'POST', body: JSON.stringify(payload) },
+  ).then((r) => r.subscription);
+}
+
+export function chargeBillingNow(id: string): Promise<BillingSubscription> {
+  return api<{ ok: boolean; subscription: BillingSubscription }>(
+    `/api/billing/subscriptions/${encodeURIComponent(id)}/charge`,
+    { method: 'POST', body: '{}' },
+  ).then((r) => r.subscription);
+}
+
+export function cancelBilling(id: string): Promise<BillingSubscription> {
+  return api<BillingSubscription>(
+    `/api/billing/subscriptions/${encodeURIComponent(id)}/cancel`,
+    { method: 'POST', body: '{}' },
+  );
+}
+
+export interface CardDetails {
+  cardNumber: string;
+  expMonth: string;
+  expYear: string;
+  cvv: string;
+  citizenId: string;
+}
+
+/**
+ * Tokenize card in the browser against SUMIT (same endpoint their official
+ * payments.js uses). Returns a SingleUseToken — the card never reaches our server.
+ */
+export async function tokenizeCard(
+  config: BillingConfig,
+  card: CardDetails,
+): Promise<string> {
+  if (!config.configured || !config.companyId || !config.publicKey) {
+    throw new Error('סליקה לא מוגדרת בשרת');
+  }
+  const params = new URLSearchParams();
+  params.set('Credentials[CompanyID]', String(config.companyId));
+  params.set('Credentials[APIPublicKey]', config.publicKey);
+  params.set('CardNumber', card.cardNumber.replace(/\s+/g, ''));
+  params.set('ExpirationMonth', card.expMonth);
+  params.set('ExpirationYear', card.expYear.length === 2 ? `20${card.expYear}` : card.expYear);
+  params.set('CVV', card.cvv);
+  params.set('CitizenID', card.citizenId);
+
+  const res = await fetch('https://api.sumit.co.il/creditguy/vault/tokenizesingleuse/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Language': 'he',
+    },
+    body: params.toString(),
+  });
+  const body = (await res.json().catch(() => null)) as {
+    Status?: number;
+    UserErrorMessage?: string | null;
+    TechnicalErrorDetails?: string | null;
+    Data?: { SingleUseToken?: string };
+  } | null;
+  if (!body) throw new Error('שגיאת תקשורת מול SUMIT');
+  if (body.Status !== 0 || !body.Data?.SingleUseToken) {
+    throw new Error(body.UserErrorMessage || body.TechnicalErrorDetails || 'אימות הכרטיס נכשל');
+  }
+  return body.Data.SingleUseToken;
+}
+
+export function formatIls(amount: number): string {
+  return `${amount.toLocaleString('he-IL')} ₪`;
+}
+
+export function formatBillingDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' });
+}

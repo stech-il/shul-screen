@@ -15,6 +15,7 @@ import {
   putBundle,
   statusPayload,
 } from './server/cloudStore.mjs';
+import { billingConfigured, handleBilling, startBillingCron } from './server/billing.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, 'dist');
@@ -218,6 +219,10 @@ const server = http.createServer((req, res) => {
     void handleCloud(req, res, url);
     return;
   }
+  if (url.pathname.startsWith('/api/billing')) {
+    void handleBilling(req, res, url);
+    return;
+  }
   serveStatic(url.pathname, res);
 });
 
@@ -234,5 +239,11 @@ server.listen(PORT, () => {
   );
   if (!cloudConfigured()) {
     console.warn('Cloud API disabled');
+  }
+  if (billingConfigured()) {
+    console.log('SUMIT billing: enabled — recurring cycle every 6h');
+    startBillingCron();
+  } else {
+    console.log('SUMIT billing: disabled (set SUMIT_COMPANY_ID / SUMIT_API_KEY / SUMIT_API_PUBLIC_KEY)');
   }
 });

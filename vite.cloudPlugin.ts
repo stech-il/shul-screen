@@ -2,6 +2,8 @@
  * Vite middleware: expose /api/cloud during `npm run dev` / preview
  * using the same store as production server.mjs
  */
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { Plugin } from 'vite';
 
 async function readReq(req: import('http').IncomingMessage): Promise<Buffer> {
@@ -19,6 +21,14 @@ export function cloudApiPlugin(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         try {
           const url = req.url || '';
+          if (url.startsWith('/api/billing')) {
+            const billing = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/billing.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            await billing.handleBilling(req, res, parsed);
+            return;
+          }
           if (!url.startsWith('/api/cloud')) {
             next();
             return;

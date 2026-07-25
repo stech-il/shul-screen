@@ -56,6 +56,13 @@ export default defineConfig({
             },
           },
           {
+            urlPattern: /\/api\/billing\/.*/i,
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'billing-api',
+            },
+          },
+          {
             urlPattern: /^https:\/\/api\.open-meteo\.com\/.*/i,
             handler: 'NetworkFirst',
             options: {

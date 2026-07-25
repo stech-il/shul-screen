@@ -28,3 +28,10 @@ services:
         value: stech-il/shul-screen-data
       - key: CLOUD_GITHUB_BRANCH
         value: main
+      # SUMIT billing (הוראת קבע) — from SUMIT dashboard: Settings → API
+      - key: SUMIT_COMPANY_ID
+        sync: false
+      - key: SUMIT_API_KEY
+        sync: false
+      - key: SUMIT_API_PUBLIC_KEY
+        sync: false
