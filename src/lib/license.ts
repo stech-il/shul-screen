@@ -125,28 +125,28 @@ export function getScreenLicenseStatus(config: SynagogueConfig): ScreenLicenseSt
   if (!lic) {
     return {
       ok: false,
-      reason: 'המסך עדיין לא הופעל. פנה לספק המערכת להפעלה.',
+      reason: 'אין רישיון פעיל למסך זה — פנה לספק המערכת',
       license: null,
     };
   }
   if (lic.locked) {
     return {
       ok: false,
-      reason: 'המסך ננעל. פנה לספק המערכת.',
+      reason: 'המסך ננעל. פנה לספק המערכת או עדכן כרטיס אשראי.',
       license: lic,
     };
   }
   if (lic.synagogueId && lic.synagogueId !== config.id) {
     return {
       ok: false,
-      reason: 'המסך לא מורשה להצגה. פנה לספק המערכת.',
+      reason: 'אין רישיון פעיל למסך זה — פנה לספק המערכת',
       license: lic,
     };
   }
   if (!isLicenseValid(lic)) {
     return {
       ok: false,
-      reason: 'תוקף ההפעלה הסתיים. פנה לספק המערכת לחידוש.',
+      reason: 'אין רישיון פעיל למסך זה — פנה לספק המערכת',
       license: lic,
     };
   }

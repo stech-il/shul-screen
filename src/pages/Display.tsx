@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { CanvasStage } from '../components/canvas/CanvasStage';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { defaultCanvas } from '../components/canvas/widgets';
@@ -223,13 +223,26 @@ export function Display({ synagogueId }: Props) {
 
   const licenseStatus = getScreenLicenseStatus(config);
   if (!licenseStatus.ok) {
+    const payHref = `/login/${synagogueId}?billing=1`;
     return (
       <div className="display license-lock" dir="rtl" lang="he">
         <div className="license-lock-card">
           <p className="license-lock-eyebrow">Shul Screen</p>
           <h1>{config.name}</h1>
-          <p className="license-lock-reason">{licenseStatus.reason}</p>
-          <p className="license-lock-help">ההפעלה מתבצעת במערכת הניהול הראשית בלבד.</p>
+          <p className="license-lock-reason">
+            אין רישיון פעיל למסך זה — פנה לספק המערכת
+          </p>
+          <p className="license-lock-help">
+            או עדכן כרטיס אשראי כדי לחדש את הרישיון בתשלום חודשי.
+          </p>
+          <div className="license-lock-actions">
+            <Link className="btn primary" to={payHref}>
+              עדכן כרטיס אשראי — לחץ כאן
+            </Link>
+            <Link className="btn" to={`/login/${synagogueId}`}>
+              כניסה לניהול
+            </Link>
+          </div>
         </div>
       </div>
     );

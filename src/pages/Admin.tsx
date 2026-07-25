@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { BillingCard } from '../components/BillingCard';
 import { DesignStudio } from '../components/DesignStudio';
 import { CanvasBuilder } from '../components/canvas/CanvasBuilder';
@@ -100,6 +100,7 @@ function uid() {
 
 export function Admin({ synagogueId }: Props) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [config, setConfigRaw] = useState<SynagogueConfig | null>(null);
   const undo = useUndoHistory<SynagogueConfig>();
   const [status, setStatus] = useState('');
@@ -111,9 +112,12 @@ export function Admin({ synagogueId }: Props) {
     role: 'editor' as UserRole,
   });
   const [session, setSession] = useState(() => loadSession());
-  const [tab, setTab] = useState<TabId>(() =>
-    canEditSettings(loadSession()?.role ?? 'editor') ? 'design' : 'content',
-  );
+  const [tab, setTab] = useState<TabId>(() => {
+    if (searchParams.get('billing') === '1' && canEditSettings(loadSession()?.role ?? 'editor')) {
+      return 'settings';
+    }
+    return canEditSettings(loadSession()?.role ?? 'editor') ? 'design' : 'content';
+  });
   const [kioskPin, setKioskPin] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [previewKey, setPreviewKey] = useState(0);
@@ -209,6 +213,16 @@ export function Admin({ synagogueId }: Props) {
   useEffect(() => {
     if (tab === 'history') setHistory(loadHistory(synagogueId));
   }, [tab, synagogueId]);
+
+  useEffect(() => {
+    if (searchParams.get('billing') !== '1') return;
+    if (!canEditSettings(session?.role ?? 'editor')) return;
+    setTab('settings');
+    const t = window.setTimeout(() => {
+      document.getElementById('billing-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [searchParams, session?.role]);
 
   useSessionKeepAlive(
     touchSession,
@@ -582,13 +596,34 @@ export function Admin({ synagogueId }: Props) {
       })
     : null;
   const licenseDays = daysLeft(config.license);
-  const licenseBanner = licenseOk
-    ? licenseExpiry
-      ? `מערכת ברישיון עד ${licenseExpiry}${
-          licenseDays != null && licenseDays <= 30 ? ` · נותרו ${licenseDays} ימים` : ''
-        }`
-      : 'מערכת ברישיון פעיל'
-    : 'אין רישיון פעיל למסך זה — פנה לספק המערכת';
+  const licenseBanner = licenseOk ? (
+    licenseExpiry ? (
+      `מערכת ברישיון עד ${licenseExpiry}${
+        licenseDays != null && licenseDays <= 30 ? ` · נותרו ${licenseDays} ימים` : ''
+      }`
+    ) : (
+      'מערכת ברישיון פעיל'
+    )
+  ) : (
+    <>
+      אין רישיון פעיל למסך זה — פנה לספק המערכת ·{' '}
+      <button
+        type="button"
+        className="license-pay-link"
+        onClick={() => {
+          setTab('settings');
+          queueMicrotask(() =>
+            document.getElementById('billing-card')?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start',
+            }),
+          );
+        }}
+      >
+        עדכן כרטיס אשראי — לחץ כאן
+      </button>
+    </>
+  );
 
   return (
     <div className="admin" dir="rtl" lang="he">
@@ -737,17 +772,19 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'settings' ? (
           <>
             {isOwner ? (
-              <BillingCard
-                synagogueId={synagogueId}
-                onRenewed={() => {
-                  void createDefaultConfig(synagogueId, 'בית כנסת חדש').then((fallback) =>
-                    syncConfig(synagogueId, fallback).then((r) => {
-                      setConfigRaw(r.bundle.config);
-                      setStatus('הרישיון חודש — תודה על התשלום');
-                    }),
-                  );
-                }}
-              />
+              <div id="billing-card">
+                <BillingCard
+                  synagogueId={synagogueId}
+                  onRenewed={() => {
+                    void createDefaultConfig(synagogueId, 'בית כנסת חדש').then((fallback) =>
+                      syncConfig(synagogueId, fallback).then((r) => {
+                        setConfigRaw(r.bundle.config);
+                        setStatus('הרישיון חודש — תודה על התשלום');
+                      }),
+                    );
+                  }}
+                />
+              </div>
             ) : null}
             <section className="card">
               <h2>פרטי בית הכנסת</h2>

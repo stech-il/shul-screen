@@ -67,6 +67,23 @@
   border-color: color-mix(in srgb, #c45a28 28%, transparent);
 }
 
+.license-pay-link {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.license-pay-link:hover {
+  opacity: 0.85;
+}
+
 .status {
   margin: 0.35rem 0 0;
   color: var(--muted);

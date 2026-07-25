@@ -31,18 +31,19 @@ export function Login() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const billingQs = params.get('billing') === '1' ? '?billing=1' : '';
     // Platform super-admin deep link: /login/:id?platform=1
     if (params.get('platform') === '1' && isPlatformAdminLoggedIn()) {
       enterAsPlatformAdmin(id, {
         platformUsername: loadPlatformSession()?.username,
       });
-      navigate(`/admin/${id}`, { replace: true });
+      navigate(`/admin/${id}${billingQs}`, { replace: true });
       return;
     }
 
     const existing = loadSession();
     if (existing && existing.synagogueId === id && canEditContent(existing.role)) {
-      navigate(`/admin/${id}`, { replace: true });
+      navigate(`/admin/${id}${billingQs}`, { replace: true });
       return;
     }
     createDefaultConfig(id, 'בית כנסת').then((fallback) =>
@@ -72,7 +73,7 @@ export function Login() {
         role: 'owner',
         remember,
       });
-      navigate(`/admin/${id}`);
+      navigate(params.get('billing') === '1' ? `/admin/${id}?billing=1` : `/admin/${id}`);
       return;
     }
 
@@ -89,7 +90,7 @@ export function Login() {
       role: member.role,
       remember,
     });
-    navigate(`/admin/${id}`);
+    navigate(params.get('billing') === '1' ? `/admin/${id}?billing=1` : `/admin/${id}`);
   }
 
   if (loading) {
@@ -115,11 +116,19 @@ export function Login() {
         <p className="eyebrow">כניסה לניהול</p>
         <h1>{config?.name ?? id}</h1>
         <p className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>
-          {licenseOk
-            ? licenseExpiry
-              ? `מערכת ברישיון עד ${licenseExpiry}`
-              : 'מערכת ברישיון פעיל'
-            : 'אין רישיון פעיל — פנה לספק המערכת'}
+          {licenseOk ? (
+            licenseExpiry ? (
+              `מערכת ברישיון עד ${licenseExpiry}`
+            ) : (
+              'מערכת ברישיון פעיל'
+            )
+          ) : (
+            <>
+              אין רישיון פעיל למסך זה — פנה לספק המערכת · אחרי הכניסה אפשר{' '}
+              <strong>לעדכן כרטיס אשראי</strong>
+              {params.get('billing') === '1' ? ' (יועבר לתשלום אחרי התחברות)' : ''}
+            </>
+          )}
         </p>
         <p className="hint">שם משתמש וסיסמה של מנהל או עורך</p>
         <form onSubmit={onSubmit} className="login-form">
