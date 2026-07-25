@@ -5,11 +5,19 @@ import { createDefaultConfig } from '../data/defaults';
 import {
   DEMO_LICENSE_KEYS,
   isLicenseValid,
+  issueScreenLicense,
   licenseLabel,
   loadGlobalLicense,
   parseLicenseKey,
   saveGlobalLicense,
 } from '../lib/license';
+import {
+  clearPlatformSession,
+  isPlatformAdminLoggedIn,
+  loadPlatformSession,
+  loginPlatformAdmin,
+  getPlatformAdminUsername,
+} from '../lib/platformAuth';
 import { listSynagogueIds, loadLocal, saveConfig } from '../lib/storage';
 import { isScreenOnline, listHeartbeats } from '../lib/analytics';
 import './Agency.css';
@@ -28,6 +36,9 @@ function slugify(name: string) {
 
 export function Agency() {
   const navigate = useNavigate();
+  const [platformOk, setPlatformOk] = useState(() => isPlatformAdminLoggedIn());
+  const [loginUser, setLoginUser] = useState(getPlatformAdminUsername());
+  const [loginPass, setLoginPass] = useState('');
   const [license, setLicense] = useState(() => loadGlobalLicense());
   const [licenseKey, setLicenseKey] = useState('');
   const [name, setName] = useState('');
@@ -45,10 +56,30 @@ export function Agency() {
   );
 
   const agencyOk =
-    license && isLicenseValid(license) && (license.plan === 'agency' || license.plan === 'pro');
+    platformOk &&
+    license &&
+    isLicenseValid(license) &&
+    (license.plan === 'agency' || license.plan === 'pro');
+
+  async function onPlatformLogin(e: FormEvent) {
+    e.preventDefault();
+    const result = await loginPlatformAdmin(loginUser, loginPass);
+    if (!result.ok) {
+      setMsg(result.error);
+      return;
+    }
+    setPlatformOk(true);
+    setLoginPass('');
+    setMsg(`מחובר כמנהל מערכת: ${result.session.username}`);
+  }
 
   function activateLicense(e: FormEvent) {
     e.preventDefault();
+    if (!isPlatformAdminLoggedIn()) {
+      setMsg('יש להתחבר כמנהל מערכת לפני הפעלת רישיון');
+      setPlatformOk(false);
+      return;
+    }
     const parsed = parseLicenseKey(licenseKey);
     if (!parsed) {
       setMsg('מפתח רישיון לא תקין');
@@ -59,20 +90,102 @@ export function Agency() {
     setMsg(`הופעל רישיון ${licenseLabel(parsed.plan)}`);
   }
 
+  async function issueForShul(id: string, name: string) {
+    if (!isPlatformAdminLoggedIn()) {
+      setMsg('נדרשת התחברות מנהל מערכת');
+      setPlatformOk(false);
+      return;
+    }
+    const local = loadLocal(id);
+    if (!local?.config) {
+      setMsg('בית הכנסת לא נמצא');
+      return;
+    }
+    const plan =
+      license?.plan === 'pro' || license?.plan === 'agency' ? 'pro' : 'basic';
+    const next = {
+      ...local.config,
+      license: issueScreenLicense(id, plan, name),
+    };
+    await saveConfig(next, undefined, {
+      by: `platform:${loadPlatformSession()?.username ?? 'admin'}`,
+      summary: 'הנפקת רישיון מסך',
+    });
+    setMsg(`הונפק רישיון ל־${name}: ${next.license.key}`);
+  }
+
   async function createShul(e: FormEvent) {
     e.preventDefault();
+    if (!isPlatformAdminLoggedIn()) {
+      setMsg('נדרשת התחברות מנהל מערכת');
+      setPlatformOk(false);
+      return;
+    }
     if (!agencyOk) {
       setMsg('נדרש רישיון Pro / Agency');
       return;
     }
     if (!name.trim()) return;
     const id = slugify(name);
+    if (listSynagogueIds().includes(id) || loadLocal(id)) {
+      setMsg('מזהה בית כנסת כבר קיים');
+      return;
+    }
     const config = await createDefaultConfig(id, name.trim(), cityId, 'admin123', 'admin');
-    config.license = license ?? undefined;
-    await saveConfig(config, undefined, { by: 'סוכנות', summary: 'יצירת בית כנסת' });
+    const plan =
+      license?.plan === 'pro' || license?.plan === 'agency' ? 'pro' : license?.plan || 'basic';
+    config.license = issueScreenLicense(id, plan, name.trim());
+    await saveConfig(config, undefined, {
+      by: `platform:${loadPlatformSession()?.username ?? 'admin'}`,
+      summary: `יצירת בית כנסת + רישיון מסך`,
+    });
     setName('');
-    setMsg(`נוצר: ${config.name}`);
+    setMsg(`נוצר: ${config.name} · רישיון: ${config.license.key}`);
     navigate(`/login/${id}`);
+  }
+
+  if (!platformOk) {
+    return (
+      <div className="agency" dir="rtl">
+        <header className="agency-header">
+          <div>
+            <p className="eyebrow">דשבורד סוכנות</p>
+            <h1>כניסת מנהל מערכת</h1>
+            <p className="hint">יצירת בתי כנסת וניהול סוכנות מוגנים במנהל מערכת.</p>
+          </div>
+          <Link className="btn ghost" to="/">
+            חזרה לדף הבית
+          </Link>
+        </header>
+        <form className="panel" onSubmit={onPlatformLogin} style={{ maxWidth: 420 }}>
+          <label>
+            שם משתמש
+            <input
+              value={loginUser}
+              onChange={(e) => setLoginUser(e.target.value)}
+              required
+              dir="ltr"
+              style={{ textAlign: 'left' }}
+            />
+          </label>
+          <label>
+            סיסמה
+            <input
+              type="password"
+              value={loginPass}
+              onChange={(e) => setLoginPass(e.target.value)}
+              required
+              dir="ltr"
+              style={{ textAlign: 'left' }}
+            />
+          </label>
+          {msg ? <p className="status">{msg}</p> : null}
+          <button type="submit" className="btn primary">
+            התחבר
+          </button>
+        </form>
+      </div>
+    );
   }
 
   return (
@@ -82,14 +195,27 @@ export function Agency() {
           <p className="eyebrow">דשבורד סוכנות</p>
           <h1>ניהול בתי כנסת</h1>
           <p className="hint">
+            מנהל מערכת: {loadPlatformSession()?.username} ·{' '}
             {license && isLicenseValid(license)
-              ? `רישיון: ${licenseLabel(license.plan)} · ${license.key}`
-              : 'אין רישיון פעיל — ניתן להפעיל מפתח הדגמה'}
+              ? `רישיון: ${licenseLabel(license.plan)}`
+              : 'אין רישיון פעיל'}
           </p>
         </div>
-        <Link className="btn ghost" to="/">
-          חזרה לדף הבית
-        </Link>
+        <div className="row-actions">
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => {
+              clearPlatformSession();
+              setPlatformOk(false);
+            }}
+          >
+            התנתק
+          </button>
+          <Link className="btn ghost" to="/">
+            חזרה לדף הבית
+          </Link>
+        </div>
       </header>
 
       <div className="agency-grid">
@@ -100,24 +226,22 @@ export function Agency() {
             <input
               value={licenseKey}
               onChange={(e) => setLicenseKey(e.target.value)}
-              placeholder="SHUL-AGENCY-DEMO-0001"
+              placeholder="SHUL-..."
               dir="ltr"
               style={{ textAlign: 'left' }}
             />
           </label>
+          <p className="demo-keys">
+            הדגמה:{' '}
+            {DEMO_LICENSE_KEYS.map((k) => (
+              <button key={k} type="button" onClick={() => setLicenseKey(k)}>
+                {k}
+              </button>
+            ))}
+          </p>
           <button type="submit" className="btn primary">
             הפעל
           </button>
-          <p className="hint">מפתחות הדגמה:</p>
-          <ul className="demo-keys">
-            {DEMO_LICENSE_KEYS.map((k) => (
-              <li key={k}>
-                <button type="button" className="linkish" onClick={() => setLicenseKey(k)}>
-                  {k}
-                </button>
-              </li>
-            ))}
-          </ul>
         </form>
 
         <form className="panel" onSubmit={createShul}>
@@ -137,8 +261,9 @@ export function Agency() {
             </select>
           </label>
           <button type="submit" className="btn primary" disabled={!agencyOk}>
-            צור לקוח
+            צור בית כנסת
           </button>
+          {!agencyOk ? <p className="hint">נדרש רישיון Pro / Agency</p> : null}
         </form>
 
         <section className="panel wide">
@@ -154,6 +279,9 @@ export function Agency() {
                     <strong>{c!.name}</strong>
                     <span>
                       {c!.id} · {online ? 'מסך מחובר' : 'מסך לא מחובר'}
+                      {c!.license
+                        ? ` · רישיון ${licenseLabel(c!.license.plan)}`
+                        : ' · ללא רישיון'}
                       {hb ? ` · v${hb.version}` : ''}
                     </span>
                   </div>
@@ -161,6 +289,15 @@ export function Agency() {
                     <Link to={`/display/${c!.id}`}>מסך</Link>
                     <Link to={`/login/${c!.id}`}>ניהול</Link>
                     <Link to={`/display/${c!.id}?kiosk=1`}>קיוסק</Link>
+                    {!c!.license || !isLicenseValid(c!.license) ? (
+                      <button
+                        type="button"
+                        className="linkish"
+                        onClick={() => void issueForShul(c!.id, c!.name)}
+                      >
+                        הנפק רישיון
+                      </button>
+                    ) : null}
                   </div>
                 </li>
               );

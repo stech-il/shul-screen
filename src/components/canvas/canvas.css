@@ -197,6 +197,14 @@
   margin-inline-start: 0.4em;
 }
 
+.cw-list li.cw-heading-row {
+  justify-content: center;
+  text-align: center;
+  border-bottom: none;
+  font-weight: 600;
+  color: var(--accent, #a8893d);
+}
+
 .cw-list li strong {
   font-variant-numeric: tabular-nums;
   font-size: 1.1em;

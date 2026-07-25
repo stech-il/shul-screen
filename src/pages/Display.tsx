@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { CanvasStage } from '../components/canvas/CanvasStage';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { defaultCanvas } from '../components/canvas/widgets';
@@ -23,6 +23,7 @@ import {
 } from '../lib/orefAlerts';
 import { startHeartbeat, trackEvent } from '../lib/analytics';
 import { playOrefTone } from '../lib/sound';
+import { daysLeft, getScreenLicenseStatus } from '../lib/license';
 import {
   isAnnouncementActive,
   startAutoSync,
@@ -202,6 +203,37 @@ export function Display({ synagogueId }: Props) {
     return (
       <div className="display" dir="rtl">
         טוען מסך...
+      </div>
+    );
+  }
+
+  const licenseStatus = getScreenLicenseStatus(config);
+  if (!licenseStatus.ok) {
+    const left = daysLeft(licenseStatus.license);
+    return (
+      <div className="display license-lock" dir="rtl" lang="he">
+        <div className="license-lock-card">
+          <p className="license-lock-eyebrow">רישיון מסך</p>
+          <h1>{config.name}</h1>
+          <p className="license-lock-reason">{licenseStatus.reason}</p>
+          {licenseStatus.license ? (
+            <p className="license-lock-meta" dir="ltr">
+              {licenseStatus.license.key}
+              {left != null ? ` · נותרו ${left} ימים` : ''}
+            </p>
+          ) : null}
+          <p className="license-lock-help">
+            הפעל מפתח רישיון במסך הניהול, או הנפק רישיון חדש מדשבורד הסוכנות / מנהל המערכת.
+          </p>
+          <div className="license-lock-actions">
+            <Link className="btn primary" to={`/login/${config.id}`}>
+              כניסה לניהול
+            </Link>
+            <Link className="btn ghost" to="/agency">
+              דשבורד סוכנות
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -454,22 +486,35 @@ export function Display({ synagogueId }: Props) {
               <div className="panel" key={block.id}>
                 <h2>{block.title}</h2>
                 <ul className="schedule-list">
-                  {block.items.map((item) => (
-                    <li key={item.id}>
-                      <span className="item-title">
-                        {item.title}
-                        {item.note ? <em>{item.note}</em> : null}
-                      </span>
-                      <strong className="time-ltr">
-                        {resolveFromZmanimMap(
+                  {block.items.map((item) => {
+                    const timeStr = item.noTime
+                      ? ''
+                      : resolveFromZmanimMap(
                           zmanimMap,
                           item.time,
                           item.fromZman,
                           item.offsetMinutes ?? 0,
-                        )}
-                      </strong>
-                    </li>
-                  ))}
+                        );
+                    if (item.noTime || !timeStr) {
+                      return (
+                        <li key={item.id} className="schedule-heading">
+                          <span className="item-title">
+                            {item.title}
+                            {item.note ? <em>{item.note}</em> : null}
+                          </span>
+                        </li>
+                      );
+                    }
+                    return (
+                      <li key={item.id}>
+                        <span className="item-title">
+                          {item.title}
+                          {item.note ? <em>{item.note}</em> : null}
+                        </span>
+                        <strong className="time-ltr">{timeStr}</strong>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}

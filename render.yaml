@@ -17,3 +17,7 @@ services:
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
+      - key: VITE_PLATFORM_ADMIN_USER
+        sync: false
+      - key: VITE_PLATFORM_ADMIN_PASSWORD
+        sync: false

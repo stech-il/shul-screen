@@ -1,5 +1,7 @@
 import type { LicenseInfo } from '../types';
 import {
+  bindLicenseToScreen,
+  findLicenseBinding,
   isLicenseValid,
   parseLicenseKey,
   saveGlobalLicense,
@@ -9,14 +11,30 @@ import { getSupabase, isSupabaseConfigured } from './supabase';
 
 /**
  * Validate license locally + optionally against Supabase `licenses` table.
- * Remote lock: row.locked = true blocks the synagogue.
+ * Binds the key to a specific synagogue (per-screen license).
  */
 export async function activateLicenseKey(
   key: string,
-  synagogueId?: string,
+  synagogueId: string,
 ): Promise<{ ok: boolean; info?: LicenseInfo; error?: string }> {
+  if (!synagogueId.trim()) {
+    return { ok: false, error: 'חסר מזהה מסך' };
+  }
+
   const parsed = parseLicenseKey(key);
   if (!parsed) return { ok: false, error: 'מפתח לא תקין' };
+
+  const isDemo = parsed.key.includes('-DEMO-');
+  if (!isDemo) {
+    const existing = findLicenseBinding(parsed.key);
+    if (existing?.synagogueId && existing.synagogueId !== synagogueId) {
+      return {
+        ok: false,
+        error: `המפתח כבר משויך למסך «${existing.synagogueId}»`,
+        info: existing,
+      };
+    }
+  }
 
   if (isSupabaseConfigured) {
     const sb = getSupabase();
@@ -32,7 +50,17 @@ export async function activateLicenseKey(
           return {
             ok: false,
             error: 'הרישיון ננעל מרחוק — פנה לתמיכה',
-            info: { ...parsed, locked: true, serverValidated: true },
+            info: { ...parsed, locked: true, serverValidated: true, synagogueId },
+          };
+        }
+        if (
+          data.synagogue_id &&
+          data.synagogue_id !== synagogueId &&
+          !isDemo
+        ) {
+          return {
+            ok: false,
+            error: `המפתח כבר משויך למסך «${data.synagogue_id}»`,
           };
         }
         const info: LicenseInfo = {
@@ -42,21 +70,36 @@ export async function activateLicenseKey(
           holderName: data.holder_name || parsed.holderName,
           locked: Boolean(data.locked),
           serverValidated: true,
+          synagogueId,
         };
         if (!isLicenseValid(info)) return { ok: false, error: 'הרישיון פג תוקף', info };
-        saveGlobalLicense(info);
-        if (synagogueId) {
-          await sb.from('licenses').update({ synagogue_id: synagogueId }).eq('key', info.key);
+        try {
+          const bound = bindLicenseToScreen(info, synagogueId);
+          saveGlobalLicense(bound);
+          await sb
+            .from('licenses')
+            .update({ synagogue_id: synagogueId })
+            .eq('key', info.key);
+          return { ok: true, info: bound };
+        } catch (e) {
+          return { ok: false, error: e instanceof Error ? e.message : 'שיוך נכשל' };
         }
-        return { ok: true, info };
       }
-      // No server row — allow demo keys locally
+      // No server row — allow local / demo keys
     }
   }
 
   if (!isLicenseValid(parsed)) return { ok: false, error: 'הרישיון פג תוקף', info: parsed };
-  saveGlobalLicense(parsed);
-  return { ok: true, info: { ...parsed, serverValidated: false } };
+  try {
+    const bound = bindLicenseToScreen(
+      { ...parsed, synagogueId, serverValidated: false },
+      synagogueId,
+    );
+    saveGlobalLicense(bound);
+    return { ok: true, info: bound };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'שיוך נכשל' };
+  }
 }
 
 export function getActiveLicense(): LicenseInfo | null {
@@ -64,7 +107,5 @@ export function getActiveLicense(): LicenseInfo | null {
 }
 
 export function isSynagogueLicensed(info?: LicenseInfo | null): boolean {
-  if (!info) return true; // open demo
-  if (info.locked) return false;
   return isLicenseValid(info);
 }

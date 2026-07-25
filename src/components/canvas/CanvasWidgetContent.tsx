@@ -137,15 +137,28 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <div className="cw-list-wrap">
           {widget.showTitle ? <h3>{title || block.title}</h3> : null}
           <ul className="cw-list">
-            {block.items.map((item) => (
-              <li key={item.id}>
-                <span>
-                  {item.title}
-                  {item.note ? <em>{item.note}</em> : null}
-                </span>
-                <strong className="time-ltr">{data.resolveTime(item)}</strong>
-              </li>
-            ))}
+            {block.items.map((item) => {
+              const timeStr = item.noTime ? '' : data.resolveTime(item);
+              if (item.noTime || !timeStr) {
+                return (
+                  <li key={item.id} className="cw-heading-row">
+                    <span>
+                      {item.title}
+                      {item.note ? <em>{item.note}</em> : null}
+                    </span>
+                  </li>
+                );
+              }
+              return (
+                <li key={item.id}>
+                  <span>
+                    {item.title}
+                    {item.note ? <em>{item.note}</em> : null}
+                  </span>
+                  <strong className="time-ltr">{timeStr}</strong>
+                </li>
+              );
+            })}
           </ul>
         </div>
       );

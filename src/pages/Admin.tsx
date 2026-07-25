@@ -33,6 +33,7 @@ import {
 } from '../lib/license';
 import { activateLicenseKey } from '../lib/licenseCloud';
 import { upsertGallery } from '../lib/gallery';
+import { useUndoHistory } from '../lib/undoHistory';
 import {
   isSupabaseConfigured,
   saveConfig,
@@ -97,7 +98,8 @@ function uid() {
 
 export function Admin({ synagogueId }: Props) {
   const navigate = useNavigate();
-  const [config, setConfig] = useState<SynagogueConfig | null>(null);
+  const [config, setConfigRaw] = useState<SynagogueConfig | null>(null);
+  const undo = useUndoHistory<SynagogueConfig>();
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [newMember, setNewMember] = useState({
@@ -117,6 +119,36 @@ export function Admin({ synagogueId }: Props) {
   const [previewZmanim, setPreviewZmanim] = useState<ComputedZman[]>([]);
   const [previewZmanimMap, setPreviewZmanimMap] = useState<HebcalZmanimResult['times']>({});
 
+  const setConfig = (
+    updater: SynagogueConfig | null | ((c: SynagogueConfig | null) => SynagogueConfig | null),
+  ) => {
+    setConfigRaw((c) => {
+      const next = typeof updater === 'function' ? updater(c) : updater;
+      if (c && next && next !== c && !undo.isApplying()) {
+        undo.recordBeforeChange(c);
+      }
+      return next;
+    });
+  };
+
+  function undoEdit() {
+    setConfigRaw((c) => {
+      if (!c) return c;
+      const prev = undo.undo(c);
+      if (prev) queueMicrotask(() => setStatus('בוטל שינוי אחרון (Ctrl+Z)'));
+      return prev ?? c;
+    });
+  }
+
+  function redoEdit() {
+    setConfigRaw((c) => {
+      if (!c) return c;
+      const next = undo.redo(c);
+      if (next) queueMicrotask(() => setStatus('שוחזר שינוי (Ctrl+Y)'));
+      return next ?? c;
+    });
+  }
+
   const previewSrc = useMemo(
     () => `${window.location.origin}${window.location.pathname}#/display/${synagogueId}?preview=1`,
     [synagogueId, previewKey],
@@ -127,7 +159,8 @@ export function Admin({ synagogueId }: Props) {
     const stop = startAutoSync((n) => setStatus(`סונכרנו ${n} שינויים לענן`));
     createDefaultConfig(synagogueId, 'בית כנסת חדש').then((fallback) =>
       syncConfig(synagogueId, fallback).then((r) => {
-        setConfig(r.bundle.config);
+        setConfigRaw(r.bundle.config);
+        undo.reset();
         const mode = r.cloudMode === 'supabase' ? 'Supabase' : 'סנכרון מקומי';
         setStatus(
           r.online
@@ -139,6 +172,25 @@ export function Admin({ synagogueId }: Props) {
     );
     return stop;
   }, [synagogueId]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undoEdit();
+        return;
+      }
+      if (key === 'y' || (key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redoEdit();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   useEffect(() => {
     if (tab === 'history') setHistory(loadHistory(synagogueId));
@@ -252,18 +304,16 @@ export function Admin({ synagogueId }: Props) {
     });
   }
 
-  function addItem(blockId: string) {
+  function addItem(blockId: string, noTime = false) {
     setConfig((c) => {
       if (!c) return c;
+      const newItem: ScheduleItem = noTime
+        ? { id: uid(), title: 'כותרת / הערה', time: '', noTime: true }
+        : { id: uid(), title: 'פריט חדש', time: '18:00' };
       return {
         ...c,
         blocks: c.blocks.map((b) =>
-          b.id !== blockId
-            ? b
-            : {
-                ...b,
-                items: [...b.items, { id: uid(), title: 'פריט חדש', time: '18:00' }],
-              },
+          b.id !== blockId ? b : { ...b, items: [...b.items, newItem] },
         ),
       };
     });
@@ -454,6 +504,26 @@ export function Admin({ synagogueId }: Props) {
           <p className="status">{status}</p>
         </div>
         <div className="admin-actions">
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={undoEdit}
+            disabled={!undo.canUndo}
+            title="בטל (Ctrl+Z)"
+            aria-label="בטל שינוי אחרון"
+          >
+            חזור אחורה
+          </button>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={redoEdit}
+            disabled={!undo.canRedo}
+            title="קדימה (Ctrl+Y)"
+            aria-label="שחזר שינוי"
+          >
+            קדימה
+          </button>
           <Link className="btn ghost" to={`/display/${synagogueId}`} target="_blank">
             תצוגה חיה
           </Link>
@@ -521,6 +591,7 @@ export function Admin({ synagogueId }: Props) {
               onChange={updateCanvas}
               onGalleryChange={updateGallery}
               onStatus={setStatus}
+              onInteractionEnd={undo.checkpoint}
             />
           </section>
         ) : null}
@@ -682,22 +753,22 @@ export function Admin({ synagogueId }: Props) {
                 </section>
 
                 <section className="card">
-                  <h2>רישיון</h2>
+                  <h2>רישיון מסך</h2>
                   <p className="hint">
                     {config.license && isLicenseValid(config.license)
-                      ? `${licenseLabel(config.license.plan)} · ${config.license.key}`
-                      : 'אין רישיון — מצב הדגמה פתוח'}
+                      ? `${licenseLabel(config.license.plan)} · משויך למסך זה · ${config.license.key}`
+                      : 'אין רישיון פעיל — המסך נעול עד להפעלת מפתח'}
                   </p>
                   <form className="inline-form" onSubmit={activateLicense}>
                     <input
                       value={licenseKey}
                       onChange={(e) => setLicenseKey(e.target.value)}
-                      placeholder="SHUL-PRO-DEMO-0001"
+                      placeholder="SHUL-SCREEN-DEMO-0001"
                       dir="ltr"
                       style={{ textAlign: 'left' }}
                     />
                     <button type="submit" className="btn ghost">
-                      הפעל
+                      הפעל למסך זה
                     </button>
                   </form>
                   <div className="demo-key-row">
@@ -1137,47 +1208,67 @@ export function Admin({ synagogueId }: Props) {
                   </label>
                 </div>
                 {block.items.map((item) => (
-                  <div className="item-row" key={item.id}>
+                  <div className={`item-row ${item.noTime ? 'no-time' : ''}`} key={item.id}>
                     <input
                       value={item.title}
                       onChange={(e) => updateItem(block.id, item.id, { title: e.target.value })}
-                      placeholder="כותרת"
+                      placeholder={item.noTime ? 'כותרת / הערה (בלי שעה)' : 'כותרת'}
                     />
                     <input
                       value={item.note ?? ''}
                       onChange={(e) => updateItem(block.id, item.id, { note: e.target.value })}
                       placeholder="הערה"
                     />
-                    <select
-                      value={item.fromZman ?? ''}
-                      onChange={(e) =>
-                        updateItem(block.id, item.id, {
-                          fromZman: (e.target.value || undefined) as ZmanKey | undefined,
-                        })
-                      }
-                    >
-                      <option value="">שעה קבועה</option>
-                      {ZMAN_DEFS.map((z) => (
-                        <option key={z.key} value={z.key}>
-                          לפי {z.label}
-                        </option>
-                      ))}
-                    </select>
-                    {item.fromZman ? (
+                    {item.noTime ? (
+                      <span className="item-hint">שורה ממורכזת בלי שעה</span>
+                    ) : (
+                      <>
+                        <select
+                          value={item.fromZman ?? ''}
+                          onChange={(e) =>
+                            updateItem(block.id, item.id, {
+                              fromZman: (e.target.value || undefined) as ZmanKey | undefined,
+                            })
+                          }
+                        >
+                          <option value="">שעה קבועה</option>
+                          {ZMAN_DEFS.map((z) => (
+                            <option key={z.key} value={z.key}>
+                              לפי {z.label}
+                            </option>
+                          ))}
+                        </select>
+                        {item.fromZman ? (
+                          <input
+                            type="number"
+                            value={item.offsetMinutes ?? 0}
+                            onChange={(e) =>
+                              updateItem(block.id, item.id, {
+                                offsetMinutes: Number(e.target.value),
+                              })
+                            }
+                          />
+                        ) : (
+                          <input
+                            type="time"
+                            value={item.time}
+                            onChange={(e) =>
+                              updateItem(block.id, item.id, { time: e.target.value })
+                            }
+                          />
+                        )}
+                      </>
+                    )}
+                    <label className="check item-notime-toggle">
                       <input
-                        type="number"
-                        value={item.offsetMinutes ?? 0}
+                        type="checkbox"
+                        checked={Boolean(item.noTime)}
                         onChange={(e) =>
-                          updateItem(block.id, item.id, { offsetMinutes: Number(e.target.value) })
+                          updateItem(block.id, item.id, { noTime: e.target.checked })
                         }
                       />
-                    ) : (
-                      <input
-                        type="time"
-                        value={item.time}
-                        onChange={(e) => updateItem(block.id, item.id, { time: e.target.value })}
-                      />
-                    )}
+                      בלי שעה
+                    </label>
                     <button
                       type="button"
                       className="btn danger"
@@ -1187,9 +1278,18 @@ export function Admin({ synagogueId }: Props) {
                     </button>
                   </div>
                 ))}
-                <button type="button" className="btn ghost" onClick={() => addItem(block.id)}>
-                  + פריט
-                </button>
+                <div className="row-actions">
+                  <button type="button" className="btn ghost" onClick={() => addItem(block.id)}>
+                    + פריט
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => addItem(block.id, true)}
+                  >
+                    + שורה בלי שעה
+                  </button>
+                </div>
               </div>
             ))}
           </section>

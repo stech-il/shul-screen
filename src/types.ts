@@ -31,6 +31,8 @@ export interface ScheduleItem {
   note?: string;
   fromZman?: ZmanKey | string;
   offsetMinutes?: number;
+  /** row without a time — displayed centered across full width */
+  noTime?: boolean;
 }
 
 export interface ScheduleBlock {
@@ -205,6 +207,8 @@ export interface LicenseInfo {
   holderName?: string;
   locked?: boolean;
   serverValidated?: boolean;
+  /** Screen / synagogue this license is bound to */
+  synagogueId?: string;
 }
 
 export interface SynagogueConfig {

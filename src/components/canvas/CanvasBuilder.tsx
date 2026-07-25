@@ -34,6 +34,8 @@ interface Props {
   onChange: (canvas: CanvasLayoutConfig) => void;
   onGalleryChange: (gallery: GalleryItem[]) => void;
   onStatus?: (msg: string) => void;
+  /** Called when a drag/resize gesture ends — useful for undo checkpoints */
+  onInteractionEnd?: () => void;
 }
 
 type DragMode = 'move' | 'resize';
@@ -77,6 +79,7 @@ export function CanvasBuilder({
   onChange,
   onGalleryChange,
   onStatus,
+  onInteractionEnd,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -123,6 +126,7 @@ export function CanvasBuilder({
     function onUp() {
       dragRef.current = null;
       setDragging(false);
+      onInteractionEnd?.();
     }
 
     window.addEventListener('pointermove', onMove);
@@ -131,7 +135,7 @@ export function CanvasBuilder({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [dragging, canvas.gridSize, patchWidget]);
+  }, [dragging, canvas.gridSize, patchWidget, onInteractionEnd]);
 
   function startDrag(e: React.PointerEvent, widget: CanvasWidget, mode: DragMode) {
     const stage = stageRef.current?.getBoundingClientRect();

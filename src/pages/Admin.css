@@ -225,11 +225,30 @@ textarea {
 }
 
 .item-row {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 1.2fr 0.7fr auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
   direction: rtl;
+}
+.item-row > input,
+.item-row > select {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+.item-row.no-time {
+  background: color-mix(in srgb, var(--accent, #a8893d) 8%, transparent);
+  border-radius: 8px;
+  padding: 0.3rem 0.4rem;
+}
+.item-hint {
+  flex: 1 1 8rem;
+  font-size: 0.82rem;
+  color: var(--muted, #5a6b73);
+}
+.item-notime-toggle {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .login-card {
