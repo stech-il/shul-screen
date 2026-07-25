@@ -1,14 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   authenticateMember,
   canEditContent,
   clearSession,
+  enterAsPlatformAdmin,
   loadSession,
   saveSession,
 } from '../lib/auth';
 import { createDefaultConfig } from '../data/defaults';
 import { isLicenseValid } from '../lib/license';
+import { isPlatformAdminLoggedIn, loadPlatformSession } from '../lib/platformAuth';
 import { syncConfig } from '../lib/storage';
 import type { SynagogueConfig } from '../types';
 import './Admin.css';
@@ -18,6 +20,7 @@ const BOOTSTRAP_PASS = 'admin123';
 
 export function Login() {
   const { id = '' } = useParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +30,15 @@ export function Login() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Platform super-admin deep link: /login/:id?platform=1
+    if (params.get('platform') === '1' && isPlatformAdminLoggedIn()) {
+      enterAsPlatformAdmin(id, {
+        platformUsername: loadPlatformSession()?.username,
+      });
+      navigate(`/admin/${id}`, { replace: true });
+      return;
+    }
+
     const existing = loadSession();
     if (existing && existing.synagogueId === id && canEditContent(existing.role)) {
       navigate(`/admin/${id}`, { replace: true });
@@ -38,7 +50,7 @@ export function Login() {
         setLoading(false);
       }),
     );
-  }, [id, navigate]);
+  }, [id, navigate, params]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -147,6 +159,20 @@ export function Login() {
             כניסה
           </button>
         </form>
+        {isPlatformAdminLoggedIn() ? (
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => {
+              enterAsPlatformAdmin(id, {
+                platformUsername: loadPlatformSession()?.username,
+              });
+              navigate(`/admin/${id}`);
+            }}
+          >
+            כניסת מנהל מערכת (בלי סיסמה)
+          </button>
+        ) : null}
         <p className="hint session-hint">
           בלי סימון — הסשן נשמר עד סגירת הדפדפן / חוסר פעילות. עם סימון — נשמר גם אחרי רענון
           וסגירה.

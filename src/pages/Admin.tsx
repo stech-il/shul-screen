@@ -447,6 +447,31 @@ export function Admin({ synagogueId }: Props) {
     setNewMember({ name: '', username: '', password: '', role: 'editor' });
   }
 
+  async function resetMemberPassword(memberId: string) {
+    if (!isOwner || !config) return;
+    const member = config.members.find((m) => m.id === memberId);
+    if (!member) return;
+    const nextPass = window.prompt(
+      `סיסמה חדשה עבור ${member.username || member.name}:`,
+      'admin123',
+    );
+    if (nextPass == null) return;
+    if (nextPass.trim().length < 4) {
+      setStatus('סיסמה קצרה מדי (לפחות 4 תווים)');
+      return;
+    }
+    const passwordHash = await hashPassword(nextPass.trim());
+    setConfig((c) =>
+      c
+        ? {
+            ...c,
+            members: c.members.map((m) => (m.id === memberId ? { ...m, passwordHash } : m)),
+          }
+        : c,
+    );
+    setStatus(`סיסמה עודכנה ל־${member.username || member.name} — לחץ שמור`);
+  }
+
   function updateModes(patch: Partial<ModeSettings>) {
     setConfig((c) => (c ? { ...c, modes: { ...c.modes, ...patch } } : c));
   }
@@ -567,6 +592,12 @@ export function Admin({ synagogueId }: Props) {
           </p>
           <h1>{config.name}</h1>
           <p className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>{licenseBanner}</p>
+          {session.viaPlatform ? (
+            <p className="license-banner ok">
+              נכנסת כמנהל מערכת — בלי סיסמת בית הכנסת ·{' '}
+              <Link to="/agency">חזרה לפאנל העל</Link>
+            </p>
+          ) : null}
           <p className="status">{status}</p>
         </div>
         <div className="admin-actions">
@@ -1529,15 +1560,24 @@ export function Admin({ synagogueId }: Props) {
                       {m.username || m.name} · {m.role === 'owner' ? 'מנהל' : 'עורך'}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    className="btn danger"
-                    onClick={() =>
-                      update({ members: config.members.filter((x) => x.id !== m.id) })
-                    }
-                  >
-                    הסר
-                  </button>
+                  <div className="member-actions">
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() => void resetMemberPassword(m.id)}
+                    >
+                      אפס סיסמה
+                    </button>
+                    <button
+                      type="button"
+                      className="btn danger"
+                      onClick={() =>
+                        update({ members: config.members.filter((x) => x.id !== m.id) })
+                      }
+                    >
+                      הסר
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

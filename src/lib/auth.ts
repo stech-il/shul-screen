@@ -95,6 +95,7 @@ export function loadSession(): Session | null {
 export function saveSession(
   session: Omit<Session, 'token' | 'at' | 'expiresAt' | 'lastActiveAt'> & {
     remember?: boolean;
+    viaPlatform?: boolean;
   },
 ): Session {
   const timed = createTimedFields(Boolean(session.remember));
@@ -103,10 +104,30 @@ export function saveSession(
     memberId: session.memberId,
     memberName: session.memberName,
     role: session.role,
+    viaPlatform: session.viaPlatform,
     ...timed,
   };
   saveTimedJson(SESSION_KEY, next as Session & typeof timed);
   return next;
+}
+
+/**
+ * Platform super-admin enters a synagogue admin panel without that shul's password.
+ */
+export function enterAsPlatformAdmin(
+  synagogueId: string,
+  options?: { synagogueName?: string; platformUsername?: string },
+): Session {
+  return saveSession({
+    synagogueId,
+    memberId: 'platform',
+    memberName: options?.platformUsername
+      ? `מערכת (${options.platformUsername})`
+      : 'מנהל מערכת',
+    role: 'owner',
+    remember: false,
+    viaPlatform: true,
+  });
 }
 
 export function touchSession(): Session | null {

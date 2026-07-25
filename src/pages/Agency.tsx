@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { CITIES, getCity } from '../data/cities';
 import { createDefaultConfig } from '../data/defaults';
+import { enterAsPlatformAdmin, hashPassword } from '../lib/auth';
 import {
   DEMO_LICENSE_KEYS,
   daysLeft,
@@ -54,7 +55,8 @@ type Modal =
   | { kind: 'rename'; config: SynagogueConfig }
   | { kind: 'duplicate'; config: SynagogueConfig }
   | { kind: 'delete'; config: SynagogueConfig }
-  | { kind: 'license'; config: SynagogueConfig };
+  | { kind: 'license'; config: SynagogueConfig }
+  | { kind: 'resetPassword'; config: SynagogueConfig };
 
 export function Agency() {
   const navigate = useNavigate();
@@ -79,6 +81,9 @@ export function Agency() {
   const [editName, setEditName] = useState('');
   const [licPlan, setLicPlan] = useState<LicenseInfo['plan']>('basic');
   const [licMonths, setLicMonths] = useState(12);
+  const [resetMemberId, setResetMemberId] = useState('');
+  const [resetPassword, setResetPassword] = useState('admin123');
+  const [resetPassword2, setResetPassword2] = useState('admin123');
 
   const heartbeats = useMemo(() => listHeartbeats(), [tick, msg]);
 
@@ -203,6 +208,80 @@ export function Agency() {
     });
     setBusy(false);
     refresh(locked ? `הושבת «${config.name}»` : `הופעל מחדש «${config.name}»`);
+  }
+
+  function openShulAdmin(config: SynagogueConfig) {
+    if (!isPlatformAdminLoggedIn()) {
+      setPlatformOk(false);
+      navigate('/admin');
+      return;
+    }
+    enterAsPlatformAdmin(config.id, {
+      synagogueName: config.name,
+      platformUsername: loadPlatformSession()?.username,
+    });
+    navigate(`/admin/${config.id}`);
+  }
+
+  function openResetPassword(config: SynagogueConfig) {
+    const owners = config.members.filter((m) => m.role === 'owner');
+    const first = owners[0] ?? config.members[0];
+    setResetMemberId(first?.id ?? '');
+    setResetPassword('admin123');
+    setResetPassword2('admin123');
+    setModal({ kind: 'resetPassword', config });
+  }
+
+  async function confirmResetPassword(e: FormEvent) {
+    e.preventDefault();
+    if (!modal || modal.kind !== 'resetPassword') return;
+    if (resetPassword.length < 4) {
+      setMsg('סיסמה חדשה קצרה מדי (לפחות 4 תווים)');
+      return;
+    }
+    if (resetPassword !== resetPassword2) {
+      setMsg('הסיסמאות אינן תואמות');
+      return;
+    }
+    setBusy(true);
+    const passwordHash = await hashPassword(resetPassword);
+    let members = [...(modal.config.members ?? [])];
+    if (!members.length) {
+      members = [
+        {
+          id: 'owner-1',
+          name: 'מנהל',
+          username: 'admin',
+          role: 'owner',
+          passwordHash,
+        },
+      ];
+    } else if (resetMemberId) {
+      members = members.map((m) =>
+        m.id === resetMemberId ? { ...m, passwordHash } : m,
+      );
+    } else {
+      const owner = members.find((m) => m.role === 'owner') ?? members[0];
+      members = members.map((m) => (m.id === owner.id ? { ...m, passwordHash } : m));
+    }
+    const next = { ...modal.config, members };
+    const result = await saveConfig(next, undefined, {
+      by: `platform:${loadPlatformSession()?.username ?? 'admin'}`,
+      summary: 'איפוס סיסמת משתמש',
+    });
+    setBusy(false);
+    if (!result.ok) {
+      setMsg(result.error ?? 'איפוס סיסמה נכשל');
+      return;
+    }
+    const target =
+      members.find((m) => m.id === resetMemberId) ??
+      members.find((m) => m.role === 'owner') ??
+      members[0];
+    setModal(null);
+    refresh(
+      `אופסה סיסמה ל־${target?.username || target?.name || 'משתמש'} ב«${modal.config.name}»`,
+    );
   }
 
   async function issueForShul(id: string) {
@@ -482,9 +561,14 @@ export function Agency() {
                       <Link className="act primary" to={`/display/${c.id}`}>
                         מסך
                       </Link>
-                      <Link className="act" to={`/login/${c.id}`}>
+                      <button
+                        type="button"
+                        className="act primary"
+                        onClick={() => openShulAdmin(c)}
+                        title="כניסה לניהול בלי סיסמת בית הכנסת"
+                      >
                         ניהול
-                      </Link>
+                      </button>
                       <Link className="act" to={`/display/${c.id}?kiosk=1`}>
                         קיוסק
                       </Link>
@@ -514,6 +598,13 @@ export function Agency() {
                         onClick={() => void issueForShul(c.id)}
                       >
                         {licensed || locked ? 'חדש תוקף' : 'הפעל לפי תשלום'}
+                      </button>
+                      <button
+                        type="button"
+                        className="act"
+                        onClick={() => openResetPassword(c)}
+                      >
+                        אפס סיסמה
                       </button>
                       <button
                         type="button"
@@ -603,6 +694,8 @@ export function Agency() {
             <h2>טיפים</h2>
             <ul>
               <li>כניסת ניהול על: <code dir="ltr">/#/admin</code></li>
+              <li>«ניהול» נכנס ישירות בלי סיסמת בית הכנסת.</li>
+              <li>«אפס סיסמה» מאפס למשתמשי בית הכנסת.</li>
               <li>הנתונים נשמרים בענן השרת — לא נמחקים בעדכון גרסה.</li>
               <li>הפעלה / חידוש / השבתת רישיון — רק כאן.</li>
               <li>הלקוח לא רואה מפתחות רישיון בניהול בית הכנסת.</li>
@@ -776,6 +869,66 @@ export function Agency() {
                   </button>
                   <button type="submit" className="btn primary" disabled={busy}>
                     {busy ? 'מפעיל…' : 'הפעל מסך'}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {modal.kind === 'resetPassword' ? (
+              <form onSubmit={(e) => void confirmResetPassword(e)}>
+                <h2>איפוס סיסמת משתמש</h2>
+                <p className="hint">«{modal.config.name}» — הסיסמה החדשה תחול מיד אחרי שמירה.</p>
+                {modal.config.members.length ? (
+                  <label>
+                    משתמש
+                    <select
+                      value={resetMemberId}
+                      onChange={(e) => setResetMemberId(e.target.value)}
+                    >
+                      {modal.config.members.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {(m.username || m.name) +
+                            (m.role === 'owner' ? ' · מנהל' : ' · עורך')}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <p className="hint">אין משתמשים — ייווצר מנהל admin עם הסיסמה החדשה.</p>
+                )}
+                <label>
+                  סיסמה חדשה
+                  <input
+                    type="password"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    required
+                    minLength={4}
+                    autoFocus
+                    dir="ltr"
+                    style={{ textAlign: 'left' }}
+                    autoComplete="new-password"
+                  />
+                </label>
+                <label>
+                  אימות סיסמה
+                  <input
+                    type="password"
+                    value={resetPassword2}
+                    onChange={(e) => setResetPassword2(e.target.value)}
+                    required
+                    minLength={4}
+                    dir="ltr"
+                    style={{ textAlign: 'left' }}
+                    autoComplete="new-password"
+                  />
+                </label>
+                <div className="modal-actions">
+                  <button type="button" className="btn ghost" onClick={() => setModal(null)}>
+                    ביטול
+                  </button>
+                  <button type="submit" className="btn primary" disabled={busy}>
+                    {busy ? 'מאפס…' : 'אפס סיסמה'}
                   </button>
                 </div>
               </form>

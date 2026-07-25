@@ -309,6 +309,8 @@ export interface Session {
   lastActiveAt?: string;
   /** Persist across browser restarts when true */
   remember?: boolean;
+  /** Entered via platform super-admin (no shul password) */
+  viaPlatform?: boolean;
 }
 
 export interface DesignPreset {
