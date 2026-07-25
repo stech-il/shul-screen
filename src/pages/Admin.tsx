@@ -27,6 +27,7 @@ import {
 import { getHistoryEntry, loadHistory } from '../lib/history';
 import { expandConfigMedia } from '../lib/mediaPersist';
 import { HEBREW_MONTHS, getDayInfo } from '../lib/jewish';
+import { daysLeft, isLicenseValid } from '../lib/license';
 import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
 import { saveDesignTemplate } from '../lib/designTemplates';
@@ -499,6 +500,23 @@ export function Admin({ synagogueId }: Props) {
     navigate(`/login/${synagogueId}`);
   }
 
+  const licenseOk = isLicenseValid(config.license);
+  const licenseExpiry = config.license?.expiresAt
+    ? new Date(config.license.expiresAt).toLocaleDateString('he-IL', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null;
+  const licenseDays = daysLeft(config.license);
+  const licenseBanner = licenseOk
+    ? licenseExpiry
+      ? `מערכת ברישיון עד ${licenseExpiry}${
+          licenseDays != null && licenseDays <= 30 ? ` · נותרו ${licenseDays} ימים` : ''
+        }`
+      : 'מערכת ברישיון פעיל'
+    : 'אין רישיון פעיל למסך זה — פנה לספק המערכת';
+
   return (
     <div className="admin" dir="rtl" lang="he">
       <header className="admin-header sticky-bar">
@@ -507,6 +525,7 @@ export function Admin({ synagogueId }: Props) {
             ניהול מסך · {memberName} ({memberRole === 'owner' ? 'מנהל' : 'עורך'})
           </p>
           <h1>{config.name}</h1>
+          <p className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>{licenseBanner}</p>
           <p className="status">{status}</p>
         </div>
         <div className="admin-actions">

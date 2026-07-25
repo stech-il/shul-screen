@@ -44,8 +44,31 @@
   font-size: clamp(1.8rem, 3vw, 2.6rem);
 }
 
+.license-banner {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.35rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.license-banner.ok {
+  color: #1f5c3f;
+  background: color-mix(in srgb, #2f6b4f 12%, #fff);
+  border-color: color-mix(in srgb, #2f6b4f 28%, transparent);
+}
+
+.license-banner.warn {
+  color: #8a3a1c;
+  background: color-mix(in srgb, #c45a28 10%, #fff);
+  border-color: color-mix(in srgb, #c45a28 28%, transparent);
+}
+
 .status {
-  margin: 0;
+  margin: 0.35rem 0 0;
   color: var(--muted);
   font-size: 0.9rem;
 }

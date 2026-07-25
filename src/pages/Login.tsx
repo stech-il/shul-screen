@@ -8,6 +8,7 @@ import {
   saveSession,
 } from '../lib/auth';
 import { createDefaultConfig } from '../data/defaults';
+import { isLicenseValid } from '../lib/license';
 import { syncConfig } from '../lib/storage';
 import type { Session, SynagogueConfig } from '../types';
 import './Admin.css';
@@ -84,11 +85,27 @@ export function Login() {
     );
   }
 
+  const licenseOk = isLicenseValid(config?.license);
+  const licenseExpiry = config?.license?.expiresAt
+    ? new Date(config.license.expiresAt).toLocaleDateString('he-IL', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null;
+
   return (
     <div className="admin" dir="rtl" lang="he">
       <div className="login-card">
         <p className="eyebrow">כניסה לניהול</p>
         <h1>{config?.name ?? id}</h1>
+        <p className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>
+          {licenseOk
+            ? licenseExpiry
+              ? `מערכת ברישיון עד ${licenseExpiry}`
+              : 'מערכת ברישיון פעיל'
+            : 'אין רישיון פעיל — פנה לספק המערכת'}
+        </p>
         <p className="hint">שם משתמש וסיסמה של מנהל או עורך</p>
         <form onSubmit={onSubmit} className="login-form">
           <label>
