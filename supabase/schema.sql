@@ -25,6 +25,11 @@ create policy "Public update synagogues"
   on synagogues for update
   using (true);
 
+-- נדרש כדי שמחיקת בית כנסת מהניהול הראשי תחול גם בענן
+create policy "Public delete synagogues"
+  on synagogues for delete
+  using (true);
+
 -- Realtime
 -- Database → Replication → הוסף את טבלת synagogues
 alter publication supabase_realtime add table synagogues;
@@ -57,6 +62,7 @@ create index if not exists analytics_synagogue_idx on analytics_events (synagogu
 alter table analytics_events enable row level security;
 create policy "Insert analytics" on analytics_events for insert with check (true);
 create policy "Read analytics" on analytics_events for select using (true);
+create policy "Delete analytics" on analytics_events for delete using (true);
 
 -- סטטוס מסכים חיים
 create table if not exists screen_heartbeats (
@@ -71,6 +77,7 @@ alter table screen_heartbeats enable row level security;
 create policy "Upsert heartbeats" on screen_heartbeats for insert with check (true);
 create policy "Update heartbeats" on screen_heartbeats for update using (true);
 create policy "Read heartbeats" on screen_heartbeats for select using (true);
+create policy "Delete heartbeats" on screen_heartbeats for delete using (true);
 
 -- מדיה: Storage bucket ציבורי בשם shul-media
 -- ב-Dashboard: Storage → New bucket → shul-media → Public bucket = ON

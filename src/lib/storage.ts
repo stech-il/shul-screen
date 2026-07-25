@@ -498,6 +498,9 @@ export async function deleteSynagogue(
       if (error) {
         return { ok: true, error: `נמחק מקומית · ענן: ${error.message}` };
       }
+      // Best-effort cleanup of related rows; ignore failures
+      await sb.from('screen_heartbeats').delete().eq('synagogue_id', id);
+      await sb.from('analytics_events').delete().eq('synagogue_id', id);
     }
   }
   return { ok: true };
