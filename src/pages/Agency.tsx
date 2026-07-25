@@ -24,6 +24,7 @@ import {
 } from '../lib/platformAuth';
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
 import { isScreenOnline, listHeartbeats } from '../lib/analytics';
+import { SiteFooter } from '../components/SiteFooter';
 import {
   deleteSynagogue,
   duplicateSynagogue,
@@ -1125,6 +1126,7 @@ export function Agency() {
           </div>
         </div>
       ) : null}
+      <SiteFooter />
     </div>
   );
 }

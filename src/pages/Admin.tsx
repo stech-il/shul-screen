@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { BillingCard } from '../components/BillingCard';
 import { DesignStudio } from '../components/DesignStudio';
 import { CanvasBuilder } from '../components/canvas/CanvasBuilder';
+import { SiteFooter } from '../components/SiteFooter';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { MediaPickerField, GalleryManager } from '../components/MediaPicker';
 import { CITIES } from '../data/cities';
@@ -1642,6 +1643,7 @@ export function Admin({ synagogueId }: Props) {
         ) : null}
         </div>
       </div>
+      <SiteFooter />
     </div>
   );
 }

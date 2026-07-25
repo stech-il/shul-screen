@@ -13,6 +13,7 @@ import { isLicenseValid } from '../lib/license';
 import { isPlatformAdminLoggedIn, loadPlatformSession } from '../lib/platformAuth';
 import { syncConfig } from '../lib/storage';
 import type { SynagogueConfig } from '../types';
+import { SiteFooter } from '../components/SiteFooter';
 import './Admin.css';
 
 const BOOTSTRAP_USER = 'admin';
@@ -192,6 +193,7 @@ export function Login() {
           נקה סשן
         </button>
       </div>
+      <SiteFooter />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   isPlatformAdminLoggedIn,
   loginPlatformAdmin,
 } from '../lib/platformAuth';
+import { SiteFooter } from '../components/SiteFooter';
 import './Agency.css';
 
 /**
@@ -89,6 +90,7 @@ export function PlatformLogin() {
           </p>
         </form>
       </div>
+      <SiteFooter />
     </div>
   );
 }
