@@ -120,7 +120,7 @@ export function Home() {
         <h1>מסך אחד. הרבה בתי כנסת.</h1>
         <p className="lead">
           תצוגה במסך מלא, ניהול עם הרשאות, סנכרון ענן עם גיבוי מקומי, זמנים מ־Hebcal, תבניות
-          ומיתוג לכל קהילה.
+          ומיתוג לכל קהילה. ניהול מלא של בתי כנסת — יצירה, מחיקה ושכפול — בלחיצה אחת.
         </p>
         <p className="lead cloud-note">
           ענן:{' '}
@@ -273,8 +273,8 @@ export function Home() {
               <span className="sub">מסך מלא</span>
             </li>
             <li>
-              <Link to="/agency">דשבורד סוכנות</Link>
-              <span className="sub">דורש מנהל מערכת</span>
+              <Link to="/agency">ניהול בתי כנסת</Link>
+              <span className="sub">יצירה · מחיקה · שכפול · רישוי</span>
             </li>
             {existing
               .filter((c) => c && c.id !== 'amishav')

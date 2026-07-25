@@ -472,4 +472,96 @@ export async function fetchWeather(lat: number, lng: number) {
   };
 }
 
+function removeFromIndex(id: string) {
+  localStorage.setItem(
+    `${PREFIX}index`,
+    JSON.stringify(listSynagogueIds().filter((x) => x !== id)),
+  );
+}
+
+/** Delete a synagogue locally (and from Supabase when configured). */
+export async function deleteSynagogue(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  localStorage.removeItem(key(id));
+  localStorage.removeItem(CLOUD_PREFIX + id);
+  localStorage.removeItem(`shul-screen:history:${id}`);
+  localStorage.removeItem(`shul-screen:heartbeat:${id}`);
+  localStorage.removeItem(`shul-screen:live-bump:${id}`);
+  setQueue(getQueue().filter((x) => x !== id));
+  removeFromIndex(id);
+
+  if (isSupabaseConfigured && navigator.onLine) {
+    const sb = getSupabase();
+    if (sb) {
+      const { error } = await sb.from('synagogues').delete().eq('id', id);
+      if (error) {
+        return { ok: true, error: `נמחק מקומית · ענן: ${error.message}` };
+      }
+    }
+  }
+  return { ok: true };
+}
+
+export async function renameSynagogue(
+  id: string,
+  name: string,
+  by = 'platform',
+): Promise<{ ok: boolean; error?: string }> {
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: 'יש להזין שם' };
+  const local = loadLocal(id);
+  if (!local?.config) return { ok: false, error: 'בית הכנסת לא נמצא' };
+  const next = {
+    ...local.config,
+    name: trimmed,
+    updatedAt: new Date().toISOString(),
+    revision: (local.config.revision ?? 0) + 1,
+  };
+  return saveConfig(next, undefined, { by, summary: `שינוי שם ל־${trimmed}` });
+}
+
+export async function duplicateSynagogue(
+  id: string,
+  newName: string,
+  by = 'platform',
+): Promise<{ ok: boolean; error?: string; newId?: string }> {
+  const local = loadLocal(id);
+  if (!local?.config) return { ok: false, error: 'בית הכנסת לא נמצא' };
+  const trimmed = newName.trim();
+  if (!trimmed) return { ok: false, error: 'יש להזין שם להעתק' };
+
+  const baseId =
+    trimmed
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^\u0590-\u05FFa-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .slice(0, 36) || `shul-${Date.now().toString(36)}`;
+  let newId = baseId;
+  let n = 2;
+  while (listSynagogueIds().includes(newId) || loadLocal(newId)) {
+    newId = `${baseId}-${n}`;
+    n += 1;
+  }
+
+  const src = await expandConfigMedia(normalizeConfig(local.config));
+  const copy: SynagogueConfig = {
+    ...src,
+    id: newId,
+    name: trimmed,
+    revision: 1,
+    updatedAt: new Date().toISOString(),
+    license: undefined,
+    emergency: { active: false, message: '', updatedAt: new Date().toISOString() },
+  };
+
+  const result = await saveConfig(copy, undefined, {
+    by,
+    summary: `שכפול מ־${src.name}`,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, newId };
+}
+
 export { isSupabaseConfigured };

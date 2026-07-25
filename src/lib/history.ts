@@ -45,6 +45,10 @@ export function pushHistory(
   }
 }
 
+export function clearHistory(synagogueId: string): void {
+  localStorage.removeItem(key(synagogueId));
+}
+
 export function getHistoryEntry(synagogueId: string, entryId: string): HistoryEntry | null {
   return loadHistory(synagogueId).find((e) => e.id === entryId) ?? null;
 }
