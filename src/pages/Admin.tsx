@@ -644,20 +644,21 @@ export function Admin({ synagogueId }: Props) {
         </div>
       </header>
 
-      <nav className="admin-tabs" aria-label="ניווט ניהול">
-        {TABS.filter((t) => !t.ownerOnly || isOwner).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`tab ${tab === t.id ? 'active' : ''}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <div className="admin-body">
+        <nav className="admin-tabs" aria-label="ניווט ניהול">
+          {TABS.filter((t) => !t.ownerOnly || isOwner).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={`tab ${tab === t.id ? 'active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
 
-      <div className="admin-grid">
+        <div className="admin-grid">
         {tab === 'design' && isOwner ? (
           <DesignStudio
             config={config}
@@ -1639,6 +1640,7 @@ export function Admin({ synagogueId }: Props) {
             </form>
           </section>
         ) : null}
+        </div>
       </div>
     </div>
   );
