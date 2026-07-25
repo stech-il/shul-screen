@@ -194,6 +194,93 @@ textarea {
   accent-color: var(--accent);
 }
 
+.zman-order-list {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.zman-order-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  cursor: grab;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.zman-order-item:active {
+  cursor: grabbing;
+}
+
+.zman-order-item.dragging {
+  opacity: 0.55;
+  border-color: var(--accent);
+  box-shadow: 0 8px 22px rgba(28, 49, 64, 0.12);
+}
+
+.zman-drag-handle {
+  color: var(--muted);
+  letter-spacing: -0.12em;
+  font-size: 0.95rem;
+  user-select: none;
+  line-height: 1;
+}
+
+.zman-order-num {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 16%, #fff);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.zman-order-key {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.zman-order-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.zman-order-actions .btn {
+  padding: 0.25rem 0.5rem;
+  min-width: 2rem;
+}
+
+.zman-pick-title {
+  margin: 0 0 0.55rem;
+  font-size: 1rem;
+  font-family: 'Frank Ruhl Libre', serif;
+}
+
+@media (max-width: 720px) {
+  .zman-order-item {
+    grid-template-columns: auto auto 1fr;
+  }
+  .zman-order-key {
+    display: none;
+  }
+  .zman-order-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
 .section-head {
   display: flex;
   justify-content: space-between;
