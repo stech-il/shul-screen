@@ -10,7 +10,7 @@ import {
 import { createDefaultConfig } from '../data/defaults';
 import { isLicenseValid } from '../lib/license';
 import { syncConfig } from '../lib/storage';
-import type { Session, SynagogueConfig } from '../types';
+import type { SynagogueConfig } from '../types';
 import './Admin.css';
 
 const BOOTSTRAP_USER = 'admin';
@@ -21,6 +21,7 @@ export function Login() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [config, setConfig] = useState<SynagogueConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,13 +52,13 @@ export function Login() {
         setError(`כניסה ראשונית: ${BOOTSTRAP_USER} / ${BOOTSTRAP_PASS}`);
         return;
       }
-      const session: Session = {
+      saveSession({
         synagogueId: id,
         memberId: 'bootstrap',
         memberName: 'מנהל',
         role: 'owner',
-      };
-      saveSession(session);
+        remember,
+      });
       navigate(`/admin/${id}`);
       return;
     }
@@ -73,6 +74,7 @@ export function Login() {
       memberId: member.id,
       memberName: member.name,
       role: member.role,
+      remember,
     });
     navigate(`/admin/${id}`);
   }
@@ -132,11 +134,23 @@ export function Login() {
               style={{ textAlign: 'left' }}
             />
           </label>
+          <label className="check remember-check">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            שמור התחברות במכשיר זה (14 יום)
+          </label>
           {error ? <p className="error">{error}</p> : null}
           <button type="submit" className="btn primary">
             כניסה
           </button>
         </form>
+        <p className="hint session-hint">
+          בלי סימון — הסשן נשמר עד סגירת הדפדפן / חוסר פעילות. עם סימון — נשמר גם אחרי רענון
+          וסגירה.
+        </p>
         <Link className="back-link" to={`/display/${id}`}>
           חזרה למסך התצוגה
         </Link>

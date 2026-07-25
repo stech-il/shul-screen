@@ -9,7 +9,9 @@ import {
   isPlatformAdminLoggedIn,
   loadPlatformSession,
   loginPlatformAdmin,
+  touchPlatformSession,
 } from '../lib/platformAuth';
+import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
 import { listSynagogueIds, loadLocal, saveConfig, isSupabaseConfigured } from '../lib/storage';
 import { issueScreenLicense, licenseLabel } from '../lib/license';
 import './Home.css';
@@ -34,6 +36,7 @@ export function Home() {
   );
   const [loginUser, setLoginUser] = useState(getPlatformAdminUsername());
   const [loginPass, setLoginPass] = useState('');
+  const [loginRemember, setLoginRemember] = useState(true);
   const [loginError, setLoginError] = useState('');
   const [name, setName] = useState('');
   const [cityId, setCityId] = useState('petah-tikva');
@@ -48,10 +51,19 @@ export function Home() {
     .map((id) => loadLocal(id)?.config)
     .filter(Boolean);
 
+  useSessionKeepAlive(
+    touchPlatformSession,
+    () => {
+      clearPlatformSession();
+      setPlatformOk(false);
+    },
+    platformOk,
+  );
+
   async function onPlatformLogin(e: FormEvent) {
     e.preventDefault();
     setLoginError('');
-    const result = await loginPlatformAdmin(loginUser, loginPass);
+    const result = await loginPlatformAdmin(loginUser, loginPass, loginRemember);
     if (!result.ok) {
       setLoginError(result.error);
       return;
@@ -174,6 +186,14 @@ export function Home() {
                 style={{ textAlign: 'left' }}
                 autoComplete="current-password"
               />
+            </label>
+            <label className="check remember-check">
+              <input
+                type="checkbox"
+                checked={loginRemember}
+                onChange={(e) => setLoginRemember(e.target.checked)}
+              />
+              שמור התחברות במכשיר זה (14 יום)
             </label>
             {loginError ? <p className="error">{loginError}</p> : null}
             <button type="submit" className="btn primary">

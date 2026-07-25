@@ -1,4 +1,11 @@
 import type { Member, Session } from '../types';
+import {
+  clearStored,
+  createTimedFields,
+  loadTimedJson,
+  saveTimedJson,
+  touchTimedJson,
+} from './sessionStore';
 
 /**
  * Salted SHA-256 password hashing (client-side).
@@ -72,20 +79,44 @@ export async function authenticateMember(
 const SESSION_KEY = 'shul-screen:session';
 
 export function loadSession(): Session | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as Session) : null;
-  } catch {
+  const s = loadTimedJson<Session & { token: string; at: string; expiresAt: string; lastActiveAt: string }>(
+    SESSION_KEY,
+  );
+  if (!s) return null;
+  // Legacy sessions without timing fields are rejected by loadTimedJson;
+  // keep a soft check for partially migrated shapes.
+  if (!s.synagogueId || !s.memberId || !s.role) {
+    clearStored(SESSION_KEY);
     return null;
   }
+  return s;
 }
 
-export function saveSession(session: Session): void {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+export function saveSession(
+  session: Omit<Session, 'token' | 'at' | 'expiresAt' | 'lastActiveAt'> & {
+    remember?: boolean;
+  },
+): Session {
+  const timed = createTimedFields(Boolean(session.remember));
+  const next: Session = {
+    synagogueId: session.synagogueId,
+    memberId: session.memberId,
+    memberName: session.memberName,
+    role: session.role,
+    ...timed,
+  };
+  saveTimedJson(SESSION_KEY, next as Session & typeof timed);
+  return next;
+}
+
+export function touchSession(): Session | null {
+  return touchTimedJson<Session & { token: string; at: string; expiresAt: string; lastActiveAt: string }>(
+    SESSION_KEY,
+  );
 }
 
 export function clearSession(): void {
-  sessionStorage.removeItem(SESSION_KEY);
+  clearStored(SESSION_KEY);
 }
 
 export function canEditSettings(role: Session['role']): boolean {

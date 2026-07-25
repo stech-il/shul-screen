@@ -485,6 +485,16 @@ select {
   font-family: 'Frank Ruhl Libre', serif;
 }
 
+.agency-login-card .check,
+.agency-login-card .remember-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  color: var(--ink, #1a2f38);
+}
+
 .agency-modal-backdrop {
   position: fixed;
   inset: 0;

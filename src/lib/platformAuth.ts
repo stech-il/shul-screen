@@ -4,14 +4,20 @@
  */
 
 import { hashPassword, normalizeUsername, verifyPassword } from './auth';
+import {
+  clearStored,
+  createTimedFields,
+  loadTimedJson,
+  saveTimedJson,
+  touchTimedJson,
+  type TimedSessionFields,
+} from './sessionStore';
 
 const SESSION_KEY = 'shul-screen:platform-session';
 const CREDS_KEY = 'shul-screen:platform-creds';
 
-export interface PlatformSession {
+export interface PlatformSession extends TimedSessionFields {
   username: string;
-  at: string;
-  expiresAt: string;
 }
 
 export interface PlatformCreds {
@@ -24,8 +30,6 @@ const DEFAULT_USER =
   'superadmin';
 const DEFAULT_PASS =
   (import.meta.env.VITE_PLATFORM_ADMIN_PASSWORD as string | undefined) || 'ShulAdmin2026!';
-
-const SESSION_HOURS = 12;
 
 export function getPlatformAdminUsername(): string {
   try {
@@ -58,42 +62,37 @@ async function loadCreds(): Promise<PlatformCreds> {
 }
 
 export function loadPlatformSession(): PlatformSession | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw) as PlatformSession;
-    if (!s.expiresAt || new Date(s.expiresAt).getTime() < Date.now()) {
-      sessionStorage.removeItem(SESSION_KEY);
-      return null;
-    }
-    return s;
-  } catch {
-    return null;
-  }
+  return loadTimedJson<PlatformSession>(SESSION_KEY);
 }
 
 export function isPlatformAdminLoggedIn(): boolean {
   return Boolean(loadPlatformSession());
 }
 
-export function savePlatformSession(username: string): PlatformSession {
-  const expires = new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000).toISOString();
+export function savePlatformSession(
+  username: string,
+  remember = true,
+): PlatformSession {
   const session: PlatformSession = {
     username: normalizeUsername(username),
-    at: new Date().toISOString(),
-    expiresAt: expires,
+    ...createTimedFields(remember),
   };
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  saveTimedJson(SESSION_KEY, session);
   return session;
 }
 
+export function touchPlatformSession(): PlatformSession | null {
+  return touchTimedJson<PlatformSession>(SESSION_KEY);
+}
+
 export function clearPlatformSession(): void {
-  sessionStorage.removeItem(SESSION_KEY);
+  clearStored(SESSION_KEY);
 }
 
 export async function loginPlatformAdmin(
   username: string,
   password: string,
+  remember = true,
 ): Promise<{ ok: true; session: PlatformSession } | { ok: false; error: string }> {
   const creds = await loadCreds();
   if (normalizeUsername(username) !== normalizeUsername(creds.username)) {
@@ -101,7 +100,7 @@ export async function loginPlatformAdmin(
   }
   const ok = await verifyPassword(password, creds.passwordHash);
   if (!ok) return { ok: false, error: 'שם משתמש או סיסמה שגויים' };
-  return { ok: true, session: savePlatformSession(creds.username) };
+  return { ok: true, session: savePlatformSession(creds.username, remember) };
 }
 
 export async function changePlatformPassword(

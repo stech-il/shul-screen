@@ -19,7 +19,9 @@ import {
   loadPlatformSession,
   loginPlatformAdmin,
   getPlatformAdminUsername,
+  touchPlatformSession,
 } from '../lib/platformAuth';
+import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
 import { isScreenOnline, listHeartbeats } from '../lib/analytics';
 import {
   deleteSynagogue,
@@ -59,6 +61,7 @@ export function Agency() {
   const [platformOk, setPlatformOk] = useState(() => isPlatformAdminLoggedIn());
   const [loginUser, setLoginUser] = useState(getPlatformAdminUsername());
   const [loginPass, setLoginPass] = useState('');
+  const [loginRemember, setLoginRemember] = useState(true);
   const [license, setLicense] = useState(() => loadGlobalLicense());
   const [licenseKey, setLicenseKey] = useState('');
   const [tick, setTick] = useState(0);
@@ -104,6 +107,16 @@ export function Agency() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per login
   }, [platformOk]);
 
+  useSessionKeepAlive(
+    touchPlatformSession,
+    () => {
+      clearPlatformSession();
+      setPlatformOk(false);
+      setMsg('הסשן פג — יש להתחבר מחדש');
+    },
+    platformOk,
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return shuls.filter((c) => {
@@ -140,14 +153,18 @@ export function Agency() {
 
   async function onPlatformLogin(e: FormEvent) {
     e.preventDefault();
-    const result = await loginPlatformAdmin(loginUser, loginPass);
+    const result = await loginPlatformAdmin(loginUser, loginPass, loginRemember);
     if (!result.ok) {
       setMsg(result.error);
       return;
     }
     setPlatformOk(true);
     setLoginPass('');
-    setMsg(`ברוך הבא, ${result.session.username}`);
+    setMsg(
+      `ברוך הבא, ${result.session.username}${
+        loginRemember ? ' · הסשן נשמר במכשיר' : ' · הסשן עד סגירת הדפדפן'
+      }`,
+    );
   }
 
   function activateLicense(e: FormEvent) {
@@ -319,6 +336,14 @@ export function Agency() {
                 style={{ textAlign: 'left' }}
                 autoComplete="current-password"
               />
+            </label>
+            <label className="check remember-check">
+              <input
+                type="checkbox"
+                checked={loginRemember}
+                onChange={(e) => setLoginRemember(e.target.checked)}
+              />
+              שמור התחברות במכשיר זה (14 יום)
             </label>
             {msg ? <p className="agency-flash">{msg}</p> : null}
             <button type="submit" className="btn primary">

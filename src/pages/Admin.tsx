@@ -15,7 +15,9 @@ import {
   hashPassword,
   hashPin,
   loadSession,
+  touchSession,
 } from '../lib/auth';
+import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
 import {
   fetchHebcalZmanim,
   getShabbatZmanimDate,
@@ -195,6 +197,16 @@ export function Admin({ synagogueId }: Props) {
   useEffect(() => {
     if (tab === 'history') setHistory(loadHistory(synagogueId));
   }, [tab, synagogueId]);
+
+  useSessionKeepAlive(
+    touchSession,
+    () => {
+      clearSession();
+      setSession(null);
+      navigate(`/login/${synagogueId}`);
+    },
+    Boolean(session && session.synagogueId === synagogueId),
+  );
 
   const canvasCityId = config?.cityId;
   const canvasEnabledZmanim = config?.enabledZmanim;

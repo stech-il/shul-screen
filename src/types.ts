@@ -302,6 +302,13 @@ export interface Session {
   memberId: string;
   memberName: string;
   role: UserRole;
+  /** Opaque session id — regenerated on each login */
+  token?: string;
+  at?: string;
+  expiresAt?: string;
+  lastActiveAt?: string;
+  /** Persist across browser restarts when true */
+  remember?: boolean;
 }
 
 export interface DesignPreset {
