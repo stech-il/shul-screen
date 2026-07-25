@@ -1,5 +1,6 @@
 import type { CanvasLayoutConfig, CanvasWidget, CanvasWidgetType, ZmanKey } from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
+import { decodeHtmlEntities } from '../../lib/sanitizeHtml';
 
 export const WIDGET_LABELS: Record<CanvasWidgetType, string> = {
   title: 'שם בית הכנסת',
@@ -162,6 +163,8 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
     visible: w.visible ?? true,
     showTitle: w.showTitle ?? fallback.showTitle,
     titleLayout: w.titleLayout ?? fallback.titleLayout,
+    title: w.title != null ? decodeHtmlEntities(w.title) : w.title,
+    text: w.text != null ? decodeHtmlEntities(w.text) : w.text,
     align: w.align ?? fallback.align,
     fontScale: w.fontScale ?? 1,
     titleScale: w.titleScale ?? fallback.titleScale,

@@ -7,6 +7,7 @@ import { pushHistory } from './history';
 import { publishLiveUpdate } from './liveBus';
 import { compactConfigMedia, expandConfigMedia } from './mediaPersist';
 import { getDefaultModes } from './modes';
+import { decodeHtmlEntities } from './sanitizeHtml';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 
 const PREFIX = 'shul-screen:';
@@ -60,13 +61,19 @@ export function normalizeConfig(config: SynagogueConfig): SynagogueConfig {
       if (typeof item === 'string') {
         return {
           id: `legacy-${i}`,
-          text: item,
+          text: decodeHtmlEntities(item),
           enabled: true,
         };
       }
-      return item as Announcement;
+      const a = item as Announcement;
+      return { ...a, text: decodeHtmlEntities(a.text ?? '') };
     });
   }
+
+  const modes = { ...getDefaultModes(), ...(config.modes ?? {}) };
+  modes.eventTitle = decodeHtmlEntities(modes.eventTitle ?? '');
+  modes.eventSubtitle = decodeHtmlEntities(modes.eventSubtitle ?? '');
+  modes.mourningName = decodeHtmlEntities(modes.mourningName ?? '');
 
   return {
     ...config,
@@ -77,6 +84,7 @@ export function normalizeConfig(config: SynagogueConfig): SynagogueConfig {
     showCalendarExtras: config.showCalendarExtras ?? true,
     orefAreaExtra: config.orefAreaExtra ?? '',
     nusach: config.nusach ?? 'ashkenaz',
+    dedication: decodeHtmlEntities(config.dedication ?? ''),
     media: {
       ...(config.media ?? {}),
       gallery: normalizeGallery(config.media?.gallery),
@@ -89,7 +97,7 @@ export function normalizeConfig(config: SynagogueConfig): SynagogueConfig {
     yahrzeits: config.yahrzeits ?? [],
     canvas: normalizeCanvas(config.canvas),
     design: mergeDesign(config),
-    modes: { ...getDefaultModes(), ...(config.modes ?? {}) },
+    modes,
     emergency: config.emergency ?? {
       active: false,
       message: '',
@@ -105,8 +113,11 @@ export function normalizeConfig(config: SynagogueConfig): SynagogueConfig {
     announcements,
     blocks: (config.blocks ?? []).map((block) => ({
       ...block,
+      title: decodeHtmlEntities(block.title ?? ''),
       items: block.items.map((item) => ({
         ...item,
+        title: decodeHtmlEntities(item.title ?? ''),
+        note: item.note != null ? decodeHtmlEntities(item.note) : item.note,
         fromZman: item.fromZman
           ? normalizeZmanKey(String(item.fromZman)) ?? item.fromZman
           : undefined,

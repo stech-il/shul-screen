@@ -27,6 +27,7 @@ import {
 import { startHeartbeat, trackEvent } from '../lib/analytics';
 import { playOrefTone } from '../lib/sound';
 import { getScreenLicenseStatus } from '../lib/license';
+import { toPlainDisplayText } from '../lib/sanitizeHtml';
 import {
   isAnnouncementActive,
   startAutoSync,
@@ -395,8 +396,10 @@ export function Display({ synagogueId }: Props) {
       {special === 'event' ? (
         <div className="event-banner">
           <p className="event-label">אירוע מיוחד</p>
-          <h2>{config.modes.eventTitle || 'אירוע'}</h2>
-          {config.modes.eventSubtitle ? <p>{config.modes.eventSubtitle}</p> : null}
+          <h2>{toPlainDisplayText(config.modes.eventTitle) || 'אירוע'}</h2>
+          {config.modes.eventSubtitle ? (
+            <p>{toPlainDisplayText(config.modes.eventSubtitle)}</p>
+          ) : null}
           {media.eventImageUrl ? (
             <img className="event-image" src={media.eventImageUrl} alt="" />
           ) : null}
@@ -405,8 +408,8 @@ export function Display({ synagogueId }: Props) {
 
       {special === 'mourning' ? (
         <div className="mourning-banner">
-          <p>לע״נ</p>
-          <h2>{config.modes.mourningName || 'נשמת המנוח/ה'}</h2>
+          <p>{'לע\u05F4נ'}</p>
+          <h2>{toPlainDisplayText(config.modes.mourningName) || 'נשמת המנוח/ה'}</h2>
         </div>
       ) : null}
 
@@ -426,7 +429,9 @@ export function Display({ synagogueId }: Props) {
           {logoSrc ? <img className="brand-logo" src={logoSrc} alt={config.name} /> : null}
           <h1>{config.name}</h1>
           {d.showOrnaments ? <div className={`ornament ${centeredHeader ? 'center' : ''}`} /> : null}
-          {config.dedication ? <p className="dedication">{config.dedication}</p> : null}
+          {config.dedication ? (
+            <p className="dedication">{toPlainDisplayText(config.dedication)}</p>
+          ) : null}
         </div>
         <div className="header-meta">
           {config.showClock ? <div className="clock time-ltr">{clock}</div> : null}
@@ -485,7 +490,7 @@ export function Display({ synagogueId }: Props) {
             })
             .map((block) => (
               <div className="panel" key={block.id}>
-                <h2>{block.title}</h2>
+                <h2>{toPlainDisplayText(block.title)}</h2>
                 <ul className="schedule-list">
                   {block.items.map((item) => {
                     const blockZmanim = isShabbatScheduleBlock(block)
@@ -503,8 +508,8 @@ export function Display({ synagogueId }: Props) {
                       return (
                         <li key={item.id} className="schedule-heading">
                           <span className="item-title">
-                            {item.title}
-                            {item.note ? <em>{item.note}</em> : null}
+                            {toPlainDisplayText(item.title)}
+                            {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
                           </span>
                         </li>
                       );
@@ -512,8 +517,8 @@ export function Display({ synagogueId }: Props) {
                     return (
                       <li key={item.id}>
                         <span className="item-title">
-                          {item.title}
-                          {item.note ? <em>{item.note}</em> : null}
+                          {toPlainDisplayText(item.title)}
+                          {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
                         </span>
                         <strong className="time-ltr">{timeStr}</strong>
                       </li>
@@ -527,7 +532,7 @@ export function Display({ synagogueId }: Props) {
             <div className="panel announce-panel carousel">
               <h2>הודעות</h2>
               <p key={carouselItem.id} className="carousel-item">
-                {carouselItem.text}
+                {toPlainDisplayText(carouselItem.text)}
               </p>
               {activeAnnouncements.length > 1 ? (
                 <div className="carousel-dots">

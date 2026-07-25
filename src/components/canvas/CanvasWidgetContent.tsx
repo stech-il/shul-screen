@@ -6,7 +6,7 @@ import type {
   ScheduleBlock,
   ScheduleItem,
 } from '../../types';
-import { sanitizeRichHtml } from '../../lib/sanitizeHtml';
+import { sanitizeRichHtml, toPlainDisplayText } from '../../lib/sanitizeHtml';
 import { WIDGET_LABELS } from './widgets';
 
 export interface CanvasData {
@@ -144,8 +144,8 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
                 return (
                   <li key={item.id} className="cw-heading-row">
                     <span>
-                      {item.title}
-                      {item.note ? <em>{item.note}</em> : null}
+                      {toPlainDisplayText(item.title)}
+                      {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
                     </span>
                   </li>
                 );
@@ -153,8 +153,8 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
               return (
                 <li key={item.id}>
                   <span>
-                    {item.title}
-                    {item.note ? <em>{item.note}</em> : null}
+                    {toPlainDisplayText(item.title)}
+                    {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
                   </span>
                   <strong className="time-ltr">{timeStr}</strong>
                 </li>
@@ -170,7 +170,7 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <div className="cw-announce">
           {widget.showTitle ? <h3>{title || 'הודעות'}</h3> : null}
           {data.announcement ? (
-            <p key={data.announcement.id}>{data.announcement.text}</p>
+            <p key={data.announcement.id}>{toPlainDisplayText(data.announcement.text)}</p>
           ) : (
             <Placeholder label="אין הודעות פעילות" />
           )}
