@@ -1,14 +1,27 @@
+import { useEffect, useState } from 'react';
 import {
   DESIGN_PRESETS,
   FONT_OPTIONS,
   applyPreset,
 } from '../data/designPresets';
-import type { DesignSettings, ScreenLayout, SynagogueConfig } from '../types';
+import {
+  applyDesignTemplate,
+  deleteDesignTemplate,
+  loadDesignTemplates,
+  saveDesignTemplate,
+} from '../lib/designTemplates';
+import type {
+  DesignSettings,
+  SavedDesignTemplate,
+  ScreenLayout,
+  SynagogueConfig,
+} from '../types';
 
 interface Props {
   config: SynagogueConfig;
   onChange: (patch: Partial<SynagogueConfig>) => void;
   onDesign: (patch: Partial<DesignSettings>) => void;
+  onStatus?: (msg: string) => void;
 }
 
 const LAYOUTS: { id: ScreenLayout; label: string }[] = [
@@ -24,8 +37,15 @@ const LAYOUTS: { id: ScreenLayout; label: string }[] = [
   { id: 'canvas', label: 'בונה חופשי (גרירה)' },
 ];
 
-export function DesignStudio({ config, onChange, onDesign }: Props) {
+export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
   const d = config.design;
+  const [saved, setSaved] = useState<SavedDesignTemplate[]>([]);
+  const [tplName, setTplName] = useState('');
+  const [tplDesc, setTplDesc] = useState('');
+
+  useEffect(() => {
+    setSaved(loadDesignTemplates());
+  }, []);
 
   function pickPreset(id: string) {
     const applied = applyPreset(id);
@@ -33,8 +53,100 @@ export function DesignStudio({ config, onChange, onDesign }: Props) {
     onChange(applied);
   }
 
+  function pickSaved(template: SavedDesignTemplate) {
+    onChange(applyDesignTemplate(template));
+    onStatus?.(`הוחלה התבנית «${template.name}»`);
+  }
+
+  function onSaveTemplate() {
+    const template = saveDesignTemplate({
+      name: tplName || `עיצוב ${new Date().toLocaleDateString('he-IL')}`,
+      description: tplDesc,
+      theme: config.theme,
+      layout: config.layout,
+      design: config.design,
+      canvas: config.canvas,
+    });
+    setSaved(loadDesignTemplates());
+    setTplName('');
+    setTplDesc('');
+    onStatus?.(`נשמרה תבנית «${template.name}»`);
+  }
+
+  function onDeleteTemplate(id: string, name: string) {
+    if (!confirm(`למחוק את התבנית «${name}»?`)) return;
+    deleteDesignTemplate(id);
+    setSaved(loadDesignTemplates());
+    onStatus?.(`נמחקה התבנית «${name}»`);
+  }
+
   return (
     <div className="design-studio">
+      <section className="card wide">
+        <h2>שמירה כתבנית</h2>
+        <p className="hint">
+          שמור את העיצוב הנוכחי (צבעים, פריסה ובונה מסך) כדי להחיל אותו שוב מאוחר יותר
+        </p>
+        <div className="tpl-save-row">
+          <label>
+            שם התבנית
+            <input
+              value={tplName}
+              onChange={(e) => setTplName(e.target.value)}
+              placeholder="לדוגמה: עיצוב שבת / חתונה"
+            />
+          </label>
+          <label>
+            תיאור (אופציונלי)
+            <input
+              value={tplDesc}
+              onChange={(e) => setTplDesc(e.target.value)}
+              placeholder="מה מיוחד בתבנית הזו"
+            />
+          </label>
+          <button type="button" className="btn primary" onClick={onSaveTemplate}>
+            שמור כתבנית
+          </button>
+        </div>
+
+        {saved.length ? (
+          <>
+            <h3 className="tpl-subtitle">התבניות שלי</h3>
+            <div className="preset-grid">
+              {saved.map((t) => (
+                <div
+                  key={t.id}
+                  className={`preset-card saved-tpl ${d.presetId === t.design.presetId ? 'active' : ''}`}
+                  style={{
+                    ['--p1' as string]: t.design.primaryColor,
+                    ['--p2' as string]: t.design.accentColor,
+                    ['--pb' as string]: t.design.backgroundColor,
+                  }}
+                >
+                  <button type="button" className="preset-card-main" onClick={() => pickSaved(t)}>
+                    <span className="preset-swatch" />
+                    <strong>{t.name}</strong>
+                    <em>
+                      {t.description}
+                      {t.layout === 'canvas' ? ' · כולל בונה מסך' : ''}
+                    </em>
+                  </button>
+                  <button
+                    type="button"
+                    className="tpl-delete"
+                    onClick={() => onDeleteTemplate(t.id, t.name)}
+                  >
+                    מחק
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="hint">עדיין אין תבניות שמורות — בנה עיצוב ולחץ «שמור כתבנית»</p>
+        )}
+      </section>
+
       <section className="card wide">
         <h2>תבניות עיצוב מוכנות</h2>
         <p className="hint">לחץ על תבנית כדי להחיל מיד — אפשר לכוון אחר כך ידנית</p>

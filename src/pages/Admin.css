@@ -202,6 +202,13 @@ textarea {
   direction: rtl;
 }
 
+.section-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .block {
   border-top: 1px solid var(--line);
   padding-top: 1rem;
@@ -407,6 +414,60 @@ code {
   font-style: normal;
   font-size: 0.78rem;
   color: var(--muted);
+}
+
+.tpl-save-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.65rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.tpl-subtitle {
+  margin: 0.4rem 0 0.6rem;
+  font-size: 1rem;
+}
+
+.preset-card.saved-tpl {
+  padding: 0;
+  overflow: hidden;
+}
+
+.preset-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.7rem 0.7rem 0.35rem;
+  text-align: right;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tpl-delete {
+  border: none;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, #c0392b 8%, #fff);
+  color: #8b2e22;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.35rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+.tpl-delete:hover {
+  background: color-mix(in srgb, #c0392b 16%, #fff);
+}
+
+@media (max-width: 800px) {
+  .tpl-save-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .color-grid {

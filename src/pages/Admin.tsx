@@ -36,6 +36,7 @@ import {
 import { activateLicenseKey } from '../lib/licenseCloud';
 import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
+import { saveDesignTemplate } from '../lib/designTemplates';
 import {
   isSupabaseConfigured,
   saveConfig,
@@ -566,27 +567,53 @@ export function Admin({ synagogueId }: Props) {
 
       <div className="admin-grid">
         {tab === 'design' && isOwner ? (
-          <DesignStudio config={config} onChange={update} onDesign={updateDesign} />
+          <DesignStudio
+            config={config}
+            onChange={update}
+            onDesign={updateDesign}
+            onStatus={setStatus}
+          />
         ) : null}
 
         {tab === 'canvas' && isOwner ? (
           <section className="card wide">
             <div className="section-head">
               <h2>בונה מסך חופשי</h2>
-              {config.layout !== 'canvas' ? (
+              <div className="section-head-actions">
                 <button
                   type="button"
-                  className="btn primary"
+                  className="btn ghost"
                   onClick={() => {
-                    update({ layout: 'canvas' });
-                    setStatus('מבנה המסך הוגדר לבונה חופשי — לחץ שמור');
+                    const name = window.prompt('שם לתבנית העיצוב:', `עיצוב ${config.name}`);
+                    if (name == null) return;
+                    const t = saveDesignTemplate({
+                      name: name.trim() || `עיצוב ${config.name}`,
+                      description: 'נשמר מבונה המסך',
+                      theme: config.theme,
+                      layout: 'canvas',
+                      design: config.design,
+                      canvas: config.canvas,
+                    });
+                    setStatus(`נשמרה תבנית «${t.name}» — זמינה בלשונית עיצוב`);
                   }}
                 >
-                  הפעל במסך התצוגה
+                  שמור כתבנית
                 </button>
-              ) : (
-                <span className="hint">פעיל במסך התצוגה ✓</span>
-              )}
+                {config.layout !== 'canvas' ? (
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => {
+                      update({ layout: 'canvas' });
+                      setStatus('מבנה המסך הוגדר לבונה חופשי — לחץ שמור');
+                    }}
+                  >
+                    הפעל במסך התצוגה
+                  </button>
+                ) : (
+                  <span className="hint">פעיל במסך התצוגה ✓</span>
+                )}
+              </div>
             </div>
             <p className="hint">
               העלה רקע משלך וגרור כל רכיב לכל מקום. השינויים נשמרים עם «שמור ועדכן מסך».

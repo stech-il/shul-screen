@@ -313,6 +313,18 @@ export interface DesignPreset {
   design: DesignSettings;
 }
 
+/** User-saved design (colors + layout + free-form canvas) reusable as a template */
+export interface SavedDesignTemplate {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  theme: 'light' | 'dark';
+  layout: ScreenLayout;
+  design: DesignSettings;
+  canvas: CanvasLayoutConfig;
+}
+
 export interface AnalyticsEvent {
   id: string;
   at: string;
