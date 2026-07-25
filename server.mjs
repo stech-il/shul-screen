@@ -1,12 +1,20 @@
 /**
  * Production server for Render (and similar hosts).
- * Serves the Vite build + proxies Pikud HaOref alerts.
+ * Serves the Vite build + proxies Pikud HaOref alerts + cloud synagogue DB API.
  */
 import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  cloudConfigured,
+  deleteBundle,
+  getBundle,
+  listBundles,
+  putBundle,
+  statusPayload,
+} from './server/cloudStore.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, 'dist');
@@ -31,6 +39,25 @@ const MIME = {
 function send(res, status, body, headers = {}) {
   res.writeHead(status, headers);
   res.end(body);
+}
+
+function sendJson(res, status, obj) {
+  send(res, status, JSON.stringify(obj), {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  });
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
 }
 
 function proxyOref(res) {
@@ -93,6 +120,90 @@ function serveStatic(reqPath, res) {
   });
 }
 
+async function handleCloud(req, res, url) {
+  if (req.method === 'OPTIONS') {
+    sendJson(res, 204, {});
+    return;
+  }
+
+  if (url.pathname === '/api/cloud/status') {
+    sendJson(res, 200, statusPayload());
+    return;
+  }
+
+  if (url.pathname === '/api/cloud/synagogues' && req.method === 'GET') {
+    try {
+      const bundles = await listBundles();
+      sendJson(res, 200, {
+        items: bundles.map((b) => ({
+          id: b.config.id,
+          name: b.config.name,
+          updatedAt: b.config.updatedAt,
+          revision: b.config.revision,
+          config: b.config,
+          syncedAt: b.syncedAt,
+        })),
+      });
+    } catch (err) {
+      sendJson(res, 500, { error: String(err.message || err) });
+    }
+    return;
+  }
+
+  const match = url.pathname.match(/^\/api\/cloud\/synagogues\/([^/]+)$/);
+  if (!match) {
+    sendJson(res, 404, { error: 'not found' });
+    return;
+  }
+  const id = decodeURIComponent(match[1]);
+
+  try {
+    if (req.method === 'GET') {
+      const bundle = await getBundle(id);
+      if (!bundle) {
+        sendJson(res, 404, { error: 'not found' });
+        return;
+      }
+      sendJson(res, 200, bundle);
+      return;
+    }
+
+    if (req.method === 'PUT') {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const config = body.config || body;
+      if (!config?.id) {
+        sendJson(res, 400, { error: 'missing config.id' });
+        return;
+      }
+      if (config.id !== id) {
+        sendJson(res, 400, { error: 'id mismatch' });
+        return;
+      }
+      const bundle = {
+        config,
+        syncedAt: new Date().toISOString(),
+        weather: body.weather,
+        pendingSync: false,
+      };
+      await putBundle(id, bundle);
+      sendJson(res, 200, { ok: true, backend: statusPayload().backend, syncedAt: bundle.syncedAt });
+      return;
+    }
+
+    if (req.method === 'DELETE') {
+      await deleteBundle(id);
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    sendJson(res, 405, { error: 'method not allowed' });
+  } catch (err) {
+    console.error('cloud api', err);
+    sendJson(res, 500, { error: String(err.message || err) });
+  }
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   if (url.pathname === '/api/oref/alerts') {
@@ -101,6 +212,10 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === '/healthz') {
     send(res, 200, 'ok', { 'Content-Type': 'text/plain' });
+    return;
+  }
+  if (url.pathname.startsWith('/api/cloud')) {
+    void handleCloud(req, res, url);
     return;
   }
   serveStatic(url.pathname, res);
@@ -112,5 +227,12 @@ if (!fs.existsSync(DIST)) {
 }
 
 server.listen(PORT, () => {
+  const st = statusPayload();
   console.log(`Shul Screen listening on :${PORT}`);
+  console.log(
+    `Cloud DB: ${st.backend}${st.persistent ? ` (${st.repo})` : ' — set CLOUD_GITHUB_TOKEN for durable storage'}`,
+  );
+  if (!cloudConfigured()) {
+    console.warn('Cloud API disabled');
+  }
 });

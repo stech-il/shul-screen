@@ -1,0 +1,226 @@
+/**
+ * Persistent synagogue cloud store for the Node server.
+ * Prefer GitHub Contents API (survives Render redeploys).
+ * Fallback: local ./data directory (dev / ephemeral).
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data', 'synagogues');
+const GH_TOKEN = (process.env.CLOUD_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '').trim();
+const GH_REPO = (process.env.CLOUD_GITHUB_REPO || 'stech-il/shul-screen-data').trim();
+const GH_BRANCH = (process.env.CLOUD_GITHUB_BRANCH || 'main').trim();
+const GH_PREFIX = 'synagogues';
+
+function ensureLocalDir() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function localPath(id) {
+  const safe = String(id).replace(/[^a-zA-Z0-9_\u0590-\u05FF-]/g, '_').slice(0, 80);
+  return path.join(DATA_DIR, `${safe}.json`);
+}
+
+export function cloudBackend() {
+  return GH_TOKEN ? 'github' : 'local';
+}
+
+export function cloudConfigured() {
+  return true;
+}
+
+async function ghFetch(apiPath, options = {}) {
+  const res = await fetch(`https://api.github.com${apiPath}`, {
+    ...options,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${GH_TOKEN}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'shul-screen-cloud',
+      ...(options.headers || {}),
+    },
+  });
+  return res;
+}
+
+function encodeContent(obj) {
+  return Buffer.from(JSON.stringify(obj, null, 2), 'utf8').toString('base64');
+}
+
+function decodeContent(b64) {
+  return JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
+}
+
+async function ghGetFile(id) {
+  const res = await ghFetch(
+    `/repos/${GH_REPO}/contents/${GH_PREFIX}/${encodeURIComponent(id)}.json?ref=${GH_BRANCH}`,
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub get ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const body = await res.json();
+  return {
+    sha: body.sha,
+    bundle: decodeContent(body.content),
+  };
+}
+
+async function ghList() {
+  const res = await ghFetch(
+    `/repos/${GH_REPO}/contents/${GH_PREFIX}?ref=${GH_BRANCH}`,
+  );
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub list ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const items = await res.json();
+  if (!Array.isArray(items)) return [];
+  const out = [];
+  for (const item of items) {
+    if (!item.name?.endsWith('.json') || item.type !== 'file') continue;
+    const id = item.name.replace(/\.json$/, '');
+    try {
+      const file = await ghGetFile(id);
+      if (file?.bundle?.config) out.push(file.bundle);
+    } catch {
+      /* skip broken */
+    }
+  }
+  return out;
+}
+
+async function ghPut(id, bundle) {
+  const existing = await ghGetFile(id);
+  const payload = {
+    message: `upsert ${id} · rev ${bundle?.config?.revision ?? '?'}`,
+    content: encodeContent(bundle),
+    branch: GH_BRANCH,
+  };
+  if (existing?.sha) payload.sha = existing.sha;
+  const res = await ghFetch(
+    `/repos/${GH_REPO}/contents/${GH_PREFIX}/${encodeURIComponent(id)}.json`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub put ${res.status}: ${text.slice(0, 200)}`);
+  }
+}
+
+async function ghDelete(id) {
+  const existing = await ghGetFile(id);
+  if (!existing) return;
+  const res = await ghFetch(
+    `/repos/${GH_REPO}/contents/${GH_PREFIX}/${encodeURIComponent(id)}.json`,
+    {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `delete ${id}`,
+        sha: existing.sha,
+        branch: GH_BRANCH,
+      }),
+    },
+  );
+  if (!res.ok && res.status !== 404) {
+    const text = await res.text();
+    throw new Error(`GitHub delete ${res.status}: ${text.slice(0, 200)}`);
+  }
+}
+
+function localList() {
+  ensureLocalDir();
+  const files = fs.readdirSync(DATA_DIR).filter((f) => f.endsWith('.json'));
+  const out = [];
+  for (const f of files) {
+    try {
+      const raw = fs.readFileSync(path.join(DATA_DIR, f), 'utf8');
+      const bundle = JSON.parse(raw);
+      if (bundle?.config?.id) out.push(bundle);
+    } catch {
+      /* skip */
+    }
+  }
+  return out;
+}
+
+function localGet(id) {
+  const p = localPath(id);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function localPut(id, bundle) {
+  ensureLocalDir();
+  fs.writeFileSync(localPath(id), JSON.stringify(bundle, null, 2), 'utf8');
+}
+
+function localDelete(id) {
+  const p = localPath(id);
+  if (fs.existsSync(p)) fs.unlinkSync(p);
+}
+
+export async function listBundles() {
+  if (GH_TOKEN) {
+    try {
+      return await ghList();
+    } catch (err) {
+      console.error('cloud list github failed, fallback local', err);
+      return localList();
+    }
+  }
+  return localList();
+}
+
+export async function getBundle(id) {
+  if (GH_TOKEN) {
+    try {
+      const file = await ghGetFile(id);
+      if (file) {
+        localPut(id, file.bundle); // warm local cache
+        return file.bundle;
+      }
+      return null;
+    } catch (err) {
+      console.error('cloud get github failed, fallback local', err);
+      return localGet(id);
+    }
+  }
+  return localGet(id);
+}
+
+export async function putBundle(id, bundle) {
+  localPut(id, bundle);
+  if (GH_TOKEN) {
+    await ghPut(id, bundle);
+  }
+}
+
+export async function deleteBundle(id) {
+  localDelete(id);
+  if (GH_TOKEN) {
+    await ghDelete(id);
+  }
+}
+
+export function statusPayload() {
+  return {
+    ok: true,
+    backend: cloudBackend(),
+    repo: GH_TOKEN ? GH_REPO : null,
+    persistent: Boolean(GH_TOKEN),
+  };
+}

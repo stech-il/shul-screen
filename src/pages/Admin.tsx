@@ -163,7 +163,12 @@ export function Admin({ synagogueId }: Props) {
       syncConfig(synagogueId, fallback).then((r) => {
         setConfigRaw(r.bundle.config);
         undo.reset();
-        const mode = r.cloudMode === 'supabase' ? 'Supabase' : 'סנכרון מקומי';
+        const mode =
+          r.cloudMode === 'supabase'
+            ? 'Supabase'
+            : r.cloudMode === 'server'
+              ? 'ענן שרת'
+              : 'סנכרון מקומי';
         setStatus(
           r.online
             ? `נטען (${r.source}) · ${mode}`

@@ -100,6 +100,8 @@ export function Agency() {
       setMsg(result.error ?? 'טעינת רשימה מהענן נכשלה');
     } else if (isSupabaseConfigured) {
       setMsg(`נטענו ${result.count} בתי כנסת מהענן`);
+    } else {
+      setMsg(`נטענו ${result.count} בתי כנסת`);
     }
   }
 
@@ -601,6 +603,7 @@ export function Agency() {
             <h2>טיפים</h2>
             <ul>
               <li>כניסת ניהול על: <code dir="ltr">/#/admin</code></li>
+              <li>הנתונים נשמרים בענן השרת — לא נמחקים בעדכון גרסה.</li>
               <li>הפעלה / חידוש / השבתת רישיון — רק כאן.</li>
               <li>הלקוח לא רואה מפתחות רישיון בניהול בית הכנסת.</li>
               <li>שכפול מעתיק עיצוב — בלי הפעלה (הפעל בנפרד).</li>

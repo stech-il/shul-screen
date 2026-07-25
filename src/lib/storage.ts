@@ -242,6 +242,11 @@ export async function syncSynagogueIndexFromCloud(): Promise<{
         }
       }
     }
+  } else if (await isServerCloudAvailable()) {
+    const remote = await listServerCloud();
+    for (const bundle of remote) {
+      byId.set(bundle.config.id, bundle);
+    }
   }
 
   const ids: string[] = [];
@@ -275,7 +280,7 @@ export function enqueueSync(id: string) {
   setQueue([...getQueue(), id]);
 }
 
-/** Simulated shared cloud (localStorage) when Supabase is not configured */
+/** Simulated shared cloud (localStorage) when no remote backend is available */
 async function pullLocalCloud(id: string): Promise<CachedBundle | null> {
   try {
     const raw = localStorage.getItem(CLOUD_PREFIX + id);
@@ -291,6 +296,85 @@ async function pushLocalCloud(bundle: CachedBundle): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Built-in Render/Node cloud API (/api/cloud) — durable when CLOUD_GITHUB_TOKEN is set */
+let serverCloudChecked: boolean | null = null;
+
+export async function isServerCloudAvailable(): Promise<boolean> {
+  if (serverCloudChecked != null) return serverCloudChecked;
+  if (typeof fetch === 'undefined' || !navigator.onLine) {
+    serverCloudChecked = false;
+    return false;
+  }
+  try {
+    const res = await fetch('/api/cloud/status', { cache: 'no-store' });
+    serverCloudChecked = res.ok;
+  } catch {
+    serverCloudChecked = false;
+  }
+  return serverCloudChecked;
+}
+
+async function pullServerCloud(id: string): Promise<CachedBundle | null> {
+  try {
+    const res = await fetch(`/api/cloud/synagogues/${encodeURIComponent(id)}`, {
+      cache: 'no-store',
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    const body = (await res.json()) as CachedBundle;
+    if (!body?.config) return null;
+    return {
+      config: normalizeConfig(body.config),
+      syncedAt: body.syncedAt || new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function pushServerCloud(bundle: CachedBundle): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`/api/cloud/synagogues/${encodeURIComponent(bundle.config.id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bundle),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: text.slice(0, 200) || `HTTP ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'server cloud failed' };
+  }
+}
+
+async function listServerCloud(): Promise<CachedBundle[]> {
+  try {
+    const res = await fetch('/api/cloud/synagogues', { cache: 'no-store' });
+    if (!res.ok) return [];
+    const body = (await res.json()) as {
+      items?: Array<{ config: SynagogueConfig; syncedAt?: string }>;
+    };
+    return (body.items ?? [])
+      .filter((i) => i?.config?.id)
+      .map((i) => ({
+        config: normalizeConfig(i.config),
+        syncedAt: i.syncedAt || new Date().toISOString(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+async function deleteServerCloud(id: string): Promise<void> {
+  try {
+    await fetch(`/api/cloud/synagogues/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  } catch {
+    /* ignore */
   }
 }
 
@@ -328,6 +412,10 @@ export async function pullFromCloud(id: string): Promise<CachedBundle | null> {
     const remote = await pullSupabase(id);
     if (remote) return remote;
   }
+  if (await isServerCloudAvailable()) {
+    const remote = await pullServerCloud(id);
+    if (remote) return remote;
+  }
   return pullLocalCloud(id);
 }
 
@@ -346,13 +434,15 @@ export async function pushToCloud(
   let result: { ok: boolean; error?: string } = { ok: false };
   if (isSupabaseConfigured) {
     result = await pushSupabase(next);
+  } else if (await isServerCloudAvailable()) {
+    result = await pushServerCloud(next);
   } else {
     const ok = await pushLocalCloud(next);
     result = {
       ok,
       error: ok
         ? undefined
-        : 'שמירה מקומית נכשלה (לרוב בגלל תמונות גדולות ב־localStorage). חבר Supabase Storage.',
+        : 'שמירה מקומית נכשלה (לרוב בגלל תמונות גדולות ב־localStorage).',
     };
   }
   if (result.ok) {
@@ -372,10 +462,14 @@ export async function syncConfig(
   bundle: CachedBundle;
   source: 'cloud' | 'local' | 'default';
   online: boolean;
-  cloudMode: 'supabase' | 'local-sim';
+  cloudMode: 'supabase' | 'server' | 'local-sim';
 }> {
   const online = navigator.onLine;
-  const cloudMode = isSupabaseConfigured ? 'supabase' : 'local-sim';
+  const cloudMode: 'supabase' | 'server' | 'local-sim' = isSupabaseConfigured
+    ? 'supabase'
+    : (await isServerCloudAvailable())
+      ? 'server'
+      : 'local-sim';
   const local = loadLocal(id);
 
   async function withExpanded(
@@ -385,7 +479,7 @@ export async function syncConfig(
     bundle: CachedBundle;
     source: 'cloud' | 'local' | 'default';
     online: boolean;
-    cloudMode: 'supabase' | 'local-sim';
+    cloudMode: 'supabase' | 'server' | 'local-sim';
   }> {
     return {
       bundle: {
@@ -441,7 +535,11 @@ export async function syncConfig(
     } catch {
       /* ignore */
     }
-    if (online) await pushToCloud(bundle);
+    // Do not overwrite durable cloud with a fresh default — only seed if missing
+    if (online) {
+      const existing = await pullFromCloud(id);
+      if (!existing) await pushToCloud(bundle);
+    }
     return withExpanded(bundle, 'default');
   }
 
@@ -584,6 +682,8 @@ export async function deleteSynagogue(
       await sb.from('screen_heartbeats').delete().eq('synagogue_id', id);
       await sb.from('analytics_events').delete().eq('synagogue_id', id);
     }
+  } else if (await isServerCloudAvailable()) {
+    await deleteServerCloud(id);
   }
   return { ok: true };
 }

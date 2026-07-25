@@ -22,7 +22,7 @@ export function Home() {
           ענן:{' '}
           {isSupabaseConfigured
             ? 'Supabase מחובר'
-            : 'מצב הדגמה — חבר Supabase דרך .env.local'}
+            : 'ענן שרת מובנה (נשמר גם אחרי עדכון גרסה)'}
         </p>
         <p className="hero-cta-row">
           <Link className="btn primary hero-agency-cta" to="/admin">

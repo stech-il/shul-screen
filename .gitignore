@@ -30,3 +30,8 @@ release
 # Electron
 *.exe
 *.blockmap
+
+# Local / cloud data cache
+data/
+.cloud-token
+*.token

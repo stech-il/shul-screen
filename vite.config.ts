@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { cloudApiPlugin } from './vite.cloudPlugin';
 
 const orefProxy = {
   '/api/oref/alerts': {
@@ -18,6 +19,7 @@ const orefProxy = {
 export default defineConfig({
   plugins: [
     react(),
+    cloudApiPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
@@ -46,6 +48,13 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
         runtimeCaching: [
+          {
+            urlPattern: /\/api\/cloud\/.*/i,
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'cloud-api',
+            },
+          },
           {
             urlPattern: /^https:\/\/api\.open-meteo\.com\/.*/i,
             handler: 'NetworkFirst',
