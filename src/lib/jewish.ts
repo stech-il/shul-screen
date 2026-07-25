@@ -1,5 +1,5 @@
-import { HDate, HebrewCalendar, DailyLearning, months, flags } from '@hebcal/core';
-import '@hebcal/learning/dafYomi';
+import { HDate, HebrewCalendar, months, flags } from '@hebcal/core';
+import { DafYomi } from '@hebcal/learning';
 import type { DayInfo, YahrzeitEntry } from '../types';
 
 const WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -50,8 +50,7 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
 
   let dafYomi = '';
   try {
-    const learning = DailyLearning.lookup('dafYomi', hd, true);
-    if (learning) dafYomi = learning.render('he');
+    dafYomi = new DafYomi(date).render('he');
   } catch {
     dafYomi = '';
   }

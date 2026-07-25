@@ -9,6 +9,8 @@ import { createDefaultConfig } from '../data/defaults';
 import { getDayInfo } from '../lib/jewish';
 import {
   fetchHebcalZmanim,
+  getShabbatZmanimDate,
+  isShabbatScheduleBlock,
   pickEnabledZmanim,
   resolveFromZmanimMap,
   type HebcalZmanimResult,
@@ -46,6 +48,8 @@ export function Display({ synagogueId }: Props) {
   const [config, setConfig] = useState<SynagogueConfig | null>(null);
   const [zmanim, setZmanim] = useState<ComputedZman[]>([]);
   const [zmanimMap, setZmanimMap] = useState<HebcalZmanimResult['times']>({});
+  const [shabbatZmanimMap, setShabbatZmanimMap] =
+    useState<HebcalZmanimResult['times']>({});
   const [day, setDay] = useState<DayInfo>(getDayInfo());
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null);
   const [clock, setClock] = useState('');
@@ -124,9 +128,13 @@ export function Display({ synagogueId }: Props) {
     if (!config) return;
     let cancelled = false;
     async function loadZmanim() {
-      const result = await fetchHebcalZmanim(config!.cityId);
+      const now = new Date();
+      const result = await fetchHebcalZmanim(config!.cityId, now);
+      const shabbatDate = getShabbatZmanimDate(now, result.times);
+      const shabbatResult = await fetchHebcalZmanim(config!.cityId, shabbatDate);
       if (cancelled) return;
       setZmanimMap(result.times);
+      setShabbatZmanimMap(shabbatResult.times);
       setZmanim(pickEnabledZmanim(result, config!.enabledZmanim as ZmanKey[]));
     }
     loadZmanim();
@@ -285,8 +293,13 @@ export function Display({ synagogueId }: Props) {
     day,
     zmanim,
     blocks: config.blocks.filter((b) => b.enabled),
-    resolveTime: (item) =>
-      resolveFromZmanimMap(zmanimMap, item.time, item.fromZman, item.offsetMinutes ?? 0),
+    resolveTime: (item, block) =>
+      resolveFromZmanimMap(
+        block && isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap,
+        item.time,
+        item.fromZman,
+        item.offsetMinutes ?? 0,
+      ),
     announcement: carouselItem ?? null,
     announcementCount: activeAnnouncements.length,
     announcementIndex: activeAnnouncements.length
@@ -487,10 +500,13 @@ export function Display({ synagogueId }: Props) {
                 <h2>{block.title}</h2>
                 <ul className="schedule-list">
                   {block.items.map((item) => {
+                    const blockZmanim = isShabbatScheduleBlock(block)
+                      ? shabbatZmanimMap
+                      : zmanimMap;
                     const timeStr = item.noTime
                       ? ''
                       : resolveFromZmanimMap(
-                          zmanimMap,
+                          blockZmanim,
                           item.time,
                           item.fromZman,
                           item.offsetMinutes ?? 0,

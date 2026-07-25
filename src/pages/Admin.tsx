@@ -19,6 +19,8 @@ import {
 import { listEvents } from '../lib/analytics';
 import {
   fetchHebcalZmanim,
+  getShabbatZmanimDate,
+  isShabbatScheduleBlock,
   pickEnabledZmanim,
   resolveFromZmanimMap,
   type HebcalZmanimResult,
@@ -118,6 +120,8 @@ export function Admin({ synagogueId }: Props) {
   const [previewKey, setPreviewKey] = useState(0);
   const [previewZmanim, setPreviewZmanim] = useState<ComputedZman[]>([]);
   const [previewZmanimMap, setPreviewZmanimMap] = useState<HebcalZmanimResult['times']>({});
+  const [previewShabbatZmanimMap, setPreviewShabbatZmanimMap] =
+    useState<HebcalZmanimResult['times']>({});
 
   const setConfig = (
     updater: SynagogueConfig | null | ((c: SynagogueConfig | null) => SynagogueConfig | null),
@@ -202,9 +206,13 @@ export function Admin({ synagogueId }: Props) {
   useEffect(() => {
     if (tab !== 'canvas' || !canvasCityId) return;
     let cancelled = false;
-    void fetchHebcalZmanim(canvasCityId).then((result) => {
+    const now = new Date();
+    void fetchHebcalZmanim(canvasCityId, now).then(async (result) => {
+      const shabbatDate = getShabbatZmanimDate(now, result.times);
+      const shabbatResult = await fetchHebcalZmanim(canvasCityId, shabbatDate);
       if (cancelled) return;
       setPreviewZmanimMap(result.times);
+      setPreviewShabbatZmanimMap(shabbatResult.times);
       setPreviewZmanim(pickEnabledZmanim(result, (canvasEnabledZmanim ?? []) as ZmanKey[]));
     });
     return () => {
@@ -244,9 +252,11 @@ export function Admin({ synagogueId }: Props) {
     day: getDayInfo(new Date(), config.yahrzeits),
     zmanim: previewZmanim,
     blocks: config.blocks.filter((b) => b.enabled),
-    resolveTime: (item) =>
+    resolveTime: (item, block) =>
       resolveFromZmanimMap(
-        previewZmanimMap,
+        block && isShabbatScheduleBlock(block)
+          ? previewShabbatZmanimMap
+          : previewZmanimMap,
         item.time,
         item.fromZman,
         item.offsetMinutes ?? 0,

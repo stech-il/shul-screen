@@ -17,7 +17,7 @@ export interface CanvasData {
   day: DayInfo;
   zmanim: ComputedZman[];
   blocks: ScheduleBlock[];
-  resolveTime: (item: ScheduleItem) => string;
+  resolveTime: (item: ScheduleItem, block?: ScheduleBlock) => string;
   announcement?: Announcement | null;
   announcementCount: number;
   announcementIndex: number;
@@ -139,7 +139,7 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
           {widget.showTitle ? <h3>{title || block.title}</h3> : null}
           <ul className="cw-list">
             {block.items.map((item) => {
-              const timeStr = item.noTime ? '' : data.resolveTime(item);
+              const timeStr = item.noTime ? '' : data.resolveTime(item, block);
               if (item.noTime || !timeStr) {
                 return (
                   <li key={item.id} className="cw-heading-row">

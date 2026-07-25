@@ -16,7 +16,10 @@ interface HebcalApiResponse {
 const CACHE_PREFIX = 'shul-screen:hebcal-zmanim:';
 
 function dateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function cacheKey(city: City, date: Date): string {
@@ -197,4 +200,39 @@ export function getZmanDateFromMap(
 ): Date | undefined {
   const normalized = normalizeZmanKey(key);
   return normalized ? times[normalized] : undefined;
+}
+
+/**
+ * Returns the Friday whose zmanim should drive Shabbat prayer times.
+ * Sunday-Friday use the upcoming Friday. During Shabbat the previous
+ * Friday remains active until tzeit; afterwards the next Friday is used.
+ */
+export function getShabbatZmanimDate(
+  now = new Date(),
+  currentDayTimes: Partial<Record<ZmanKey, Date>> = {},
+): Date {
+  const date = new Date(now);
+  const day = date.getDay();
+  let daysToFriday = (5 - day + 7) % 7;
+
+  if (day === 6) {
+    const endOfSaturday = new Date(now);
+    endOfSaturday.setHours(23, 59, 59, 999);
+    const motzei =
+      currentDayTimes.tzeit7083deg ??
+      currentDayTimes.dusk ??
+      currentDayTimes.tzeit42min ??
+      endOfSaturday;
+    daysToFriday = now.getTime() > motzei.getTime() ? 6 : -1;
+  }
+
+  date.setDate(date.getDate() + daysToFriday);
+  // Midday avoids DST/midnight boundary issues when serializing API dates.
+  date.setHours(12, 0, 0, 0);
+  return date;
+}
+
+/** Existing installations are recognized without requiring a data migration. */
+export function isShabbatScheduleBlock(block: { id: string; title: string }): boolean {
+  return /שבת|מוצ["״']?ש|shabbat|shabbos/i.test(`${block.id} ${block.title}`);
 }
