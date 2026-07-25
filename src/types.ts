@@ -142,12 +142,26 @@ export interface GalleryItem {
   createdAt: string;
 }
 
+/** Purchased / uploaded webfont for screen typography */
+export interface CustomFont {
+  id: string;
+  /** Label shown in the picker */
+  name: string;
+  /** CSS font-family value */
+  family: string;
+  url: string;
+  format?: 'woff2' | 'woff' | 'truetype' | 'opentype';
+  createdAt: string;
+}
+
 export interface MediaSettings {
   logoDataUrl?: string;
   backgroundDataUrl?: string;
   eventImageUrl?: string;
   loopVideoUrl?: string;
   gallery: GalleryItem[];
+  /** User-uploaded fonts (e.g. purchased Hebrew webfonts) */
+  customFonts?: CustomFont[];
 }
 
 export interface DesignSettings {

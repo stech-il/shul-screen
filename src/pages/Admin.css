@@ -533,6 +533,50 @@ code {
   display: contents;
 }
 
+.custom-fonts-box {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.custom-fonts-box h3 {
+  margin: 0;
+  font-family: 'Frank Ruhl Libre', serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.custom-fonts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.custom-fonts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.custom-fonts-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.custom-fonts-list li:last-child {
+  border-bottom: 0;
+}
+
 .tpl-gallery-head {
   display: flex;
   justify-content: space-between;

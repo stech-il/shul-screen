@@ -12,6 +12,7 @@ export function defaultMedia(): MediaSettings {
     eventImageUrl: '',
     loopVideoUrl: '',
     gallery: [],
+    customFonts: [],
   };
 }
 

@@ -6,6 +6,7 @@ import { defaultCanvas } from '../components/canvas/widgets';
 import { getOrefMatchNames } from '../data/cities';
 import { designToCssVars } from '../data/designPresets';
 import { createDefaultConfig } from '../data/defaults';
+import { ensureCustomFontsLoaded } from '../lib/customFonts';
 import { getDayInfo } from '../lib/jewish';
 import {
   fetchHebcalZmanim,
@@ -91,6 +92,10 @@ export function Display({ synagogueId }: Props) {
       window.removeEventListener('online', onOnline);
     };
   }, [synagogueId]);
+
+  useEffect(() => {
+    ensureCustomFontsLoaded(config?.media?.customFonts);
+  }, [config?.media?.customFonts]);
 
   useEffect(() => {
     if (!config?.showWeather) {

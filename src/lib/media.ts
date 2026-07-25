@@ -222,3 +222,107 @@ export async function uploadMedia(
       : 'Supabase לא מוגדר (.env.local) — נשמר בגלריה מקומית. לחץ שמור.',
   };
 }
+
+const MAX_FONT_BYTES = 4 * 1024 * 1024;
+const FONT_MIME = new Set([
+  'font/woff2',
+  'font/woff',
+  'font/ttf',
+  'font/otf',
+  'application/font-woff',
+  'application/font-woff2',
+  'application/x-font-ttf',
+  'application/x-font-otf',
+  'application/octet-stream',
+]);
+
+function isAllowedFontFile(file: File): boolean {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (['woff2', 'woff', 'ttf', 'otf'].includes(ext)) return true;
+  return FONT_MIME.has(file.type);
+}
+
+/**
+ * Upload a purchased webfont (WOFF2 / WOFF / TTF / OTF).
+ * Prefers Supabase Storage; falls back to a data URL (then IndexedDB on save).
+ */
+export async function uploadFont(
+  synagogueId: string,
+  file: File,
+  onProgress?: UploadProgressFn,
+): Promise<UploadMediaResult> {
+  if (!file || file.size === 0) {
+    throw new Error('הקובץ ריק או לא נבחר');
+  }
+  if (!isAllowedFontFile(file)) {
+    throw new Error('סוג קובץ לא נתמך — העלה WOFF2, WOFF, TTF או OTF');
+  }
+  if (file.size > MAX_FONT_BYTES) {
+    throw new Error('קובץ הפונט גדול מדי (עד 4MB)');
+  }
+  report(onProgress, 0, 'מתחיל...');
+
+  const sb = getSupabase();
+  if (sb && isSupabaseConfigured && navigator.onLine) {
+    const ext = (file.name.split('.').pop() || 'woff2').toLowerCase();
+    const base = safeName(file.name.replace(/\.[^.]+$/, '')) || 'font';
+    const path = `${synagogueId}/fonts/${Date.now()}-${base}.${ext}`;
+    const contentType =
+      file.type && file.type !== 'application/octet-stream'
+        ? file.type
+        : ext === 'woff2'
+          ? 'font/woff2'
+          : ext === 'woff'
+            ? 'font/woff'
+            : ext === 'otf'
+              ? 'font/otf'
+              : 'font/ttf';
+
+    try {
+      await uploadToSupabaseWithProgress(path, file, contentType, onProgress);
+      const { data } = sb.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+      if (!data?.publicUrl) {
+        throw new Error('לא התקבל קישור ציבורי לקובץ');
+      }
+      return { url: data.publicUrl, remote: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'העלאה נכשלה';
+      report(onProgress, 50, 'שומר מקומית...');
+      const url = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('קריאת קובץ נכשלה'));
+        reader.readAsDataURL(file);
+      });
+      report(onProgress, 100, 'הושלם');
+      return {
+        url,
+        remote: false,
+        warning: `העלאה לשרת נכשלה (${message}). נשמר מקומית — לחץ שמור.`,
+      };
+    }
+  }
+
+  report(onProgress, 20, 'קורא פונט...');
+  const url = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) {
+        report(onProgress, 20 + (e.loaded / e.total) * 75, 'קורא פונט...');
+      }
+    };
+    reader.onload = () => {
+      report(onProgress, 100, 'הושלם');
+      resolve(String(reader.result));
+    };
+    reader.onerror = () => reject(new Error('קריאת קובץ נכשלה'));
+    reader.readAsDataURL(file);
+  });
+  return {
+    url,
+    remote: false,
+    warning: isSupabaseConfigured
+      ? 'אין אינטרנט — הפונט נשמר מקומית. לחץ שמור.'
+      : 'הפונט נשמר מקומית במכשיר. לחץ שמור (מומלץ לחבר ענן להצגה בכל מסך).',
+  };
+}

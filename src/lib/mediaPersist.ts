@@ -1,4 +1,4 @@
-import type { CanvasLayoutConfig, GalleryItem, SynagogueConfig } from '../types';
+import type { CanvasLayoutConfig, CustomFont, GalleryItem, SynagogueConfig } from '../types';
 import { getMediaBlob, putMediaBlob } from './mediaDb';
 
 export const IDB_MEDIA_PREFIX = 'idb-media:';
@@ -55,6 +55,22 @@ async function expandGallery(gallery: GalleryItem[]): Promise<GalleryItem[]> {
   return next;
 }
 
+async function compactCustomFonts(fonts: CustomFont[] | undefined): Promise<CustomFont[]> {
+  const next: CustomFont[] = [];
+  for (const font of fonts ?? []) {
+    next.push({ ...font, url: await compactMediaUrl(font.url) });
+  }
+  return next;
+}
+
+async function expandCustomFonts(fonts: CustomFont[] | undefined): Promise<CustomFont[]> {
+  const next: CustomFont[] = [];
+  for (const font of fonts ?? []) {
+    next.push({ ...font, url: await expandMediaUrl(font.url) });
+  }
+  return next;
+}
+
 async function compactCanvas(canvas: CanvasLayoutConfig): Promise<CanvasLayoutConfig> {
   return {
     ...canvas,
@@ -93,6 +109,7 @@ export async function compactConfigMedia(config: SynagogueConfig): Promise<Synag
       eventImageUrl: await compactMediaUrl(media.eventImageUrl),
       loopVideoUrl: await compactMediaUrl(media.loopVideoUrl),
       gallery: await compactGallery(media.gallery ?? []),
+      customFonts: await compactCustomFonts(media.customFonts),
     },
     canvas: await compactCanvas(config.canvas),
     design: {
@@ -121,6 +138,7 @@ export async function expandConfigMedia(config: SynagogueConfig): Promise<Synago
       eventImageUrl: await expandMediaUrl(media.eventImageUrl),
       loopVideoUrl: await expandMediaUrl(media.loopVideoUrl),
       gallery: await expandGallery(media.gallery ?? []),
+      customFonts: await expandCustomFonts(media.customFonts),
     },
     canvas: await expandCanvas(config.canvas),
     design: {

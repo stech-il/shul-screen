@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DESIGN_PRESETS,
-  FONT_OPTIONS,
+  DEFAULT_DESIGN,
   PRESET_CATEGORY_LABELS,
   applyPreset,
   layoutLabel,
@@ -12,7 +12,15 @@ import {
   loadDesignTemplates,
   saveDesignTemplate,
 } from '../lib/designTemplates';
+import {
+  ensureCustomFontsLoaded,
+  familyFromFontName,
+  fontSelectOptions,
+  inferFontFormat,
+} from '../lib/customFonts';
+import { uploadFont } from '../lib/media';
 import type {
+  CustomFont,
   DesignPreset,
   DesignSettings,
   SavedDesignTemplate,
@@ -90,6 +98,11 @@ function TemplatePreview({
 
 export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
   const d = config.design;
+  const customFonts = config.media?.customFonts ?? [];
+  const fontOptions = useMemo(() => fontSelectOptions(customFonts), [customFonts]);
+  const fontInputRef = useRef<HTMLInputElement>(null);
+  const [fontBusy, setFontBusy] = useState(false);
+  const [fontLabel, setFontLabel] = useState('');
   const [saved, setSaved] = useState<SavedDesignTemplate[]>([]);
   const [tplName, setTplName] = useState('');
   const [tplDesc, setTplDesc] = useState('');
@@ -99,6 +112,62 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
   useEffect(() => {
     void loadDesignTemplates().then(setSaved);
   }, []);
+
+  useEffect(() => {
+    ensureCustomFontsLoaded(customFonts);
+  }, [customFonts]);
+
+  function setCustomFonts(next: CustomFont[]) {
+    onChange({
+      media: {
+        ...config.media,
+        gallery: config.media?.gallery ?? [],
+        customFonts: next,
+      },
+    });
+  }
+
+  async function onUploadFont(file: File | null) {
+    if (!file) return;
+    setFontBusy(true);
+    try {
+      const uploaded = await uploadFont(config.id, file);
+      const displayName =
+        fontLabel.trim() || file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'פונט מותאם';
+      const family = familyFromFontName(displayName, customFonts);
+      const entry: CustomFont = {
+        id: `font-${Date.now().toString(36)}`,
+        name: displayName,
+        family,
+        url: uploaded.url,
+        format: inferFontFormat(file.name),
+        createdAt: new Date().toISOString(),
+      };
+      setCustomFonts([...customFonts, entry]);
+      setFontLabel('');
+      onStatus?.(
+        uploaded.warning
+          ? `הפונט «${displayName}» נוסף — ${uploaded.warning}`
+          : `הפונט «${displayName}» הועלה — בחר אותו בכותרות/גוף ולחץ שמור`,
+      );
+    } catch (err) {
+      onStatus?.(err instanceof Error ? err.message : 'העלאת הפונט נכשלה');
+    } finally {
+      setFontBusy(false);
+      if (fontInputRef.current) fontInputRef.current.value = '';
+    }
+  }
+
+  function onRemoveFont(font: CustomFont) {
+    if (!confirm(`למחוק את הפונט «${font.name}»?`)) return;
+    const next = customFonts.filter((f) => f.id !== font.id);
+    setCustomFonts(next);
+    const patch: Partial<DesignSettings> = {};
+    if (d.fontHeading === font.family) patch.fontHeading = DEFAULT_DESIGN.fontHeading;
+    if (d.fontBody === font.family) patch.fontBody = DEFAULT_DESIGN.fontBody;
+    if (Object.keys(patch).length) onDesign(patch);
+    onStatus?.(`הפונט «${font.name}» הוסר`);
+  }
 
   function pickPreset(id: string) {
     const applied = applyPreset(id);
@@ -446,8 +515,8 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
             value={d.fontHeading}
             onChange={(e) => onDesign({ fontHeading: e.target.value })}
           >
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.id} value={f.id}>
+            {fontOptions.map((f) => (
+              <option key={f.id} value={f.id} style={{ fontFamily: `'${f.id}', sans-serif` }}>
                 {f.label}
               </option>
             ))}
@@ -456,13 +525,61 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
         <label>
           גופן גוף
           <select value={d.fontBody} onChange={(e) => onDesign({ fontBody: e.target.value })}>
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.id} value={f.id}>
+            {fontOptions.map((f) => (
+              <option key={f.id} value={f.id} style={{ fontFamily: `'${f.id}', sans-serif` }}>
                 {f.label}
               </option>
             ))}
           </select>
         </label>
+
+        <div className="custom-fonts-box">
+          <h3>פונטים שנרכשו</h3>
+          <p className="hint">
+            העלה קובץ פונט שרכשת (WOFF2 מומלץ, גם WOFF / TTF / OTF — עד 4MB) ואז בחר אותו למעלה.
+          </p>
+          <label>
+            שם לתצוגה (אופציונלי)
+            <input
+              value={fontLabel}
+              onChange={(e) => setFontLabel(e.target.value)}
+              placeholder="למשל: פונט בית הכנסת"
+              disabled={fontBusy}
+            />
+          </label>
+          <div className="custom-fonts-actions">
+            <input
+              ref={fontInputRef}
+              type="file"
+              accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+              hidden
+              onChange={(e) => void onUploadFont(e.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
+              className="btn primary"
+              disabled={fontBusy}
+              onClick={() => fontInputRef.current?.click()}
+            >
+              {fontBusy ? 'מעלה…' : 'העלה פונט'}
+            </button>
+          </div>
+          {customFonts.length ? (
+            <ul className="custom-fonts-list">
+              {customFonts.map((f) => (
+                <li key={f.id}>
+                  <span style={{ fontFamily: `'${f.family}', sans-serif` }}>{f.name}</span>
+                  <button type="button" className="btn ghost" onClick={() => onRemoveFont(f)}>
+                    מחק
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="hint">עדיין לא הועלו פונטים מותאמים.</p>
+          )}
+        </div>
+
         <label>
           גודל כותרת ({d.titleScale.toFixed(2)})
           <input

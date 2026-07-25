@@ -27,6 +27,7 @@ import {
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
 import { getHistoryEntry, loadHistory } from '../lib/history';
+import { ensureCustomFontsLoaded } from '../lib/customFonts';
 import { expandConfigMedia } from '../lib/mediaPersist';
 import { HEBREW_MONTHS, getDayInfo } from '../lib/jewish';
 import { daysLeft, isLicenseValid } from '../lib/license';
@@ -179,6 +180,10 @@ export function Admin({ synagogueId }: Props) {
     );
     return stop;
   }, [synagogueId]);
+
+  useEffect(() => {
+    ensureCustomFontsLoaded(config?.media?.customFonts);
+  }, [config?.media?.customFonts]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -716,6 +721,7 @@ export function Admin({ synagogueId }: Props) {
               enabledZmanim={config.enabledZmanim}
               synagogueId={synagogueId}
               gallery={config.media.gallery ?? []}
+              customFonts={config.media.customFonts ?? []}
               data={canvasPreviewData}
               onChange={updateCanvas}
               onGalleryChange={updateGallery}

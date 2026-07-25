@@ -3,12 +3,13 @@ import type {
   CanvasLayoutConfig,
   CanvasWidget,
   CanvasWidgetType,
+  CustomFont,
   GalleryItem,
   ScheduleBlock,
   ZmanKey,
 } from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
-import { FONT_OPTIONS } from '../../data/designPresets';
+import { fontSelectOptions } from '../../lib/customFonts';
 import { MediaGalleryModal } from '../MediaPicker';
 import { RichTextEditor } from '../RichTextEditor';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
@@ -32,6 +33,7 @@ interface Props {
   enabledZmanim?: ZmanKey[];
   synagogueId: string;
   gallery: GalleryItem[];
+  customFonts?: CustomFont[];
   onChange: (canvas: CanvasLayoutConfig) => void;
   onGalleryChange: (gallery: GalleryItem[]) => void;
   onStatus?: (msg: string) => void;
@@ -77,6 +79,7 @@ export function CanvasBuilder({
   enabledZmanim = [],
   synagogueId,
   gallery,
+  customFonts = [],
   onChange,
   onGalleryChange,
   onStatus,
@@ -88,6 +91,7 @@ export function CanvasBuilder({
   const [dragging, setDragging] = useState(false);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [picker, setPicker] = useState<PickerTarget | null>(null);
+  const fontOptions = fontSelectOptions(customFonts);
 
   const selected = canvas.widgets.find((w) => w.id === selectedId) ?? null;
 
@@ -714,7 +718,7 @@ export function CanvasBuilder({
                   }
                 >
                   <option value="">ברירת מחדל של העיצוב</option>
-                  {FONT_OPTIONS.map((f) => (
+                  {fontOptions.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.label}
                     </option>
