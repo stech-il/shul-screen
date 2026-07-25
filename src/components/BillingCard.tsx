@@ -194,14 +194,14 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                   />
                 </label>
                 <label>
-                  CVV
+                  CVV (לא חובה)
                   <input
                     value={cvv}
                     onChange={(e) => setCvv(e.target.value)}
-                    required
                     inputMode="numeric"
                     maxLength={4}
                     dir="ltr"
+                    placeholder="אופציונלי"
                   />
                 </label>
               </div>

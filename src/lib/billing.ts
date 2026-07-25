@@ -98,7 +98,8 @@ export interface CardDetails {
   cardNumber: string;
   expMonth: string;
   expYear: string;
-  cvv: string;
+  /** Optional — not required for tokenization / recurring setup */
+  cvv?: string;
   citizenId: string;
 }
 
@@ -119,7 +120,7 @@ export async function tokenizeCard(
   params.set('CardNumber', card.cardNumber.replace(/\s+/g, ''));
   params.set('ExpirationMonth', card.expMonth);
   params.set('ExpirationYear', card.expYear.length === 2 ? `20${card.expYear}` : card.expYear);
-  params.set('CVV', card.cvv);
+  if (card.cvv?.trim()) params.set('CVV', card.cvv.trim());
   params.set('CitizenID', card.citizenId);
 
   const res = await fetch('https://api.sumit.co.il/creditguy/vault/tokenizesingleuse/', {
