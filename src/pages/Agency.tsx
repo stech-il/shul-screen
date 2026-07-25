@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { CITIES, getCity } from '../data/cities';
 import { createDefaultConfig } from '../data/defaults';
 import {
@@ -12,13 +12,13 @@ import {
   parseLicenseKey,
   renewScreenLicense,
   saveGlobalLicense,
+  setScreenLicenseLocked,
 } from '../lib/license';
 import {
+  changePlatformPassword,
   clearPlatformSession,
   isPlatformAdminLoggedIn,
   loadPlatformSession,
-  loginPlatformAdmin,
-  getPlatformAdminUsername,
   touchPlatformSession,
 } from '../lib/platformAuth';
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
@@ -59,18 +59,20 @@ type Modal =
 export function Agency() {
   const navigate = useNavigate();
   const [platformOk, setPlatformOk] = useState(() => isPlatformAdminLoggedIn());
-  const [loginUser, setLoginUser] = useState(getPlatformAdminUsername());
-  const [loginPass, setLoginPass] = useState('');
-  const [loginRemember, setLoginRemember] = useState(true);
   const [license, setLicense] = useState(() => loadGlobalLicense());
   const [licenseKey, setLicenseKey] = useState('');
   const [tick, setTick] = useState(0);
   const [msg, setMsg] = useState('');
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'online' | 'offline' | 'unlicensed'>('all');
+  const [filter, setFilter] = useState<
+    'all' | 'online' | 'offline' | 'unlicensed' | 'locked'
+  >('all');
   const [modal, setModal] = useState<Modal>(null);
   const [busy, setBusy] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
+  const [curPass, setCurPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [pwdMsg, setPwdMsg] = useState('');
 
   const [name, setName] = useState('');
   const [cityId, setCityId] = useState('petah-tikva');
@@ -113,6 +115,7 @@ export function Agency() {
       clearPlatformSession();
       setPlatformOk(false);
       setMsg('הסשן פג — יש להתחבר מחדש');
+      navigate('/admin');
     },
     platformOk,
   );
@@ -123,9 +126,11 @@ export function Agency() {
       const hb = heartbeats.find((h) => h.synagogueId === c.id) ?? null;
       const online = isScreenOnline(hb);
       const licensed = Boolean(c.license && isLicenseValid(c.license));
+      const locked = Boolean(c.license?.locked);
       if (filter === 'online' && !online) return false;
       if (filter === 'offline' && online) return false;
       if (filter === 'unlicensed' && licensed) return false;
+      if (filter === 'locked' && !locked) return false;
       if (!q) return true;
       return (
         c.name.toLowerCase().includes(q) ||
@@ -151,22 +156,6 @@ export function Agency() {
     if (note) setMsg(note);
   }
 
-  async function onPlatformLogin(e: FormEvent) {
-    e.preventDefault();
-    const result = await loginPlatformAdmin(loginUser, loginPass, loginRemember);
-    if (!result.ok) {
-      setMsg(result.error);
-      return;
-    }
-    setPlatformOk(true);
-    setLoginPass('');
-    setMsg(
-      `ברוך הבא, ${result.session.username}${
-        loginRemember ? ' · הסשן נשמר במכשיר' : ' · הסשן עד סגירת הדפדפן'
-      }`,
-    );
-  }
-
   function activateLicense(e: FormEvent) {
     e.preventDefault();
     if (!isPlatformAdminLoggedIn()) {
@@ -182,6 +171,36 @@ export function Agency() {
     saveGlobalLicense(parsed);
     setLicense(parsed);
     setMsg(`הופעל רישיון ${licenseLabel(parsed.plan)}`);
+  }
+
+  async function onChangePassword(e: FormEvent) {
+    e.preventDefault();
+    setPwdMsg('');
+    const result = await changePlatformPassword(curPass, newPass);
+    if (!result.ok) {
+      setPwdMsg(result.error);
+      return;
+    }
+    setCurPass('');
+    setNewPass('');
+    setPwdMsg('סיסמת מנהל מערכת עודכנה');
+  }
+
+  async function toggleLicenseLock(config: SynagogueConfig) {
+    if (!config.license) {
+      setMsg('אין רישיון להשבתה — הפעל קודם לפי תשלום');
+      return;
+    }
+    const locked = !config.license.locked;
+    const nextLicense = setScreenLicenseLocked(config.license, locked);
+    const next = { ...config, license: nextLicense };
+    setBusy(true);
+    await saveConfig(next, undefined, {
+      by: `platform:${loadPlatformSession()?.username ?? 'admin'}`,
+      summary: locked ? 'השבתת רישיון מסך' : 'ביטול השבתת רישיון מסך',
+    });
+    setBusy(false);
+    refresh(locked ? `הושבת «${config.name}»` : `הופעל מחדש «${config.name}»`);
   }
 
   async function issueForShul(id: string) {
@@ -304,58 +323,7 @@ export function Agency() {
   }
 
   if (!platformOk) {
-    return (
-      <div className="agency" dir="rtl" lang="he">
-        <div className="agency-login-shell">
-          <div className="agency-brand-block">
-            <p className="agency-brand">Shul Screen</p>
-            <h1>ניהול בתי כנסת</h1>
-            <p className="agency-lead">יצירה, מחיקה, רישוי ומעקב מסכים — ממקום אחד.</p>
-          </div>
-          <form className="agency-login-card" onSubmit={onPlatformLogin}>
-            <h2>כניסת מנהל מערכת</h2>
-            <label>
-              שם משתמש
-              <input
-                value={loginUser}
-                onChange={(e) => setLoginUser(e.target.value)}
-                required
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-                autoComplete="username"
-              />
-            </label>
-            <label>
-              סיסמה
-              <input
-                type="password"
-                value={loginPass}
-                onChange={(e) => setLoginPass(e.target.value)}
-                required
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-                autoComplete="current-password"
-              />
-            </label>
-            <label className="check remember-check">
-              <input
-                type="checkbox"
-                checked={loginRemember}
-                onChange={(e) => setLoginRemember(e.target.checked)}
-              />
-              שמור התחברות במכשיר זה (14 יום)
-            </label>
-            {msg ? <p className="agency-flash">{msg}</p> : null}
-            <button type="submit" className="btn primary">
-              כניסה לניהול
-            </button>
-            <Link className="btn ghost" to="/">
-              חזרה לדף הבית
-            </Link>
-          </form>
-        </div>
-      </div>
-    );
+    return <Navigate to="/admin" replace />;
   }
 
   return (
@@ -390,6 +358,7 @@ export function Agency() {
             onClick={() => {
               clearPlatformSession();
               setPlatformOk(false);
+              navigate('/admin');
             }}
           >
             התנתק
@@ -435,6 +404,7 @@ export function Agency() {
               ['online', 'מחוברים'],
               ['offline', 'לא מחוברים'],
               ['unlicensed', 'בלי רישיון'],
+              ['locked', 'מושבתים'],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -470,6 +440,7 @@ export function Agency() {
                 const hb = heartbeats.find((h) => h.synagogueId === c.id) ?? null;
                 const online = isScreenOnline(hb);
                 const licensed = Boolean(c.license && isLicenseValid(c.license));
+                const locked = Boolean(c.license?.locked);
                 return (
                   <li
                     key={c.id}
@@ -490,14 +461,16 @@ export function Agency() {
                     </div>
 
                     <div className="shul-tags">
-                      <span className={`tag ${licensed ? 'ok' : 'warn'}`}>
-                        {licensed
-                          ? `${licenseLabel(c.license!.plan)}${
-                              daysLeft(c.license) != null
-                                ? ` · ${daysLeft(c.license)} ימים`
-                                : ''
-                            }`
-                          : 'לא הופעל'}
+                      <span className={`tag ${locked ? 'warn' : licensed ? 'ok' : 'warn'}`}>
+                        {locked
+                          ? 'מושבת'
+                          : licensed
+                            ? `${licenseLabel(c.license!.plan)}${
+                                daysLeft(c.license) != null
+                                  ? ` · ${daysLeft(c.license)} ימים`
+                                  : ''
+                              }`
+                            : 'לא הופעל'}
                       </span>
                       <span className="tag">{c.layout === 'canvas' ? 'בונה מסך' : c.layout}</span>
                       {hb ? <span className="tag">v{hb.version}</span> : null}
@@ -538,7 +511,15 @@ export function Agency() {
                         className="act"
                         onClick={() => void issueForShul(c.id)}
                       >
-                        {licensed ? 'חדש תוקף' : 'הפעל לפי תשלום'}
+                        {licensed || locked ? 'חדש תוקף' : 'הפעל לפי תשלום'}
+                      </button>
+                      <button
+                        type="button"
+                        className={`act ${locked ? '' : 'danger'}`}
+                        disabled={busy || !c.license}
+                        onClick={() => void toggleLicenseLock(c)}
+                      >
+                        {locked ? 'בטל השבתה' : 'השבת רישיון'}
                       </button>
                       <button
                         type="button"
@@ -585,17 +566,45 @@ export function Agency() {
             </button>
           </form>
 
+          <form className="side-card" onSubmit={onChangePassword}>
+            <h2>סיסמת מנהל מערכת</h2>
+            <label>
+              סיסמה נוכחית
+              <input
+                type="password"
+                value={curPass}
+                onChange={(e) => setCurPass(e.target.value)}
+                required
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              />
+            </label>
+            <label>
+              סיסמה חדשה
+              <input
+                type="password"
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+                required
+                minLength={8}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              />
+            </label>
+            {pwdMsg ? <p className="hint">{pwdMsg}</p> : null}
+            <button type="submit" className="btn ghost">
+              עדכן סיסמה
+            </button>
+          </form>
+
           <div className="side-card tip">
             <h2>טיפים</h2>
             <ul>
-              <li>הפעלת מסך וחידוש תוקף — רק כאן, לפי תקופת התשלום.</li>
+              <li>כניסת ניהול על: <code dir="ltr">/#/admin</code></li>
+              <li>הפעלה / חידוש / השבתת רישיון — רק כאן.</li>
               <li>הלקוח לא רואה מפתחות רישיון בניהול בית הכנסת.</li>
-              <li>שכפול מעתיק עיצוב ובונה מסך — בלי הפעלה (הפעל בנפרד).</li>
-              <li>מחיקה מסירה את הנתונים מהמכשיר ומהענן כשמחובר.</li>
-              <li>
-                כתובת ישירה:{' '}
-                <code dir="ltr">/#/agency</code>
-              </li>
+              <li>שכפול מעתיק עיצוב — בלי הפעלה (הפעל בנפרד).</li>
+              <li>מחיקה מסירה נתונים מהמכשיר ומהענן כשמחובר.</li>
             </ul>
             <button type="button" className="btn ghost" onClick={() => navigate('/')}>
               לדף הבית

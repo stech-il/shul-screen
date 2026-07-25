@@ -255,6 +255,26 @@ export function renewScreenLicense(
   return issueScreenLicense(synagogueId, plan, holderName, { durationMonths });
 }
 
+/** Disable or re-enable a screen license (locks display until unlocked). */
+export function setScreenLicenseLocked(
+  license: LicenseInfo | undefined,
+  locked: boolean,
+): LicenseInfo | undefined {
+  if (!license) return undefined;
+  const next: LicenseInfo = { ...license, locked };
+  if (license.key) {
+    const reg = loadRegistry();
+    const key = normalize(license.key);
+    const isDemo = key.includes('-DEMO-');
+    const regKey =
+      isDemo && license.synagogueId ? `${key}::${license.synagogueId}` : key;
+    if (reg[regKey]) reg[regKey] = { ...reg[regKey], locked };
+    if (!isDemo && reg[key]) reg[key] = { ...reg[key], locked };
+    saveRegistry(reg);
+  }
+  return next;
+}
+
 export function saveGlobalLicense(info: LicenseInfo): void {
   localStorage.setItem(LICENSE_STORE, JSON.stringify(info));
 }

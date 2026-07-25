@@ -49,8 +49,12 @@
   font-size: 0.95rem !important;
 }
 
-.hero-cta-row {
-  margin: 1.25rem 0 0;
+.admin-path-hint {
+  margin-top: 0.75rem;
+}
+
+.admin-path-hint code {
+  font-size: 0.95rem;
 }
 
 .hero-agency-cta {
