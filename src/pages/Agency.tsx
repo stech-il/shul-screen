@@ -7,7 +7,6 @@ import {
   DEMO_LICENSE_KEYS,
   daysLeft,
   isLicenseValid,
-  issueScreenLicense,
   licenseLabel,
   loadGlobalLicense,
   parseLicenseKey,
@@ -436,17 +435,32 @@ export function Agency() {
       return;
     }
     const config = await createDefaultConfig(id, name.trim(), cityId, 'admin123', 'admin');
-    const plan =
-      license?.plan === 'pro' || license?.plan === 'agency' ? 'pro' : license?.plan || 'basic';
-    config.license = issueScreenLicense(id, plan, name.trim());
+    // New synagogues start without a license — activate separately (payment / manual)
+    config.license = undefined;
     await saveConfig(config, undefined, {
       by: `platform:${loadPlatformSession()?.username ?? 'admin'}`,
-      summary: 'יצירת בית כנסת + רישיון מסך',
+      summary: 'יצירת בית כנסת (ללא רישיון)',
     });
     setName('');
     setBusy(false);
     setModal(null);
-    refresh(`נוצר «${config.name}» · רישיון ${config.license.key}`);
+    refresh(`נוצר «${config.name}» — ללא רישיון. הפעל דרך «הפעל לפי תשלום» או הו״ק`);
+  }
+
+  async function removeLicense(config: SynagogueConfig) {
+    if (!config.license) {
+      setMsg('אין רישיון להסרה');
+      return;
+    }
+    if (!confirm(`להסיר את הרישיון של «${config.name}»? המסך יינעל עד הפעלה מחדש.`)) return;
+    setBusy(true);
+    const next = { ...config, license: undefined };
+    await saveConfig(next, undefined, {
+      by: `platform:${loadPlatformSession()?.username ?? 'admin'}`,
+      summary: 'הסרת רישיון מסך',
+    });
+    setBusy(false);
+    refresh(`הוסר הרישיון של «${config.name}» — המסך ללא רישיון`);
   }
 
   async function confirmRename(e: FormEvent) {
@@ -714,6 +728,17 @@ export function Agency() {
                       >
                         {locked ? 'בטל השבתה' : 'השבת רישיון'}
                       </button>
+                      {c.license ? (
+                        <button
+                          type="button"
+                          className="act danger"
+                          disabled={busy}
+                          onClick={() => void removeLicense(c)}
+                          title="החזרת המסך למצב ללא רישיון"
+                        >
+                          הסר רישיון
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="act danger"
@@ -803,7 +828,10 @@ export function Agency() {
             {modal.kind === 'create' ? (
               <form onSubmit={(e) => void createShul(e)}>
                 <h2>בית כנסת חדש</h2>
-                <p className="hint">יוצרים מסך חדש עם רישיון ניסיון/סוכנות ומשתמש admin.</p>
+                <p className="hint">
+                  נוצר מסך חדש <strong>ללא רישיון</strong> עם משתמש admin — הפעל רישיון
+                  בנפרד («הפעל לפי תשלום» או הוראת קבע).
+                </p>
                 <label>
                   שם בית הכנסת
                   <input
