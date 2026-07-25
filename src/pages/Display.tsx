@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { CanvasStage } from '../components/canvas/CanvasStage';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { defaultCanvas } from '../components/canvas/widgets';
@@ -25,7 +25,7 @@ import {
 } from '../lib/orefAlerts';
 import { startHeartbeat, trackEvent } from '../lib/analytics';
 import { playOrefTone } from '../lib/sound';
-import { daysLeft, getScreenLicenseStatus } from '../lib/license';
+import { getScreenLicenseStatus } from '../lib/license';
 import {
   isAnnouncementActive,
   startAutoSync,
@@ -217,30 +217,13 @@ export function Display({ synagogueId }: Props) {
 
   const licenseStatus = getScreenLicenseStatus(config);
   if (!licenseStatus.ok) {
-    const left = daysLeft(licenseStatus.license);
     return (
       <div className="display license-lock" dir="rtl" lang="he">
         <div className="license-lock-card">
-          <p className="license-lock-eyebrow">רישיון מסך</p>
+          <p className="license-lock-eyebrow">Shul Screen</p>
           <h1>{config.name}</h1>
           <p className="license-lock-reason">{licenseStatus.reason}</p>
-          {licenseStatus.license ? (
-            <p className="license-lock-meta" dir="ltr">
-              {licenseStatus.license.key}
-              {left != null ? ` · נותרו ${left} ימים` : ''}
-            </p>
-          ) : null}
-          <p className="license-lock-help">
-            הפעל מפתח רישיון במסך הניהול, או הנפק רישיון חדש מדשבורד הסוכנות / מנהל המערכת.
-          </p>
-          <div className="license-lock-actions">
-            <Link className="btn primary" to={`/login/${config.id}`}>
-              כניסה לניהול
-            </Link>
-            <Link className="btn ghost" to="/agency">
-              דשבורד סוכנות
-            </Link>
-          </div>
+          <p className="license-lock-help">ההפעלה מתבצעת במערכת הניהול הראשית בלבד.</p>
         </div>
       </div>
     );

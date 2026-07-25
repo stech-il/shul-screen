@@ -96,7 +96,7 @@ export function Home() {
       setCreateMsg(result.error ?? 'יצירה נכשלה');
       return;
     }
-    setCreateMsg(`נוצר עם רישיון מסך: ${config.license.key}`);
+    setCreateMsg('בית הכנסת נוצר — הפעלת תוקף מתבצעת בניהול הראשי');
     navigate(`/login/${id}`);
   }
 

@@ -27,12 +27,6 @@ import {
 import { getHistoryEntry, loadHistory } from '../lib/history';
 import { expandConfigMedia } from '../lib/mediaPersist';
 import { HEBREW_MONTHS, getDayInfo } from '../lib/jewish';
-import {
-  DEMO_LICENSE_KEYS,
-  isLicenseValid,
-  licenseLabel,
-} from '../lib/license';
-import { activateLicenseKey } from '../lib/licenseCloud';
 import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
 import { saveDesignTemplate } from '../lib/designTemplates';
@@ -115,7 +109,6 @@ export function Admin({ synagogueId }: Props) {
     canEditSettings(loadSession()?.role ?? 'editor') ? 'design' : 'content',
   );
   const [kioskPin, setKioskPin] = useState('');
-  const [licenseKey, setLicenseKey] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [previewKey, setPreviewKey] = useState(0);
   const [previewZmanim, setPreviewZmanim] = useState<ComputedZman[]>([]);
@@ -471,21 +464,6 @@ export function Admin({ synagogueId }: Props) {
     setStatus('PIN יציאת קיוסק עודכן — לחץ שמור');
   }
 
-  function activateLicense(e: FormEvent) {
-    e.preventDefault();
-    void (async () => {
-      const result = await activateLicenseKey(licenseKey, synagogueId);
-      if (!result.ok || !result.info) {
-        setStatus(result.error ?? 'מפתח רישיון לא תקין');
-        return;
-      }
-      update({ license: result.info });
-      setStatus(
-        `רישיון ${licenseLabel(result.info.plan)} הופעל${result.info.serverValidated ? ' (ענן)' : ''} — לחץ שמור`,
-      );
-    })();
-  }
-
   async function restoreHistory(entryId: string) {
     const entry = getHistoryEntry(synagogueId, entryId);
     if (!entry || !isOwner) return;
@@ -767,39 +745,6 @@ export function Admin({ synagogueId }: Props) {
                       עדכן
                     </button>
                   </form>
-                </section>
-
-                <section className="card">
-                  <h2>רישיון מסך</h2>
-                  <p className="hint">
-                    {config.license && isLicenseValid(config.license)
-                      ? `${licenseLabel(config.license.plan)} · משויך למסך זה · ${config.license.key}`
-                      : 'אין רישיון פעיל — המסך נעול עד להפעלת מפתח'}
-                  </p>
-                  <form className="inline-form" onSubmit={activateLicense}>
-                    <input
-                      value={licenseKey}
-                      onChange={(e) => setLicenseKey(e.target.value)}
-                      placeholder="SHUL-SCREEN-DEMO-0001"
-                      dir="ltr"
-                      style={{ textAlign: 'left' }}
-                    />
-                    <button type="submit" className="btn ghost">
-                      הפעל למסך זה
-                    </button>
-                  </form>
-                  <div className="demo-key-row">
-                    {DEMO_LICENSE_KEYS.map((k) => (
-                      <button
-                        key={k}
-                        type="button"
-                        className="linkish"
-                        onClick={() => setLicenseKey(k)}
-                      >
-                        {k}
-                      </button>
-                    ))}
-                  </div>
                 </section>
               </>
             ) : null}

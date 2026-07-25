@@ -34,6 +34,20 @@ function expiresForPlan(plan: LicenseInfo['plan']): string {
   return expires.toISOString();
 }
 
+/** Expiry from paid period (months). */
+export function expiresAfterMonths(months: number): string {
+  const expires = new Date();
+  const safe = Math.max(1, Math.min(120, Math.round(months)));
+  expires.setMonth(expires.getMonth() + safe);
+  return expires.toISOString();
+}
+
+export function expiresAfterDays(days: number): string {
+  const expires = new Date();
+  expires.setDate(expires.getDate() + Math.max(1, Math.round(days)));
+  return expires.toISOString();
+}
+
 export function parseLicenseKey(key: string): LicenseInfo | null {
   const k = normalize(key);
   // Accept demo keys and structured keys
@@ -109,20 +123,32 @@ export interface ScreenLicenseStatus {
 export function getScreenLicenseStatus(config: SynagogueConfig): ScreenLicenseStatus {
   const lic = config.license;
   if (!lic) {
-    return { ok: false, reason: 'אין רישיון מסך — יש להפעיל מפתח בניהול או בסוכנות', license: null };
+    return {
+      ok: false,
+      reason: 'המסך עדיין לא הופעל. פנה לספק המערכת להפעלה.',
+      license: null,
+    };
   }
   if (lic.locked) {
-    return { ok: false, reason: 'הרישיון ננעל מרחוק — פנה לתמיכה', license: lic };
+    return {
+      ok: false,
+      reason: 'המסך ננעל. פנה לספק המערכת.',
+      license: lic,
+    };
   }
   if (lic.synagogueId && lic.synagogueId !== config.id) {
     return {
       ok: false,
-      reason: `הרישיון משויך למסך אחר (${lic.synagogueId})`,
+      reason: 'המסך לא מורשה להצגה. פנה לספק המערכת.',
       license: lic,
     };
   }
   if (!isLicenseValid(lic)) {
-    return { ok: false, reason: 'הרישיון פג תוקף', license: lic };
+    return {
+      ok: false,
+      reason: 'תוקף ההפעלה הסתיים. פנה לספק המערכת לחידוש.',
+      license: lic,
+    };
   }
   return { ok: true, license: lic };
 }
@@ -180,6 +206,7 @@ export function issueScreenLicense(
   synagogueId: string,
   plan: LicenseInfo['plan'] = 'basic',
   holderName?: string,
+  options?: { durationMonths?: number; durationDays?: number },
 ): LicenseInfo {
   // Generate until checksum soft-rules pass
   let key = '';
@@ -197,15 +224,35 @@ export function issueScreenLicense(
   }
   if (!key) key = `SHUL-SCREEN-${randomSeg()}-FREE`;
 
+  const effectivePlan = plan === 'agency' ? 'pro' : plan;
+  let expiresAt: string;
+  if (options?.durationDays != null) {
+    expiresAt = expiresAfterDays(options.durationDays);
+  } else if (options?.durationMonths != null) {
+    expiresAt = expiresAfterMonths(options.durationMonths);
+  } else {
+    expiresAt = expiresForPlan(effectivePlan);
+  }
+
   const info: LicenseInfo = {
     key,
-    plan: plan === 'agency' ? 'pro' : plan,
+    plan: effectivePlan,
     activatedAt: new Date().toISOString(),
-    expiresAt: expiresForPlan(plan === 'agency' ? 'pro' : plan),
+    expiresAt,
     holderName: holderName || synagogueId,
     synagogueId,
   };
   return bindLicenseToScreen(info, synagogueId);
+}
+
+/** Renew / replace license on an existing screen with a paid duration. */
+export function renewScreenLicense(
+  synagogueId: string,
+  plan: LicenseInfo['plan'],
+  durationMonths: number,
+  holderName?: string,
+): LicenseInfo {
+  return issueScreenLicense(synagogueId, plan, holderName, { durationMonths });
 }
 
 export function saveGlobalLicense(info: LicenseInfo): void {
