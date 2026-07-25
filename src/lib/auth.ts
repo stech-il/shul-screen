@@ -1,0 +1,97 @@
+import type { Member, Session } from '../types';
+
+/**
+ * Salted SHA-256 password hashing (client-side).
+ * Format: saltHex:hashHex
+ * Prefer Supabase Auth / Argon2 server-side when cloud is connected.
+ */
+
+function toHex(buf: ArrayBuffer): string {
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function sha256(bytes: Uint8Array): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', bytes);
+  return toHex(buf);
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const saltHex = toHex(salt.buffer);
+  const payload = new TextEncoder().encode(`${saltHex}:${password}`);
+  const hash = await sha256(payload);
+  return `${saltHex}:${hash}`;
+}
+
+/** Verify salted hash, or legacy unsalted hex (migration) */
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  if (!stored) return false;
+  if (stored.includes(':')) {
+    const [saltHex, hash] = stored.split(':');
+    if (!saltHex || !hash) return false;
+    const payload = new TextEncoder().encode(`${saltHex}:${password}`);
+    const next = await sha256(payload);
+    return next === hash;
+  }
+  const legacy = await sha256(new TextEncoder().encode(password));
+  return legacy === stored;
+}
+
+export const hashPin = hashPassword;
+export const verifyPin = verifyPassword;
+
+export function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase();
+}
+
+export function memberPasswordHash(member: Member): string {
+  return member.passwordHash || member.pinHash || '';
+}
+
+export function memberUsername(member: Member): string {
+  if (member.username?.trim()) return normalizeUsername(member.username);
+  return normalizeUsername(member.name);
+}
+
+export async function authenticateMember(
+  members: Member[],
+  username: string,
+  password: string,
+): Promise<Member | null> {
+  const u = normalizeUsername(username);
+  if (!u || !password) return null;
+  for (const member of members) {
+    if (memberUsername(member) !== u) continue;
+    const hash = memberPasswordHash(member);
+    if (!hash) continue;
+    if (await verifyPassword(password, hash)) return member;
+  }
+  return null;
+}
+
+const SESSION_KEY = 'shul-screen:session';
+
+export function loadSession(): Session | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as Session) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSession(session: Session): void {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+export function clearSession(): void {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
+export function canEditSettings(role: Session['role']): boolean {
+  return role === 'owner' || role === 'agency';
+}
+
+export function canEditContent(role: Session['role']): boolean {
+  return role === 'owner' || role === 'editor' || role === 'agency';
+}

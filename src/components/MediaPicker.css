@@ -1,0 +1,222 @@
+.mg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(10, 16, 22, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.mg-modal {
+  width: min(920px, 100%);
+  max-height: min(86vh, 820px);
+  overflow: auto;
+  background: #f7f8f6;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  padding: 1rem 1.1rem 1.2rem;
+  direction: rtl;
+  color: #1c3140;
+}
+
+.mg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.mg-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-family: 'Frank Ruhl Libre', serif;
+}
+.mg-close {
+  border: none;
+  background: transparent;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  padding: 0 0.25rem;
+}
+
+.mg-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+
+.mg-search {
+  flex: 1 1 160px;
+  min-width: 140px;
+  border: 1px solid rgba(28, 49, 64, 0.18);
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  font: inherit;
+  background: #fff;
+}
+
+.mg-empty {
+  margin: 1.5rem 0;
+  text-align: center;
+  color: #5a6b73;
+  font-size: 0.95rem;
+}
+
+.mg-error {
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(179, 38, 30, 0.1);
+  color: #b3261e;
+  font-size: 0.9rem;
+}
+
+.mg-progress-wrap {
+  margin: 0 0 0.9rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(28, 49, 64, 0.12);
+}
+.mg-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.88rem;
+}
+.mg-progress-meta strong {
+  font-variant-numeric: tabular-nums;
+  color: #a8893d;
+}
+.mg-progress-track {
+  height: 12px;
+  border-radius: 999px;
+  background: #e8eeea;
+  overflow: hidden;
+}
+.mg-progress-bar {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a8893d, #c4a85a);
+  transition: width 0.15s ease-out;
+}
+
+.mg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.7rem;
+}
+
+.mg-card {
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.mg-card.selected {
+  border-color: #a8893d;
+}
+
+.mg-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  padding: 0;
+  background: #e8eeea;
+  cursor: pointer;
+  overflow: hidden;
+}
+.mg-thumb img,
+.mg-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mg-kind {
+  position: absolute;
+  bottom: 6px;
+  inset-inline-start: 6px;
+  font-size: 0.68rem;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.mg-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.75rem;
+}
+.mg-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mg-del {
+  border: none;
+  background: none;
+  color: #b3261e;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}
+
+.mg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+.mg-field-label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.mg-field-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.mg-field-preview {
+  width: 96px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e8eeea;
+  border: 1px solid rgba(28, 49, 64, 0.12);
+  flex-shrink: 0;
+}
+.mg-field-preview.empty {
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  color: #5a6b73;
+}
+.mg-field-preview img,
+.mg-field-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mg-field-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
