@@ -6,6 +6,7 @@ import type {
   ScheduleBlock,
   ScheduleItem,
 } from '../../types';
+import { sanitizeRichHtml } from '../../lib/sanitizeHtml';
 import { WIDGET_LABELS } from './widgets';
 
 export interface CanvasData {
@@ -215,8 +216,18 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <Placeholder label="ספירה להדלקת נרות" />
       );
 
-    case 'text':
-      return <div className="cw-text">{widget.text || (placeholder ? 'טקסט חופשי' : '')}</div>;
+    case 'text': {
+      const raw = widget.text?.trim();
+      if (!raw) {
+        return placeholder ? <div className="cw-text cw-text-placeholder">טקסט חופשי</div> : null;
+      }
+      return (
+        <div
+          className="cw-text"
+          dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(raw) }}
+        />
+      );
+    }
 
     case 'image':
       return widget.imageUrl ? (

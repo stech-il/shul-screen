@@ -10,6 +10,7 @@ import type {
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { FONT_OPTIONS } from '../../data/designPresets';
 import { MediaGalleryModal } from '../MediaPicker';
+import { RichTextEditor } from '../RichTextEditor';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { widgetStyle } from './CanvasStage';
 import {
@@ -562,14 +563,14 @@ export function CanvasBuilder({
               </label>
 
               {selected.type === 'text' ? (
-                <label>
-                  טקסט
-                  <textarea
-                    rows={3}
+                <div className="cb-rich-field">
+                  <div className="cb-label">טקסט חופשי — עיצוב</div>
+                  <RichTextEditor
                     value={selected.text ?? ''}
-                    onChange={(e) => patchWidget(selected.id, { text: e.target.value })}
+                    onChange={(html) => patchWidget(selected.id, { text: html })}
+                    placeholder="כתוב טקסט חופשי עם עיצוב…"
                   />
-                </label>
+                </div>
               ) : null}
 
               {selected.type === 'image' ? (

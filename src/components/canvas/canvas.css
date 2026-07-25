@@ -235,8 +235,37 @@
 .cw-text {
   font-family: var(--font-heading, serif);
   font-size: 1.8em;
-  line-height: 1.25;
-  white-space: pre-wrap;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.cw-text-placeholder {
+  opacity: 0.45;
+  font-style: italic;
+}
+
+.cw-text p {
+  margin: 0.15em 0;
+}
+
+.cw-text ul,
+.cw-text ol {
+  margin: 0.2em 0;
+  padding-inline-start: 1.2em;
+}
+
+.cw-text b,
+.cw-text strong {
+  font-weight: 700;
+}
+
+.cw-text i,
+.cw-text em {
+  font-style: italic;
+}
+
+.cw-text u {
+  text-decoration: underline;
 }
 
 .cw-logo,

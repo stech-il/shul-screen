@@ -281,6 +281,16 @@
   opacity: 0.65;
 }
 
+.cb-rich-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cb-rich-field .cb-label {
+  font-weight: 600;
+}
+
 @media (max-width: 1000px) {
   .cb-workspace {
     grid-template-columns: 1fr;
