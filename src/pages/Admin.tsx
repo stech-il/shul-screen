@@ -16,7 +16,6 @@ import {
   hashPin,
   loadSession,
 } from '../lib/auth';
-import { listEvents } from '../lib/analytics';
 import {
   fetchHebcalZmanim,
   getShabbatZmanimDate,
@@ -700,25 +699,6 @@ export function Admin({ synagogueId }: Props) {
                   />
                 </label>
               ) : null}
-            </section>
-            <section className="card wide">
-              <h2>ענן וקישורים</h2>
-              <p className="hint">
-                {isSupabaseConfigured
-                  ? 'מחובר ל־Supabase — עדכון חי בלי רענון.'
-                  : 'מצב הדגמה מקומי. לענן אמיתי הגדר .env.local לפי .env.example'}
-              </p>
-              <p className="hint">
-                מסך: <code dir="ltr">#/display/{synagogueId}</code> · קיוסק:{' '}
-                <code dir="ltr">#/display/{synagogueId}?kiosk=1</code>
-              </p>
-              <p className="hint">
-                אירועים אחרונים:{' '}
-                {listEvents(synagogueId)
-                  .slice(0, 5)
-                  .map((e) => `${e.type}`)
-                  .join(' · ') || 'אין עדיין'}
-              </p>
             </section>
 
             {isOwner ? (
