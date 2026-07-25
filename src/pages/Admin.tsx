@@ -117,6 +117,7 @@ export function Admin({ synagogueId }: Props) {
   const [previewShabbatZmanimMap, setPreviewShabbatZmanimMap] =
     useState<HebcalZmanimResult['times']>({});
   const [zmanDragIndex, setZmanDragIndex] = useState<number | null>(null);
+  const [itemDrag, setItemDrag] = useState<{ blockId: string; index: number } | null>(null);
 
   const setConfig = (
     updater: SynagogueConfig | null | ((c: SynagogueConfig | null) => SynagogueConfig | null),
@@ -334,6 +335,29 @@ export function Admin({ synagogueId }: Props) {
         ),
       };
     });
+  }
+
+  function reorderItem(blockId: string, from: number, to: number) {
+    if (from === to || from < 0 || to < 0) return;
+    setConfig((c) => {
+      if (!c) return c;
+      return {
+        ...c,
+        blocks: c.blocks.map((b) => {
+          if (b.id !== blockId) return b;
+          if (from >= b.items.length || to >= b.items.length) return b;
+          const list = [...b.items];
+          const [moved] = list.splice(from, 1);
+          if (!moved) return b;
+          list.splice(to, 0, moved);
+          return { ...b, items: list };
+        }),
+      };
+    });
+  }
+
+  function moveItem(blockId: string, index: number, dir: -1 | 1) {
+    reorderItem(blockId, index, index + dir);
   }
 
   function addBlock() {
@@ -1260,7 +1284,10 @@ export function Admin({ synagogueId }: Props) {
                 + בלוק
               </button>
             </div>
-            <p className="hint">שעה קבועה או לפי זמן הלכתי + היסט בדקות</p>
+            <p className="hint">
+              שעה קבועה או לפי זמן הלכתי + היסט בדקות. גרור פריטים או השתמש בחצים לשינוי סדר
+              ההצגה במסך
+            </p>
             {config.blocks.map((block) => (
               <div className="block" key={block.id}>
                 <div className="block-head">
@@ -1278,8 +1305,49 @@ export function Admin({ synagogueId }: Props) {
                     פעיל
                   </label>
                 </div>
-                {block.items.map((item) => (
-                  <div className={`item-row ${item.noTime ? 'no-time' : ''}`} key={item.id}>
+                {block.items.map((item, index) => (
+                  <div
+                    className={`item-row ${item.noTime ? 'no-time' : ''} ${
+                      itemDrag?.blockId === block.id && itemDrag.index === index ? 'dragging' : ''
+                    }`}
+                    key={item.id}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (!itemDrag || itemDrag.blockId !== block.id) return;
+                      reorderItem(block.id, itemDrag.index, index);
+                      setItemDrag(null);
+                    }}
+                  >
+                    <span
+                      className="item-drag-handle"
+                      title="גרור לשינוי סדר"
+                      aria-label="גרור לשינוי סדר"
+                      draggable
+                      onDragStart={() => setItemDrag({ blockId: block.id, index })}
+                      onDragEnd={() => setItemDrag(null)}
+                    >
+                      ⋮⋮
+                    </span>
+                    <div className="item-order-actions">
+                      <button
+                        type="button"
+                        className="btn ghost item-move"
+                        aria-label="העבר למעלה"
+                        disabled={index === 0}
+                        onClick={() => moveItem(block.id, index, -1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost item-move"
+                        aria-label="העבר למטה"
+                        disabled={index >= block.items.length - 1}
+                        onClick={() => moveItem(block.id, index, 1)}
+                      >
+                        ↓
+                      </button>
+                    </div>
                     <input
                       value={item.title}
                       onChange={(e) => updateItem(block.id, item.id, { title: e.target.value })}

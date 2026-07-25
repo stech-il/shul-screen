@@ -347,6 +347,39 @@ textarea {
   gap: 0.4rem;
   align-items: center;
   direction: rtl;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.25rem 0.2rem;
+}
+.item-row.dragging {
+  opacity: 0.55;
+  border-color: color-mix(in srgb, var(--accent, #a8893d) 45%, var(--line, #d5d0c6));
+  background: color-mix(in srgb, var(--accent, #a8893d) 10%, transparent);
+}
+.item-drag-handle {
+  flex: 0 0 auto;
+  letter-spacing: -0.15em;
+  color: var(--muted, #5a6b73);
+  user-select: none;
+  padding: 0.2rem 0.35rem;
+  cursor: grab;
+  border-radius: 6px;
+}
+.item-drag-handle:active {
+  cursor: grabbing;
+}
+.item-drag-handle:hover {
+  background: color-mix(in srgb, var(--accent, #a8893d) 12%, transparent);
+}
+.item-order-actions {
+  display: inline-flex;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+}
+.item-order-actions .item-move {
+  min-width: 1.8rem;
+  padding: 0.15rem 0.35rem;
+  line-height: 1.1;
 }
 .item-row > input,
 .item-row > select {
