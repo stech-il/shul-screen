@@ -97,7 +97,7 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    setSaved(loadDesignTemplates());
+    void loadDesignTemplates().then(setSaved);
   }, []);
 
   function pickPreset(id: string) {
@@ -108,13 +108,14 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
     onStatus?.(p ? `הוחלה תבנית «${p.name}» — לחץ שמור לעדכון המסך` : 'תבנית הוחלה');
   }
 
-  function pickSaved(template: SavedDesignTemplate) {
-    onChange(applyDesignTemplate(template));
+  async function pickSaved(template: SavedDesignTemplate) {
+    const applied = await applyDesignTemplate(template);
+    onChange(applied);
     onStatus?.(`הוחלה התבנית «${template.name}» — לחץ שמור לעדכון המסך`);
   }
 
-  function onSaveTemplate() {
-    const template = saveDesignTemplate({
+  async function onSaveTemplate() {
+    const result = await saveDesignTemplate({
       name: tplName || `עיצוב ${new Date().toLocaleDateString('he-IL')}`,
       description: tplDesc,
       theme: config.theme,
@@ -122,17 +123,21 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
       design: config.design,
       canvas: config.canvas,
     });
-    setSaved(loadDesignTemplates());
+    if (!result.ok || !result.template) {
+      onStatus?.(result.error ?? 'שמירת התבנית נכשלה');
+      return;
+    }
+    setSaved(await loadDesignTemplates());
     setTplName('');
     setTplDesc('');
     setFilter('mine');
-    onStatus?.(`נשמרה תבנית «${template.name}»`);
+    onStatus?.(`נשמרה תבנית «${result.template.name}»`);
   }
 
-  function onDeleteTemplate(id: string, name: string) {
+  async function onDeleteTemplate(id: string, name: string) {
     if (!confirm(`למחוק את התבנית «${name}»?`)) return;
-    deleteDesignTemplate(id);
-    setSaved(loadDesignTemplates());
+    await deleteDesignTemplate(id);
+    setSaved(await loadDesignTemplates());
     onStatus?.(`נמחקה התבנית «${name}»`);
   }
 
@@ -265,7 +270,7 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
                     <button
                       type="button"
                       className="preset-card-main"
-                      onClick={() => pickSaved(t)}
+                      onClick={() => void pickSaved(t)}
                     >
                       <TemplatePreview
                         primary={t.design.primaryColor}
@@ -288,7 +293,7 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
                     <button
                       type="button"
                       className="tpl-delete"
-                      onClick={() => onDeleteTemplate(t.id, t.name)}
+                      onClick={() => void onDeleteTemplate(t.id, t.name)}
                     >
                       מחק
                     </button>
@@ -326,7 +331,7 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
               placeholder="מה מיוחד בתבנית הזו"
             />
           </label>
-          <button type="button" className="btn primary" onClick={onSaveTemplate}>
+          <button type="button" className="btn primary" onClick={() => void onSaveTemplate()}>
             שמור כתבנית
           </button>
         </div>

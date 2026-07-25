@@ -598,17 +598,23 @@ export function Admin({ synagogueId }: Props) {
                   type="button"
                   className="btn ghost"
                   onClick={() => {
-                    const name = window.prompt('שם לתבנית העיצוב:', `עיצוב ${config.name}`);
-                    if (name == null) return;
-                    const t = saveDesignTemplate({
-                      name: name.trim() || `עיצוב ${config.name}`,
-                      description: 'נשמר מבונה המסך',
-                      theme: config.theme,
-                      layout: 'canvas',
-                      design: config.design,
-                      canvas: config.canvas,
-                    });
-                    setStatus(`נשמרה תבנית «${t.name}» — זמינה בלשונית עיצוב`);
+                    void (async () => {
+                      const name = window.prompt('שם לתבנית העיצוב:', `עיצוב ${config.name}`);
+                      if (name == null) return;
+                      const result = await saveDesignTemplate({
+                        name: name.trim() || `עיצוב ${config.name}`,
+                        description: 'נשמר מבונה המסך',
+                        theme: config.theme,
+                        layout: 'canvas',
+                        design: config.design,
+                        canvas: config.canvas,
+                      });
+                      if (!result.ok || !result.template) {
+                        setStatus(result.error ?? 'שמירת התבנית נכשלה');
+                        return;
+                      }
+                      setStatus(`נשמרה תבנית «${result.template.name}» — זמינה בלשונית עיצוב`);
+                    })();
                   }}
                 >
                   שמור כתבנית
