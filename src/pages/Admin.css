@@ -474,6 +474,12 @@ textarea {
   padding-bottom: 0.4rem;
 }
 
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
 @media (max-width: 800px) {
   .announce-row,
   .member-form {
