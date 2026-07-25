@@ -46,6 +46,7 @@ function preset(
   theme: 'light' | 'dark',
   layout: DesignPreset['layout'],
   partial: Partial<DesignSettings>,
+  category: DesignPreset['category'] = 'classic',
 ): DesignPreset {
   return {
     id,
@@ -53,11 +54,12 @@ function preset(
     description,
     theme,
     layout,
+    category,
     design: { ...DEFAULT_DESIGN, presetId: id, ...partial },
   };
 }
 
-/** Many ready-made looks for synagogues */
+/** Ready-made looks for synagogues — pick from Design → תבניות */
 export const DESIGN_PRESETS: DesignPreset[] = [
   preset('jerusalem-stone', 'אבן ירושלים', 'בהיר, נקי, זהב עדין', 'light', 'classic', {
     primaryColor: '#1c3140',
@@ -65,7 +67,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     backgroundColor: '#e8eeea',
     backgroundColor2: '#d2ddd6',
     panelStyle: 'glass',
-  }),
+  }, 'classic'),
   preset('gold-sanctuary', 'זהב מקדש', 'כהה מפואר עם זהב', 'dark', 'elegant', {
     primaryColor: '#f3ead7',
     accentColor: '#d4af37',
@@ -77,7 +79,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     clockStyle: 'elegant',
     headerStyle: 'centered',
     showOrnaments: true,
-  }),
+  }, 'festive'),
   preset('kinneret', 'ים כנרת', 'טורקיז רך ואוויר פתוח', 'light', 'split', {
     primaryColor: '#153f4a',
     accentColor: '#2a8f8a',
@@ -85,7 +87,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     backgroundColor2: '#c5e0dc',
     panelStyle: 'solid',
     fontHeading: 'Heebo',
-  }),
+  }, 'nature'),
   preset('grove', 'חורשה', 'ירוק עמוק ורגוע', 'light', 'classic', {
     primaryColor: '#1e3328',
     accentColor: '#5c8a4d',
@@ -93,7 +95,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     backgroundColor2: '#cfdcc8',
     panelStyle: 'soft',
     fontHeading: 'David Libre',
-  }),
+  }, 'nature'),
   preset('shabbat-queen', 'שבת מלכה', 'ערב שבת אלגנטי', 'dark', 'magazine', {
     primaryColor: '#f6f0e6',
     accentColor: '#c9a227',
@@ -105,7 +107,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     headerStyle: 'banner',
     clockStyle: 'elegant',
     motion: 'rich',
-  }),
+  }, 'festive'),
   preset('morning-light', 'אור בוקר', 'בהיר ומרווח לקריאת היום', 'light', 'minimal', {
     primaryColor: '#243038',
     accentColor: '#3d7a6a',
@@ -117,7 +119,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     headerStyle: 'centered',
     showOrnaments: false,
     fontBody: 'Assistant',
-  }),
+  }, 'modern'),
   preset('kotel', 'כותל', 'אבן גיר ופחם', 'light', 'board', {
     primaryColor: '#2a2a2a',
     accentColor: '#8a7350',
@@ -128,7 +130,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     panelRadius: 2,
     fontHeading: 'Suez One',
     showShadows: false,
-  }),
+  }, 'classic'),
   preset('tzfat', 'אוויר צפת', 'כחול־אפור מיסטי', 'dark', 'split', {
     primaryColor: '#e8eef5',
     accentColor: '#6e9bc3',
@@ -138,7 +140,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     mutedColor: '#9aadc0',
     panelStyle: 'glass',
     fontHeading: 'Miriam Libre',
-  }),
+  }, 'classic'),
   preset('negev', 'נגב', 'חול וחוּם נחושת', 'light', 'classic', {
     primaryColor: '#3a2c22',
     accentColor: '#b0783a',
@@ -148,7 +150,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     mutedColor: '#6d5c4c',
     panelStyle: 'soft',
     fontHeading: 'Secular One',
-  }),
+  }, 'nature'),
   preset('modern-ink', 'מודרני נקי', 'מינימליסטי חד', 'light', 'board', {
     primaryColor: '#111827',
     accentColor: '#2563a8',
@@ -162,7 +164,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     fontHeading: 'Heebo',
     fontBody: 'Heebo',
     density: 'compact',
-  }),
+  }, 'modern'),
   preset('olive-scroll', 'מגילת זית', 'ירוק־זית קלאסי', 'light', 'elegant', {
     primaryColor: '#2c351f',
     accentColor: '#7a8f3d',
@@ -172,7 +174,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     headerStyle: 'centered',
     clockStyle: 'elegant',
     fontHeading: 'Frank Ruhl Libre',
-  }),
+  }, 'classic'),
   preset('night-blue', 'לילה עמוק', 'כחול־לילה לטלוויזיה', 'dark', 'classic', {
     primaryColor: '#e7eef7',
     accentColor: '#4ea1d3',
@@ -183,8 +185,67 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     panelStyle: 'soft',
     density: 'comfortable',
     motion: 'subtle',
-  }),
+  }, 'modern'),
+  preset('wedding-gold', 'שמחת חתונה', 'חגיגי לאירוע וקידושין', 'light', 'event', {
+    primaryColor: '#3a2f1c',
+    accentColor: '#b8943c',
+    backgroundColor: '#f7f1e6',
+    backgroundColor2: '#ebe0cc',
+    panelColor: 'rgba(255,252,246,0.92)',
+    panelStyle: 'soft',
+    headerStyle: 'centered',
+    clockStyle: 'elegant',
+    fontHeading: 'Frank Ruhl Libre',
+    motion: 'rich',
+  }, 'festive'),
+  preset('remembrance', 'לע״נ', 'שקט ומכובד לימי זיכרון', 'light', 'mourning', {
+    primaryColor: '#2a2a2a',
+    accentColor: '#6b6b6b',
+    backgroundColor: '#f0f0f0',
+    backgroundColor2: '#e2e2e2',
+    panelColor: 'rgba(255,255,255,0.94)',
+    mutedColor: '#555',
+    panelStyle: 'solid',
+    showOrnaments: false,
+    motion: 'off',
+    clockStyle: 'minimal',
+    headerStyle: 'centered',
+    fontHeading: 'Heebo',
+    fontBody: 'Heebo',
+  }, 'solemn'),
+  preset('canvas-studio', 'סטודיו חופשי', 'מוכן לבונה מסך בגרירה', 'light', 'canvas', {
+    primaryColor: '#1c3140',
+    accentColor: '#a8893d',
+    backgroundColor: '#e8eeea',
+    backgroundColor2: '#d2ddd6',
+    panelStyle: 'glass',
+    overlayOpacity: 0.28,
+  }, 'modern'),
 ];
+
+export const PRESET_CATEGORY_LABELS: Record<NonNullable<DesignPreset['category']>, string> = {
+  classic: 'קלאסי',
+  festive: 'חגיגי',
+  nature: 'טבע',
+  modern: 'מודרני',
+  solemn: 'אבל / זיכרון',
+};
+
+export function layoutLabel(layout: DesignPreset['layout']): string {
+  const map: Record<string, string> = {
+    classic: 'קלאסי',
+    split: 'מפוצל',
+    minimal: 'מינימלי',
+    magazine: 'מגזין',
+    elegant: 'אלגנטי',
+    board: 'לוח',
+    dual: 'כפול',
+    event: 'אירוע',
+    mourning: 'אבל',
+    canvas: 'בונה חופשי',
+  };
+  return map[layout] ?? layout;
+}
 
 export function getPreset(id: string): DesignPreset | undefined {
   return DESIGN_PRESETS.find((p) => p.id === id);

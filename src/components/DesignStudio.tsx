@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   DESIGN_PRESETS,
   FONT_OPTIONS,
+  PRESET_CATEGORY_LABELS,
   applyPreset,
+  layoutLabel,
 } from '../data/designPresets';
 import {
   applyDesignTemplate,
@@ -11,6 +13,7 @@ import {
   saveDesignTemplate,
 } from '../lib/designTemplates';
 import type {
+  DesignPreset,
   DesignSettings,
   SavedDesignTemplate,
   ScreenLayout,
@@ -37,11 +40,61 @@ const LAYOUTS: { id: ScreenLayout; label: string }[] = [
   { id: 'canvas', label: 'בונה חופשי (גרירה)' },
 ];
 
+type FilterId = 'all' | 'light' | 'dark' | 'mine' | NonNullable<DesignPreset['category']>;
+
+function TemplatePreview({
+  primary,
+  accent,
+  bg,
+  bg2,
+  panel,
+  dark,
+}: {
+  primary: string;
+  accent: string;
+  bg: string;
+  bg2: string;
+  panel: string;
+  dark?: boolean;
+}) {
+  return (
+    <div
+      className={`tpl-preview ${dark ? 'is-dark' : ''}`}
+      style={{
+        background: `linear-gradient(145deg, ${bg}, ${bg2})`,
+        color: primary,
+      }}
+      aria-hidden
+    >
+      <div className="tpl-preview-bar" style={{ background: accent }} />
+      <div className="tpl-preview-grid">
+        <div className="tpl-preview-panel" style={{ background: panel }}>
+          <span style={{ background: accent }} />
+          <span />
+          <span />
+        </div>
+        <div className="tpl-preview-panel tall" style={{ background: panel }}>
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="tpl-preview-panel" style={{ background: panel }}>
+          <span style={{ background: accent }} />
+          <span />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
   const d = config.design;
   const [saved, setSaved] = useState<SavedDesignTemplate[]>([]);
   const [tplName, setTplName] = useState('');
   const [tplDesc, setTplDesc] = useState('');
+  const [filter, setFilter] = useState<FilterId>('all');
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     setSaved(loadDesignTemplates());
@@ -51,11 +104,13 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
     const applied = applyPreset(id);
     if (!applied) return;
     onChange(applied);
+    const p = DESIGN_PRESETS.find((x) => x.id === id);
+    onStatus?.(p ? `הוחלה תבנית «${p.name}» — לחץ שמור לעדכון המסך` : 'תבנית הוחלה');
   }
 
   function pickSaved(template: SavedDesignTemplate) {
     onChange(applyDesignTemplate(template));
-    onStatus?.(`הוחלה התבנית «${template.name}»`);
+    onStatus?.(`הוחלה התבנית «${template.name}» — לחץ שמור לעדכון המסך`);
   }
 
   function onSaveTemplate() {
@@ -70,6 +125,7 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
     setSaved(loadDesignTemplates());
     setTplName('');
     setTplDesc('');
+    setFilter('mine');
     onStatus?.(`נשמרה תבנית «${template.name}»`);
   }
 
@@ -80,12 +136,178 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
     onStatus?.(`נמחקה התבנית «${name}»`);
   }
 
+  const filters: { id: FilterId; label: string }[] = [
+    { id: 'all', label: 'הכל' },
+    { id: 'light', label: 'בהיר' },
+    { id: 'dark', label: 'כהה' },
+    { id: 'classic', label: PRESET_CATEGORY_LABELS.classic },
+    { id: 'festive', label: PRESET_CATEGORY_LABELS.festive },
+    { id: 'nature', label: PRESET_CATEGORY_LABELS.nature },
+    { id: 'modern', label: PRESET_CATEGORY_LABELS.modern },
+    { id: 'solemn', label: PRESET_CATEGORY_LABELS.solemn },
+    { id: 'mine', label: `שלי (${saved.length})` },
+  ];
+
+  const filteredPresets = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return DESIGN_PRESETS.filter((p) => {
+      if (filter === 'mine') return false;
+      if (filter === 'light' && p.theme !== 'light') return false;
+      if (filter === 'dark' && p.theme !== 'dark') return false;
+      if (
+        filter !== 'all' &&
+        filter !== 'light' &&
+        filter !== 'dark' &&
+        p.category !== filter
+      ) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        layoutLabel(p.layout).includes(query.trim())
+      );
+    });
+  }, [filter, query]);
+
+  const showMineOnly = filter === 'mine';
+  const showPresets = !showMineOnly;
+
   return (
     <div className="design-studio">
+      <section className="card wide tpl-gallery">
+        <div className="tpl-gallery-head">
+          <div>
+            <h2>תבניות עיצוב</h2>
+            <p className="hint">בחרו מראה מוכן בלחיצה — אחר כך אפשר לכוון צבעים ופריסה ידנית</p>
+          </div>
+          <input
+            className="tpl-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="חיפוש תבנית…"
+          />
+        </div>
+
+        <div className="tpl-filters" role="group" aria-label="סינון תבניות">
+          {filters.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={filter === f.id ? 'on' : ''}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {showPresets ? (
+          <div className="preset-grid tpl-grid">
+            {filteredPresets.map((p) => {
+              const active = d.presetId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`preset-card tpl-card ${active ? 'active' : ''}`}
+                  onClick={() => pickPreset(p.id)}
+                  style={{
+                    ['--p1' as string]: p.design.primaryColor,
+                    ['--p2' as string]: p.design.accentColor,
+                    ['--pb' as string]: p.design.backgroundColor,
+                    ['--pb2' as string]: p.design.backgroundColor2,
+                    ['--pp' as string]: p.design.panelColor,
+                  }}
+                >
+                  <TemplatePreview
+                    primary={p.design.primaryColor}
+                    accent={p.design.accentColor}
+                    bg={p.design.backgroundColor}
+                    bg2={p.design.backgroundColor2}
+                    panel={p.design.panelColor}
+                    dark={p.theme === 'dark'}
+                  />
+                  <div className="tpl-card-body">
+                    <strong>{p.name}</strong>
+                    <em>{p.description}</em>
+                    <span className="tpl-meta">
+                      {layoutLabel(p.layout)}
+                      {p.category ? ` · ${PRESET_CATEGORY_LABELS[p.category]}` : ''}
+                      {p.theme === 'dark' ? ' · כהה' : ' · בהיר'}
+                    </span>
+                    <span className="tpl-apply">{active ? 'פעילה כעת' : 'החל תבנית'}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {showMineOnly ? (
+          saved.length === 0 ? (
+            <p className="hint">עדיין אין תבניות שמורות — כוונו עיצוב ושמרו למטה.</p>
+          ) : (
+            <div className="preset-grid tpl-grid">
+              {saved.map((t) => {
+                const active = d.presetId === t.design.presetId;
+                return (
+                  <div
+                    key={t.id}
+                    className={`preset-card saved-tpl tpl-card ${active ? 'active' : ''}`}
+                    style={{
+                      ['--p1' as string]: t.design.primaryColor,
+                      ['--p2' as string]: t.design.accentColor,
+                      ['--pb' as string]: t.design.backgroundColor,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="preset-card-main"
+                      onClick={() => pickSaved(t)}
+                    >
+                      <TemplatePreview
+                        primary={t.design.primaryColor}
+                        accent={t.design.accentColor}
+                        bg={t.design.backgroundColor}
+                        bg2={t.design.backgroundColor2}
+                        panel={t.design.panelColor}
+                        dark={t.theme === 'dark'}
+                      />
+                      <div className="tpl-card-body">
+                        <strong>{t.name}</strong>
+                        <em>
+                          {t.description}
+                          {t.layout === 'canvas' ? ' · כולל בונה מסך' : ''}
+                        </em>
+                        <span className="tpl-meta">{layoutLabel(t.layout)}</span>
+                        <span className="tpl-apply">{active ? 'פעילה כעת' : 'החל תבנית'}</span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      className="tpl-delete"
+                      onClick={() => onDeleteTemplate(t.id, t.name)}
+                    >
+                      מחק
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : null}
+
+        {showPresets && filteredPresets.length === 0 ? (
+          <p className="hint">לא נמצאו תבניות לסינון הנוכחי.</p>
+        ) : null}
+      </section>
+
       <section className="card wide">
-        <h2>שמירה כתבנית</h2>
+        <h2>שמירה כתבנית שלי</h2>
         <p className="hint">
-          שמור את העיצוב הנוכחי (צבעים, פריסה ובונה מסך) כדי להחיל אותו שוב מאוחר יותר
+          אחרי שבחרתם תבנית וכוונתם — שמרו אותה כדי להחיל שוב על מסכים אחרים במכשיר זה
         </p>
         <div className="tpl-save-row">
           <label>
@@ -107,67 +329,6 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
           <button type="button" className="btn primary" onClick={onSaveTemplate}>
             שמור כתבנית
           </button>
-        </div>
-
-        {saved.length ? (
-          <>
-            <h3 className="tpl-subtitle">התבניות שלי</h3>
-            <div className="preset-grid">
-              {saved.map((t) => (
-                <div
-                  key={t.id}
-                  className={`preset-card saved-tpl ${d.presetId === t.design.presetId ? 'active' : ''}`}
-                  style={{
-                    ['--p1' as string]: t.design.primaryColor,
-                    ['--p2' as string]: t.design.accentColor,
-                    ['--pb' as string]: t.design.backgroundColor,
-                  }}
-                >
-                  <button type="button" className="preset-card-main" onClick={() => pickSaved(t)}>
-                    <span className="preset-swatch" />
-                    <strong>{t.name}</strong>
-                    <em>
-                      {t.description}
-                      {t.layout === 'canvas' ? ' · כולל בונה מסך' : ''}
-                    </em>
-                  </button>
-                  <button
-                    type="button"
-                    className="tpl-delete"
-                    onClick={() => onDeleteTemplate(t.id, t.name)}
-                  >
-                    מחק
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <p className="hint">עדיין אין תבניות שמורות — בנה עיצוב ולחץ «שמור כתבנית»</p>
-        )}
-      </section>
-
-      <section className="card wide">
-        <h2>תבניות עיצוב מוכנות</h2>
-        <p className="hint">לחץ על תבנית כדי להחיל מיד — אפשר לכוון אחר כך ידנית</p>
-        <div className="preset-grid">
-          {DESIGN_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={`preset-card ${d.presetId === p.id ? 'active' : ''}`}
-              onClick={() => pickPreset(p.id)}
-              style={{
-                ['--p1' as string]: p.design.primaryColor,
-                ['--p2' as string]: p.design.accentColor,
-                ['--pb' as string]: p.design.backgroundColor,
-              }}
-            >
-              <span className="preset-swatch" />
-              <strong>{p.name}</strong>
-              <em>{p.description}</em>
-            </button>
-          ))}
         </div>
       </section>
 

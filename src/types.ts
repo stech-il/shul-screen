@@ -311,6 +311,8 @@ export interface DesignPreset {
   theme: 'light' | 'dark';
   layout: ScreenLayout;
   design: DesignSettings;
+  /** Optional gallery filter group */
+  category?: 'classic' | 'festive' | 'nature' | 'modern' | 'solemn';
 }
 
 /** User-saved design (colors + layout + free-form canvas) reusable as a template */
