@@ -444,9 +444,6 @@ export function Agency() {
           >
             התנתק
           </button>
-          <Link className="btn ghost" to="/">
-            דף הבית
-          </Link>
         </div>
       </header>
 
@@ -689,23 +686,6 @@ export function Agency() {
               עדכן סיסמה
             </button>
           </form>
-
-          <div className="side-card tip">
-            <h2>טיפים</h2>
-            <ul>
-              <li>כניסת ניהול על: <code dir="ltr">/#/admin</code></li>
-              <li>«ניהול» נכנס ישירות בלי סיסמת בית הכנסת.</li>
-              <li>«אפס סיסמה» מאפס למשתמשי בית הכנסת.</li>
-              <li>הנתונים נשמרים בענן השרת — לא נמחקים בעדכון גרסה.</li>
-              <li>הפעלה / חידוש / השבתת רישיון — רק כאן.</li>
-              <li>הלקוח לא רואה מפתחות רישיון בניהול בית הכנסת.</li>
-              <li>שכפול מעתיק עיצוב — בלי הפעלה (הפעל בנפרד).</li>
-              <li>מחיקה מסירה נתונים מהמכשיר ומהענן כשמחובר.</li>
-            </ul>
-            <button type="button" className="btn ghost" onClick={() => navigate('/')}>
-              לדף הבית
-            </button>
-          </div>
         </aside>
       </div>
 

@@ -346,14 +346,6 @@
   font-size: 1.2rem;
 }
 
-.side-card.tip ul {
-  margin: 0;
-  padding: 0 1.1rem 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.55;
-}
-
 .hint {
   margin: 0;
   color: var(--muted);

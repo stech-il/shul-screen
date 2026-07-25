@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import {
   getPlatformAdminUsername,
   isPlatformAdminLoggedIn,
@@ -87,9 +87,6 @@ export function PlatformLogin() {
             ברירת מחדל: <code dir="ltr">superadmin</code> /{' '}
             <code dir="ltr">ShulAdmin2026!</code>
           </p>
-          <Link className="btn ghost" to="/">
-            חזרה לדף הבית
-          </Link>
         </form>
       </div>
     </div>
