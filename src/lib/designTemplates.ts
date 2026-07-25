@@ -5,9 +5,11 @@ import type {
   ScreenLayout,
   SynagogueConfig,
 } from '../types';
-import { compactMediaUrl, expandMediaUrl } from './mediaPersist';
+import { compactMediaUrl, expandMediaUrl, isHeavyDataUrl } from './mediaPersist';
 
-const LEGACY_LS_KEY = 'shul-screen:design-templates';
+/** Legacy key — older builds wrote huge templates here and filled the quota. Never write again. */
+export const LEGACY_DESIGN_TEMPLATES_KEY = 'shul-screen:design-templates';
+
 const DB_NAME = 'shul-screen-templates';
 const DB_VERSION = 1;
 const STORE = 'templates';
@@ -23,6 +25,15 @@ function clone<T>(value: T): T {
 
 function uid() {
   return `tpl_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Call on boot — removes the old localStorage blob that caused QuotaExceededError. */
+export function purgeLegacyDesignTemplateStorage(): void {
+  try {
+    localStorage.removeItem(LEGACY_DESIGN_TEMPLATES_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -67,25 +78,29 @@ async function writeAllToIdb(list: SavedDesignTemplate[]): Promise<void> {
   }
 }
 
-/** Drop huge inline images from a template so storage stays small */
+/** Prefer idb refs; never keep raw data: URLs inside templates. */
+async function slimUrl(url: string | undefined): Promise<string> {
+  if (!url) return '';
+  const compacted = await compactMediaUrl(url);
+  if (isHeavyDataUrl(compacted) || compacted.startsWith('data:')) return '';
+  return compacted;
+}
+
 async function slimTemplate(template: SavedDesignTemplate): Promise<SavedDesignTemplate> {
   const design: DesignSettings = {
     ...template.design,
-    logoUrl: await compactMediaUrl(template.design.logoUrl),
-    backgroundImageUrl: await compactMediaUrl(template.design.backgroundImageUrl),
+    logoUrl: await slimUrl(template.design.logoUrl),
+    backgroundImageUrl: await slimUrl(template.design.backgroundImageUrl),
   };
   const canvas: CanvasLayoutConfig = {
     ...template.canvas,
-    backgroundUrl: await compactMediaUrl(template.canvas.backgroundUrl),
+    backgroundUrl: await slimUrl(template.canvas.backgroundUrl),
     widgets: await Promise.all(
       (template.canvas.widgets ?? []).map(async (w) => ({
         ...w,
-        // Free-text HTML can be large but usually OK; strip only image blobs
-        imageUrl: w.imageUrl ? await compactMediaUrl(w.imageUrl) : w.imageUrl,
+        imageUrl: w.imageUrl ? await slimUrl(w.imageUrl) : w.imageUrl,
         text:
-          w.text && w.text.length > 20_000
-            ? `${w.text.slice(0, 20_000)}…`
-            : w.text,
+          w.text && w.text.length > 12_000 ? `${w.text.slice(0, 12_000)}…` : w.text,
       })),
     ),
   };
@@ -115,7 +130,7 @@ async function expandTemplate(template: SavedDesignTemplate): Promise<SavedDesig
 
 function readLegacyLocal(): SavedDesignTemplate[] {
   try {
-    const raw = localStorage.getItem(LEGACY_LS_KEY);
+    const raw = localStorage.getItem(LEGACY_DESIGN_TEMPLATES_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as SavedDesignTemplate[];
     return Array.isArray(parsed) ? parsed : [];
@@ -124,35 +139,29 @@ function readLegacyLocal(): SavedDesignTemplate[] {
   }
 }
 
-function clearLegacyLocal() {
-  try {
-    localStorage.removeItem(LEGACY_LS_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
 let migratePromise: Promise<void> | null = null;
 
 async function migrateLegacyIfNeeded(): Promise<void> {
   if (migratePromise) return migratePromise;
   migratePromise = (async () => {
+    // Always free the legacy key first so quota is available for other keys.
     const legacy = readLegacyLocal();
+    purgeLegacyDesignTemplateStorage();
     if (!legacy.length) return;
     const existing = await readAllFromIdb();
-    if (!existing.length) {
-      const slimmed = await Promise.all(legacy.map((t) => slimTemplate(t)));
-      await writeAllToIdb(slimmed.slice(0, MAX_TEMPLATES));
+    if (existing.length) return;
+    try {
+      const slimmed = await Promise.all(legacy.slice(0, MAX_TEMPLATES).map((t) => slimTemplate(t)));
+      await writeAllToIdb(slimmed);
+    } catch {
+      /* drop unreadable legacy templates rather than crash */
     }
-    clearLegacyLocal();
-  })().catch(() => {
-    // If migrate fails, still try to free quota
-    clearLegacyLocal();
-  });
+  })();
   return migratePromise;
 }
 
 export async function loadDesignTemplates(): Promise<SavedDesignTemplate[]> {
+  purgeLegacyDesignTemplateStorage();
   await migrateLegacyIfNeeded();
   try {
     return await readAllFromIdb();
@@ -169,7 +178,9 @@ export async function saveDesignTemplate(input: {
   design: DesignSettings;
   canvas: CanvasLayoutConfig;
 }): Promise<{ ok: boolean; template?: SavedDesignTemplate; error?: string }> {
+  purgeLegacyDesignTemplateStorage();
   await migrateLegacyIfNeeded();
+
   const name = input.name.trim() || 'תבנית ללא שם';
   const draft: SavedDesignTemplate = {
     id: uid(),
@@ -189,13 +200,14 @@ export async function saveDesignTemplate(input: {
     const slim = await slimTemplate(draft);
     const list = await loadDesignTemplates();
     await writeAllToIdb([slim, ...list].slice(0, MAX_TEMPLATES));
-    // Ensure legacy key cannot refill quota
-    clearLegacyLocal();
+    purgeLegacyDesignTemplateStorage();
     return { ok: true, template: slim };
   } catch (err) {
+    purgeLegacyDesignTemplateStorage();
     const msg =
-      err instanceof DOMException && err.name === 'QuotaExceededError'
-        ? 'האחסון מלא — נסה תבנית בלי תמונות כבדות, או מחק תבניות ישנות'
+      err instanceof DOMException &&
+      (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+        ? 'האחסון מלא — מחק תבניות ישנות או הסר תמונות כבדות מהעיצוב'
         : err instanceof Error
           ? err.message
           : 'שמירת התבנית נכשלה';
@@ -204,10 +216,10 @@ export async function saveDesignTemplate(input: {
 }
 
 export async function deleteDesignTemplate(id: string): Promise<void> {
+  purgeLegacyDesignTemplateStorage();
   await migrateLegacyIfNeeded();
   const list = (await loadDesignTemplates()).filter((t) => t.id !== id);
   await writeAllToIdb(list);
-  clearLegacyLocal();
 }
 
 export async function getDesignTemplate(id: string): Promise<SavedDesignTemplate | undefined> {
