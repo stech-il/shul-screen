@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CITIES, getCity } from '../data/cities';
 import { createDefaultConfig } from '../data/defaults';
@@ -24,10 +24,12 @@ import { isScreenOnline, listHeartbeats } from '../lib/analytics';
 import {
   deleteSynagogue,
   duplicateSynagogue,
+  isSupabaseConfigured,
   listSynagogueIds,
   loadLocal,
   renameSynagogue,
   saveConfig,
+  syncSynagogueIndexFromCloud,
 } from '../lib/storage';
 import type { LicenseInfo, SynagogueConfig } from '../types';
 import './Agency.css';
@@ -65,6 +67,7 @@ export function Agency() {
   const [filter, setFilter] = useState<'all' | 'online' | 'offline' | 'unlicensed'>('all');
   const [modal, setModal] = useState<Modal>(null);
   const [busy, setBusy] = useState(false);
+  const [loadingList, setLoadingList] = useState(false);
 
   const [name, setName] = useState('');
   const [cityId, setCityId] = useState('petah-tikva');
@@ -81,11 +84,25 @@ export function Agency() {
       .filter((c): c is SynagogueConfig => Boolean(c));
   }, [tick, msg]);
 
-  const agencyOk =
-    platformOk &&
-    license &&
-    isLicenseValid(license) &&
-    (license.plan === 'agency' || license.plan === 'pro');
+  async function reloadFromCloud(note?: string) {
+    setLoadingList(true);
+    const result = await syncSynagogueIndexFromCloud();
+    setLoadingList(false);
+    setTick((t) => t + 1);
+    if (note) {
+      setMsg(note);
+    } else if (!result.ok) {
+      setMsg(result.error ?? 'טעינת רשימה מהענן נכשלה');
+    } else if (isSupabaseConfigured) {
+      setMsg(`נטענו ${result.count} בתי כנסת מהענן`);
+    }
+  }
+
+  useEffect(() => {
+    if (!platformOk) return;
+    void reloadFromCloud();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per login
+  }, [platformOk]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -196,10 +213,6 @@ export function Agency() {
     if (!isPlatformAdminLoggedIn()) {
       setMsg('נדרשת התחברות מנהל מערכת');
       setPlatformOk(false);
-      return;
-    }
-    if (!agencyOk) {
-      setMsg('נדרש רישיון Pro / Agency ליצירה מדשבורד זה');
       return;
     }
     if (!name.trim()) return;
@@ -335,6 +348,14 @@ export function Agency() {
           </p>
         </div>
         <div className="agency-top-actions">
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={loadingList}
+            onClick={() => void reloadFromCloud('הרשימה רועננה מהענן')}
+          >
+            {loadingList ? 'טוען…' : 'רענן מהענן'}
+          </button>
           <button type="button" className="btn primary" onClick={() => setModal({ kind: 'create' })}>
             בית כנסת חדש
           </button>
@@ -405,7 +426,12 @@ export function Agency() {
 
       <div className="agency-body">
         <section className="shul-board" aria-label="רשימת בתי כנסת">
-          {filtered.length === 0 ? (
+          {loadingList && filtered.length === 0 ? (
+            <div className="empty-board">
+              <h2>טוען בתי כנסת…</h2>
+              <p>מושך רשימה מהענן ומהמכשיר.</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="empty-board">
               <h2>אין בתי כנסת להצגה</h2>
               <p>צור בית כנסת חדש, או נקה את החיפוש והסינון.</p>
@@ -541,6 +567,10 @@ export function Agency() {
               <li>הלקוח לא רואה מפתחות רישיון בניהול בית הכנסת.</li>
               <li>שכפול מעתיק עיצוב ובונה מסך — בלי הפעלה (הפעל בנפרד).</li>
               <li>מחיקה מסירה את הנתונים מהמכשיר ומהענן כשמחובר.</li>
+              <li>
+                כתובת ישירה:{' '}
+                <code dir="ltr">/#/agency</code>
+              </li>
             </ul>
             <button type="button" className="btn ghost" onClick={() => navigate('/')}>
               לדף הבית
@@ -581,14 +611,11 @@ export function Agency() {
                     ))}
                   </select>
                 </label>
-                {!agencyOk ? (
-                  <p className="hint warn">נדרש רישיון Pro / Agency ליצירה מכאן.</p>
-                ) : null}
                 <div className="modal-actions">
                   <button type="button" className="btn ghost" onClick={() => setModal(null)}>
                     ביטול
                   </button>
-                  <button type="submit" className="btn primary" disabled={busy || !agencyOk}>
+                  <button type="submit" className="btn primary" disabled={busy}>
                     {busy ? 'יוצר…' : 'צור בית כנסת'}
                   </button>
                 </div>

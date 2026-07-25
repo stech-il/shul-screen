@@ -59,6 +59,7 @@ export function Home() {
     setPlatformOk(true);
     setPlatformUser(result.session.username);
     setLoginPass('');
+    navigate('/agency');
   }
 
   function onPlatformLogout() {
@@ -128,13 +129,29 @@ export function Home() {
             ? 'Supabase מחובר'
             : 'מצב הדגמה — חבר Supabase דרך .env.local'}
         </p>
+        {platformOk ? (
+          <p className="hero-cta-row">
+            <Link className="btn primary hero-agency-cta" to="/agency">
+              פאנל ניהול בתי כנסת — מחיקה · שכפול · רישיונות
+            </Link>
+          </p>
+        ) : (
+          <p className="hero-cta-row">
+            <Link className="btn ghost hero-agency-cta" to="/agency">
+              כניסה לפאנל ניהול בתי כנסת
+            </Link>
+          </p>
+        )}
       </section>
 
       <div className="home-grid">
         {!platformOk ? (
           <form className="panel" onSubmit={onPlatformLogin}>
             <h2>כניסת מנהל מערכת</h2>
-            <p className="hint">יצירת בתי כנסת חדשים מוגנת — רק מנהל מערכת יכול להקים.</p>
+            <p className="hint">
+              אחרי התחברות תועבר לפאנל המלא — יצירה, מחיקה, שכפול והנפקת רישיונות. או פתח ישירות{' '}
+              <Link to="/agency">/#/agency</Link>.
+            </p>
             <label>
               שם משתמש
               <input
@@ -169,6 +186,16 @@ export function Home() {
           </form>
         ) : (
           <div className="panel">
+            <div className="agency-jump">
+              <h2>ניהול מרכזי</h2>
+              <p className="hint">
+                מחיקת בתי כנסת, שכפול, שינוי שם והנפקת רישיון לפי תשלום — בפאנל אחד.
+              </p>
+              <Link className="btn primary" to="/agency">
+                פתח פאנל ניהול בתי כנסת
+              </Link>
+            </div>
+            <hr className="panel-sep" />
             <form onSubmit={onCreate}>
               <div className="section-head">
                 <h2>הקמת בית כנסת חדש</h2>

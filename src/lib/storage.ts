@@ -176,6 +176,88 @@ export function listSynagogueIds(): string[] {
   }
 }
 
+/**
+ * Pull every synagogue from Supabase (and local cloud mirrors) into the local index
+ * so the agency panel can manage delete / rename / licenses across devices.
+ */
+export async function syncSynagogueIndexFromCloud(): Promise<{
+  ok: boolean;
+  count: number;
+  error?: string;
+}> {
+  const byId = new Map<string, CachedBundle>();
+
+  for (const id of listSynagogueIds()) {
+    const local = loadLocal(id);
+    if (local?.config) byId.set(id, local);
+  }
+
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k?.startsWith(CLOUD_PREFIX)) continue;
+      try {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        const bundle = JSON.parse(raw) as CachedBundle;
+        if (!bundle?.config?.id) continue;
+        const id = bundle.config.id;
+        const existing = byId.get(id);
+        const remoteAt = Date.parse(bundle.syncedAt || bundle.config.updatedAt || '') || 0;
+        const localAt =
+          Date.parse(existing?.syncedAt || existing?.config.updatedAt || '') || 0;
+        if (!existing || remoteAt >= localAt) {
+          byId.set(id, {
+            ...bundle,
+            config: normalizeConfig(bundle.config),
+          });
+        }
+      } catch {
+        /* skip bad mirror */
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (isSupabaseConfigured && navigator.onLine) {
+    const sb = getSupabase();
+    if (sb) {
+      const { data, error } = await sb
+        .from('synagogues')
+        .select('id, config, updated_at')
+        .order('updated_at', { ascending: false });
+      if (error) {
+        // Still keep whatever we already collected locally
+        if (byId.size === 0) {
+          return { ok: false, count: 0, error: error.message };
+        }
+      } else {
+        for (const row of data ?? []) {
+          const config = normalizeConfig(row.config as SynagogueConfig);
+          byId.set(config.id, {
+            config,
+            syncedAt: (row.updated_at as string) || new Date().toISOString(),
+          });
+        }
+      }
+    }
+  }
+
+  const ids: string[] = [];
+  for (const [id, bundle] of byId) {
+    ids.push(id);
+    try {
+      saveLocal(bundle);
+    } catch {
+      // Quota — still register id so the panel shows something
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  localStorage.setItem(`${PREFIX}index`, JSON.stringify(ids));
+  return { ok: true, count: ids.length };
+}
+
 function getQueue(): string[] {
   try {
     const raw = localStorage.getItem(QUEUE_KEY);
