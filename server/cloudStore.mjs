@@ -314,6 +314,13 @@ export async function putBundle(id, bundle) {
   if (GH_TOKEN) {
     await ghPut(id, bundle);
   }
+  // Auto snapshot on disk (throttled inside createBackup)
+  try {
+    const { createBackup } = await import('./backups.mjs');
+    await createBackup(id, { reason: 'auto', bundle });
+  } catch (err) {
+    console.warn('auto-backup failed', err);
+  }
 }
 
 export async function deleteBundle(id) {

@@ -18,6 +18,7 @@ import {
   statusPayload,
 } from './server/cloudStore.mjs';
 import { billingConfigured, handleBilling, startBillingCron } from './server/billing.mjs';
+import { handleBackups, startBackupCron } from './server/backups.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, 'dist');
@@ -150,6 +151,12 @@ async function handleCloud(req, res, url) {
     } catch (err) {
       sendJson(res, 500, { error: String(err.message || err) });
     }
+    return;
+  }
+
+  // Backup API (before synagogue match — different path shape)
+  if (url.pathname.startsWith('/api/cloud/backups/')) {
+    await handleBackups(req, res, url);
     return;
   }
 
@@ -314,4 +321,6 @@ server.listen(PORT, () => {
   } else {
     console.log('SUMIT billing: disabled (set SUMIT_COMPANY_ID / SUMIT_API_KEY / SUMIT_API_PUBLIC_KEY)');
   }
+  startBackupCron();
+  console.log('Backups: daily snapshots on disk, 7-day retention');
 });

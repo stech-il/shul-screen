@@ -47,6 +47,14 @@ import {
   savePlatformBilling,
   type BillingSubscription,
 } from '../lib/billing';
+import {
+  backupReasonLabel,
+  createBackupNow,
+  formatBackupDate,
+  listBackups,
+  restoreBackup,
+  type BackupItem,
+} from '../lib/backups';
 import type { LicenseInfo, SynagogueConfig } from '../types';
 import './Agency.css';
 
@@ -70,7 +78,8 @@ type Modal =
   | { kind: 'delete'; config: SynagogueConfig }
   | { kind: 'license'; config: SynagogueConfig }
   | { kind: 'resetPassword'; config: SynagogueConfig }
-  | { kind: 'billing'; config: SynagogueConfig };
+  | { kind: 'billing'; config: SynagogueConfig }
+  | { kind: 'backups'; config: SynagogueConfig };
 
 export function Agency() {
   const navigate = useNavigate();
@@ -105,6 +114,8 @@ export function Agency() {
   const [billingActive, setBillingActive] = useState(true);
   const [billingInvoiceEmail, setBillingInvoiceEmail] = useState('');
   const [billingMsg, setBillingMsg] = useState('');
+  const [backupItems, setBackupItems] = useState<BackupItem[]>([]);
+  const [backupMsg, setBackupMsg] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminEmailMsg, setAdminEmailMsg] = useState('');
   const [subsById, setSubsById] = useState<Record<string, BillingSubscription>>({});
@@ -383,6 +394,57 @@ export function Agency() {
       setBillingMsg('הוראת הקבע בוטלה — הרישיון יפוג בתום התקופה ששולמה');
     } catch (err) {
       setBillingMsg(err instanceof Error ? err.message : 'הביטול נכשל');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openBackups(config: SynagogueConfig) {
+    setBackupMsg('');
+    setBackupItems([]);
+    setModal({ kind: 'backups', config });
+    try {
+      const r = await listBackups(config.id);
+      setBackupItems(r.items);
+    } catch (err) {
+      setBackupMsg(err instanceof Error ? err.message : 'טעינת גיבויים נכשלה');
+    }
+  }
+
+  async function onCreateBackup() {
+    if (!modal || modal.kind !== 'backups') return;
+    setBusy(true);
+    setBackupMsg('');
+    try {
+      const r = await createBackupNow(modal.config.id);
+      setBackupItems(r.items ?? []);
+      setBackupMsg('גיבוי נוצר בהצלחה ונשמר בדיסק לשבוע');
+    } catch (err) {
+      setBackupMsg(err instanceof Error ? err.message : 'יצירת גיבוי נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRestoreBackup(backupId: string) {
+    if (!modal || modal.kind !== 'backups') return;
+    if (
+      !confirm(
+        `לשחזר את «${modal.config.name}» מגיבוי זה?\nהמצב הנוכחי יישמר אוטומטית כגיבוי לפני השחזור.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setBackupMsg('');
+    try {
+      await restoreBackup(modal.config.id, backupId);
+      const r = await listBackups(modal.config.id);
+      setBackupItems(r.items);
+      await reloadFromCloud();
+      setBackupMsg('השחזור הושלם — ההגדרות (ורישומי הו״ק אם היו בגיבוי) חזרו');
+    } catch (err) {
+      setBackupMsg(err instanceof Error ? err.message : 'השחזור נכשל');
     } finally {
       setBusy(false);
     }
@@ -807,6 +869,14 @@ export function Agency() {
                         title="הוראת קבע חודשית דרך SUMIT"
                       >
                         הו״ק
+                      </button>
+                      <button
+                        type="button"
+                        className="act"
+                        onClick={() => void openBackups(c)}
+                        title="גיבויים ושחזור מהדיסק"
+                      >
+                        גיבוי
                       </button>
                       <button
                         type="button"
@@ -1258,6 +1328,54 @@ export function Agency() {
                   ) : null}
                 </div>
               </form>
+            ) : null}
+
+            {modal.kind === 'backups' ? (
+              <div>
+                <h2>גיבויים — {modal.config.name}</h2>
+                <p className="hint">
+                  כל גיבוי נשמר בדיסק של Render למשך 7 ימים (הגדרות מלאות + הו״ק אם קיים).
+                  נוצרים אוטומטית בכל שמירה (עד פעם ב־15 דקות) וגם פעם ביום.
+                </p>
+                <div className="modal-actions" style={{ marginBottom: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    disabled={busy}
+                    onClick={() => void onCreateBackup()}
+                  >
+                    {busy ? 'שומר…' : 'צור גיבוי עכשיו'}
+                  </button>
+                </div>
+                {backupItems.length ? (
+                  <ul className="hint" style={{ margin: 0, paddingInlineStart: '1.1rem' }}>
+                    {backupItems.map((b) => (
+                      <li key={b.id} style={{ marginBottom: '0.55rem' }}>
+                        {formatBackupDate(b.createdAt)} · {backupReasonLabel(b.reason)}
+                        {b.revision != null ? ` · rev ${b.revision}` : ''}
+                        {b.hasBilling ? ' · כולל הו״ק' : ''}
+                        {' · '}
+                        <button
+                          type="button"
+                          className="act"
+                          disabled={busy}
+                          onClick={() => void onRestoreBackup(b.id)}
+                        >
+                          שחזר
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="hint">אין גיבויים עדיין — לחץ «צור גיבוי עכשיו».</p>
+                )}
+                {backupMsg ? <p className="hint">{backupMsg}</p> : null}
+                <div className="modal-actions">
+                  <button type="button" className="btn ghost" onClick={() => setModal(null)}>
+                    סגור
+                  </button>
+                </div>
+              </div>
             ) : null}
 
             {modal.kind === 'resetPassword' ? (
