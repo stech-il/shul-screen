@@ -3,8 +3,8 @@
  *
  * Env:
  *   SMTP_HOST, SMTP_PORT (default 587), SMTP_SECURE (true/false)
- *   SMTP_USER, SMTP_PASS
- *   MAIL_FROM  (e.g. "screensmart <noreply@example.com>")
+ *   SMTP_USER, SMTP_PASS  — mailbox on your domain (e.g. noreply@landing-p.co.il)
+ *   MAIL_FROM  — must use the SAME domain as SMTP_USER
  *   MAIL_REPLY_TO (optional)
  */
 import nodemailer from 'nodemailer';
@@ -15,13 +15,49 @@ const SECURE =
   String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || PORT === 465;
 const USER = (process.env.SMTP_USER || '').trim();
 const PASS = (process.env.SMTP_PASS || '').trim();
-const FROM = (process.env.MAIL_FROM || USER || '').trim();
+const FROM_RAW = (process.env.MAIL_FROM || '').trim();
 const REPLY_TO = (process.env.MAIL_REPLY_TO || '').trim();
 
 let transporter = null;
 
+function extractEmail(value) {
+  if (!value) return '';
+  const m = /<([^>]+)>/.exec(value);
+  const email = (m ? m[1] : value).trim();
+  return email.includes('@') ? email.toLowerCase() : '';
+}
+
+function domainOf(email) {
+  const at = email.lastIndexOf('@');
+  return at > 0 ? email.slice(at + 1).toLowerCase() : '';
+}
+
+/**
+ * Hosts often reject 550 if From-domain ≠ authenticated mailbox domain.
+ * Keep a nice display name, but force the address onto SMTP_USER's domain.
+ */
+function resolveFromAddress() {
+  const authEmail = extractEmail(USER) || USER;
+  const authDomain = domainOf(authEmail);
+  if (!authEmail) return FROM_RAW || '';
+
+  const rawEmail = extractEmail(FROM_RAW);
+  const rawDomain = domainOf(rawEmail);
+  const displayMatch = /^"?([^"<]+)"?\s*</.exec(FROM_RAW);
+  const displayName = (displayMatch?.[1] || 'screensmart').trim() || 'screensmart';
+
+  // Prefer MAIL_FROM only when its domain matches the logged-in mailbox.
+  if (rawEmail && authDomain && rawDomain === authDomain) {
+    return FROM_RAW.includes('<') ? FROM_RAW : `${displayName} <${rawEmail}>`;
+  }
+
+  return `${displayName} <${authEmail}>`;
+}
+
+const FROM = resolveFromAddress();
+
 export function mailConfigured() {
-  return Boolean(HOST && FROM && (USER ? PASS : true));
+  return Boolean(HOST && (FROM || USER) && (USER ? PASS : true));
 }
 
 export function mailStatus() {
@@ -60,9 +96,17 @@ export async function sendMail(opts) {
   if (!to.length) {
     return { ok: false, skipped: true, error: 'אין כתובת נמען' };
   }
+  const from = resolveFromAddress();
   try {
     const info = await tx.sendMail({
-      from: FROM,
+      from,
+      // Some hosts also check envelope sender — keep it on the auth mailbox.
+      envelope: USER
+        ? {
+            from: extractEmail(USER) || USER,
+            to,
+          }
+        : undefined,
       to: to.join(', '),
       bcc: opts.bcc
         ? Array.isArray(opts.bcc)
@@ -74,10 +118,10 @@ export async function sendMail(opts) {
       text: opts.text,
       html: opts.html || undefined,
     });
-    return { ok: true, messageId: info.messageId };
+    return { ok: true, messageId: info.messageId, from };
   } catch (err) {
     console.error('SMTP send failed', err);
-    return { ok: false, error: String(err?.message || err).slice(0, 200) };
+    return { ok: false, error: String(err?.message || err).slice(0, 280) };
   }
 }
 
@@ -86,8 +130,8 @@ export async function verifySmtp() {
   if (!tx) return { ok: false, error: 'SMTP לא מוגדר' };
   try {
     await tx.verify();
-    return { ok: true };
+    return { ok: true, from: resolveFromAddress() };
   } catch (err) {
-    return { ok: false, error: String(err?.message || err).slice(0, 200) };
+    return { ok: false, error: String(err?.message || err).slice(0, 280) };
   }
 }
