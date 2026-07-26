@@ -1486,9 +1486,6 @@ export function Admin({ synagogueId }: Props) {
                     </span>
                     <span className="zman-order-num">{index + 1}</span>
                     <strong>{getZmanLabel(key)}</strong>
-                    <span className="zman-order-key" dir="ltr">
-                      {key}
-                    </span>
                     <div className="zman-order-actions">
                       <button
                         type="button"
