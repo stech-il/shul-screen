@@ -113,46 +113,63 @@ function StudioSection({
 }
 
 function TemplatePreview({
-  primary,
-  accent,
-  bg,
-  bg2,
-  panel,
-  dark,
+  template,
 }: {
-  primary: string;
-  accent: string;
-  bg: string;
-  bg2: string;
-  panel: string;
-  dark?: boolean;
+  template: SavedDesignTemplate;
 }) {
+  const { design: d, canvas, theme } = template;
+  const bgImage = canvas.backgroundUrl || d.backgroundImageUrl;
+  const widgets = [...(canvas.widgets ?? [])]
+    .filter((w) => w.visible !== false)
+    .sort((a, b) => a.z - b.z)
+    .slice(0, 18);
+
   return (
     <div
-      className={`tpl-preview ${dark ? 'is-dark' : ''}`}
+      className={`tpl-preview ${theme === 'dark' ? 'is-dark' : ''} ${bgImage ? 'has-bg' : ''}`}
       style={{
-        background: `linear-gradient(145deg, ${bg}, ${bg2})`,
-        color: primary,
+        backgroundColor: d.backgroundColor,
+        backgroundImage: bgImage
+          ? `linear-gradient(rgba(0,0,0,${Math.min(0.45, d.overlayOpacity || 0.2)}), rgba(0,0,0,${Math.min(0.3, (d.overlayOpacity || 0.2) * 0.7)})), url(${bgImage})`
+          : `linear-gradient(145deg, ${d.backgroundColor}, ${d.backgroundColor2})`,
+        color: d.primaryColor,
       }}
       aria-hidden
     >
-      <div className="tpl-preview-bar" style={{ background: accent }} />
-      <div className="tpl-preview-grid">
-        <div className="tpl-preview-panel" style={{ background: panel }}>
-          <span style={{ background: accent }} />
-          <span />
-          <span />
-        </div>
-        <div className="tpl-preview-panel tall" style={{ background: panel }}>
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="tpl-preview-panel" style={{ background: panel }}>
-          <span style={{ background: accent }} />
-          <span />
-        </div>
+      <div className="tpl-preview-stage">
+        {widgets.map((w) => (
+          <div
+            key={w.id}
+            className={`tpl-preview-widget type-${w.type} bg-${w.bg || 'panel'}`}
+            style={{
+              left: `${w.x}%`,
+              top: `${w.y}%`,
+              width: `${w.w}%`,
+              height: `${w.h}%`,
+              zIndex: w.z,
+              background:
+                w.bg === 'none'
+                  ? 'transparent'
+                  : w.bg === 'solid'
+                    ? d.primaryColor
+                    : d.panelColor,
+              borderColor: w.showBorder === false ? 'transparent' : d.accentColor,
+              color: w.bg === 'solid' ? d.backgroundColor : d.primaryColor,
+              borderRadius: w.type === 'clock' ? '50%' : undefined,
+            }}
+          >
+            {w.type === 'clock' ? <i /> : null}
+            {w.type === 'title' || w.type === 'text' ? <span className="tpl-line wide" /> : null}
+            {w.type === 'block' || w.type === 'zmanim' || w.type === 'announcements' ? (
+              <>
+                <span className="tpl-line accent" style={{ background: d.accentColor }} />
+                <span className="tpl-line" />
+                <span className="tpl-line" />
+                <span className="tpl-line short" />
+              </>
+            ) : null}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -315,14 +332,7 @@ export function DesignStudio({
         }}
       >
         <button type="button" className="preset-card-main" onClick={() => void pickSaved(t)}>
-          <TemplatePreview
-            primary={t.design.primaryColor}
-            accent={t.design.accentColor}
-            bg={t.design.backgroundColor}
-            bg2={t.design.backgroundColor2}
-            panel={t.design.panelColor}
-            dark={t.theme === 'dark'}
-          />
+          <TemplatePreview template={t} />
           <div className="tpl-card-body">
             <strong>
               {t.name}

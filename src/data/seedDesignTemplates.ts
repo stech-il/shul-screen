@@ -1,4 +1,5 @@
 import { DEFAULT_DESIGN } from './designPresets';
+import { TEMPLATE_BACKGROUNDS, type TemplateBackgroundKey } from './templateBackgrounds';
 import { createWidget, defaultCanvas } from '../components/canvas/widgets';
 import type {
   CanvasLayoutConfig,
@@ -35,14 +36,52 @@ function w(
 
 function canvas(
   widgets: CanvasWidget[],
-  opts?: Partial<Pick<CanvasLayoutConfig, 'overlayOpacity' | 'aspect'>>,
+  opts?: Partial<Pick<CanvasLayoutConfig, 'overlayOpacity' | 'aspect' | 'backgroundUrl'>>,
 ): CanvasLayoutConfig {
   return {
     ...defaultCanvas(),
-    overlayOpacity: opts?.overlayOpacity ?? 0.28,
+    overlayOpacity: opts?.overlayOpacity ?? 0.22,
     aspect: opts?.aspect ?? '16:9',
-    backgroundUrl: '',
+    backgroundUrl: opts?.backgroundUrl ?? '',
     widgets,
+  };
+}
+
+function withBg(layout: CanvasLayoutConfig, bg: string, overlay = 0.22): CanvasLayoutConfig {
+  return { ...layout, backgroundUrl: bg, overlayOpacity: overlay };
+}
+
+function design(id: string, partial: Partial<DesignSettings>): DesignSettings {
+  return { ...DEFAULT_DESIGN, presetId: id, ...partial };
+}
+
+function tpl(
+  id: string,
+  name: string,
+  description: string,
+  theme: 'light' | 'dark',
+  layout: ScreenLayout,
+  partial: Partial<DesignSettings>,
+  canvasLayout: CanvasLayoutConfig,
+  bgKey: TemplateBackgroundKey,
+  overlay = 0.22,
+): SavedDesignTemplate {
+  const sid = `seed:${id}`;
+  const bg = TEMPLATE_BACKGROUNDS[bgKey];
+  return {
+    id: sid,
+    name,
+    description,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    theme,
+    layout,
+    design: design(sid, {
+      ...partial,
+      backgroundImageUrl: bg,
+      overlayOpacity: overlay,
+      showOrnaments: partial.showOrnaments ?? true,
+    }),
+    canvas: withBg(canvasLayout, bg, overlay),
   };
 }
 
@@ -303,38 +342,9 @@ function layoutDualColumns(seed: string): CanvasLayoutConfig {
   ]);
 }
 
-function design(
-  id: string,
-  partial: Partial<DesignSettings>,
-): DesignSettings {
-  return { ...DEFAULT_DESIGN, presetId: id, ...partial };
-}
-
-function tpl(
-  id: string,
-  name: string,
-  description: string,
-  theme: 'light' | 'dark',
-  layout: ScreenLayout,
-  partial: Partial<DesignSettings>,
-  canvasLayout: CanvasLayoutConfig,
-): SavedDesignTemplate {
-  const sid = `seed:${id}`;
-  return {
-    id: sid,
-    name,
-    description,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    theme,
-    layout,
-    design: design(sid, partial),
-    canvas: canvasLayout,
-  };
-}
-
 /**
  * 30 built-in design templates inspired by common synagogue / Chabad boards.
- * Shown in Design Studio with color previews; not stored in the user's cloud quota.
+ * Shown in Design Studio with layout + background previews; not stored in cloud quota.
  */
 export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
   tpl(
@@ -357,6 +367,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       clockStyle: 'elegant',
     },
     layoutClassicBoard('gold-columns'),
+    'goldColumns',
   ),
   tpl(
     'chabad-nasso',
@@ -376,6 +387,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       clockStyle: 'bold',
     },
     layoutChabadBoard('chabad-nasso'),
+    'chabadCream',
   ),
   tpl(
     'blue-ornate',
@@ -395,6 +407,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       headerStyle: 'banner',
     },
     layoutClassicBoard('blue-ornate'),
+    'blueGold',
   ),
   tpl(
     'ramot-maroon',
@@ -414,6 +427,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       clockStyle: 'bold',
     },
     layoutTriptych('ramot-maroon'),
+    'maroonParchment',
   ),
   tpl(
     'cozumel-blue',
@@ -436,6 +450,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       clockStyle: 'bold',
     },
     layoutModernCommunity('cozumel-blue'),
+    'cozumel', 0.12,
   ),
   tpl(
     'haditch-photo',
@@ -455,6 +470,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       overlayOpacity: 0.4,
     },
     layoutPhotoBoard('haditch-photo'),
+    'campusAerial', 0.42,
   ),
   tpl(
     'ark-wood',
@@ -476,6 +492,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       showOrnaments: true,
     },
     layoutArkWood('ark-wood'),
+    'arkWood', 0.35,
   ),
   tpl(
     'clock-hero',
@@ -493,6 +510,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       clockScale: 1.3,
     },
     layoutClockFocus('clock-hero'),
+    'jerusalemStone',
   ),
   tpl(
     'zmanim-wall',
@@ -511,6 +529,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       bodyScale: 1.1,
     },
     layoutZmanimWall('zmanim-wall'),
+    'parchment',
   ),
   tpl(
     'gabbai-notice',
@@ -529,6 +548,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       headerStyle: 'centered',
     },
     layoutAnnouncementHero('gabbai-notice'),
+    'arkWood', 0.4,
   ),
   tpl(
     'shabbat-queen',
@@ -549,6 +569,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       motion: 'rich',
     },
     layoutClassicBoard('shabbat-queen'),
+    'shabbatNight', 0.32,
   ),
   tpl(
     'parchment',
@@ -569,6 +590,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       showOrnaments: true,
     },
     layoutChabadBoard('parchment'),
+    'parchment',
   ),
   tpl(
     'daily-study',
@@ -602,6 +624,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       w('daily-study', 'parasha', 52, 54, 40, 18, 2),
       w('daily-study', 'announcements', 8, 76, 84, 16, 2),
     ]),
+    'maroonParchment',
   ),
   tpl(
     'jerusalem-stone',
@@ -617,6 +640,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       panelStyle: 'glass',
     },
     defaultCanvas(),
+    'jerusalemStone',
   ),
   tpl(
     'negev-warm',
@@ -635,6 +659,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       fontHeading: 'Secular One',
     },
     layoutDualColumns('negev-warm'),
+    'negev',
   ),
   tpl(
     'tzfat-mist',
@@ -653,6 +678,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       fontHeading: 'Miriam Libre',
     },
     layoutPhotoBoard('tzfat-mist'),
+    'tzfat', 0.35,
   ),
   tpl(
     'kotel-stone',
@@ -672,6 +698,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       showShadows: false,
     },
     layoutZmanimWall('kotel-stone'),
+    'jerusalemStone',
   ),
   tpl(
     'magazine-shabbat',
@@ -689,6 +716,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       titleScale: 1.15,
     },
     layoutClassicBoard('magazine-shabbat'),
+    'chabadCream',
   ),
   tpl(
     'dense-board',
@@ -707,6 +735,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       bodyScale: 0.95,
     },
     layoutChabadBoard('dense-board'),
+    'parchment',
   ),
   tpl(
     'simcha-event',
@@ -726,6 +755,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       motion: 'rich',
     },
     layoutAnnouncementHero('simcha-event'),
+    'wedding',
   ),
   tpl(
     'yahrzeit-quiet',
@@ -759,6 +789,8 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       w('yahrzeit-quiet', 'hebrewDate', 25, 62, 50, 10, 2),
       w('yahrzeit-quiet', 'announcements', 10, 76, 80, 16, 2),
     ]),
+    'remembrance',
+    0.12,
   ),
   tpl(
     'modern-ink',
@@ -781,6 +813,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       density: 'compact',
     },
     layoutDualColumns('modern-ink'),
+    'modern', 0.08,
   ),
   tpl(
     'kinneret',
@@ -797,6 +830,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       fontHeading: 'Heebo',
     },
     layoutTriptych('kinneret'),
+    'kinneret', 0.15,
   ),
   tpl(
     'grove',
@@ -813,6 +847,8 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       fontHeading: 'David Libre',
     },
     defaultCanvas(),
+    'grove',
+    0.18,
   ),
   tpl(
     'night-tv',
@@ -830,6 +866,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       panelStyle: 'soft',
     },
     layoutClockFocus('night-tv'),
+    'nightTv', 0.28,
   ),
   tpl(
     'wedding-gold',
@@ -850,6 +887,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       motion: 'rich',
     },
     layoutAnnouncementHero('wedding-gold'),
+    'wedding',
   ),
   tpl(
     'dual-screen',
@@ -865,6 +903,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       panelStyle: 'glass',
     },
     layoutDualColumns('dual-screen'),
+    'jerusalemStone',
   ),
   tpl(
     'gold-sanctuary',
@@ -885,6 +924,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       showOrnaments: true,
     },
     layoutArkWood('gold-sanctuary'),
+    'goldSanctuary', 0.3,
   ),
   tpl(
     'footer-ticker',
@@ -919,6 +959,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
         fontScale: 1.1,
       }),
     ]),
+    'blueGold',
   ),
   tpl(
     'canvas-studio',
@@ -935,6 +976,7 @@ export const SEED_DESIGN_TEMPLATES: SavedDesignTemplate[] = [
       overlayOpacity: 0.28,
     },
     defaultCanvas(),
+    'goldColumns',
   ),
 ];
 
