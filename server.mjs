@@ -13,7 +13,9 @@ import {
   getBundle,
   getMediaFile,
   listBundles,
+  listHeartbeats,
   putBundle,
+  putHeartbeat,
   putMediaFile,
   statusPayload,
 } from './server/cloudStore.mjs';
@@ -157,6 +159,27 @@ async function handleCloud(req, res, url) {
   // Backup API (before synagogue match — different path shape)
   if (url.pathname.startsWith('/api/cloud/backups/')) {
     await handleBackups(req, res, url);
+    return;
+  }
+
+  // Heartbeats — display posts, agency reads
+  if (url.pathname === '/api/cloud/heartbeats' && req.method === 'GET') {
+    try {
+      sendJson(res, 200, { items: await listHeartbeats() });
+    } catch (err) {
+      sendJson(res, 500, { error: String(err?.message || err) });
+    }
+    return;
+  }
+  if (url.pathname === '/api/cloud/heartbeats' && req.method === 'POST') {
+    try {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const saved = await putHeartbeat(body);
+      sendJson(res, 200, { ok: true, heartbeat: saved });
+    } catch (err) {
+      sendJson(res, 500, { error: String(err?.message || err) });
+    }
     return;
   }
 

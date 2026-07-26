@@ -439,3 +439,53 @@ export function statusPayload() {
     dataDirSet: Boolean(process.env.DATA_DIR),
   };
 }
+
+// —— Screen heartbeats (online status for Agency) — disk only, not GitHub ——
+
+function writeHeartbeatLocal(synagogueId, rec) {
+  ensureLocalDir(recordDir('heartbeats'));
+  fs.writeFileSync(recordPath('heartbeats', synagogueId), JSON.stringify(rec, null, 2), 'utf8');
+}
+
+function readHeartbeatLocal(synagogueId) {
+  const p = recordPath('heartbeats', synagogueId);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export async function putHeartbeat(hb) {
+  if (!hb?.synagogueId) throw new Error('missing synagogueId');
+  const rec = {
+    synagogueId: hb.synagogueId,
+    at: hb.at || new Date().toISOString(),
+    version: hb.version || '',
+    online: hb.online !== false,
+    layout: hb.layout || '',
+  };
+  writeHeartbeatLocal(rec.synagogueId, rec);
+  return rec;
+}
+
+export async function getHeartbeat(synagogueId) {
+  return readHeartbeatLocal(synagogueId);
+}
+
+export async function listHeartbeats() {
+  const dir = recordDir('heartbeats');
+  ensureLocalDir(dir);
+  const out = [];
+  for (const name of fs.readdirSync(dir)) {
+    if (!name.endsWith('.json') || name.startsWith('_')) continue;
+    try {
+      const rec = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+      if (rec?.synagogueId) out.push(rec);
+    } catch {
+      /* ignore bad file */
+    }
+  }
+  return out.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+}

@@ -61,6 +61,18 @@ export function cloudApiPlugin(): Plugin {
             return;
           }
 
+          if (pathOnly === '/api/cloud/heartbeats' && req.method === 'GET') {
+            send(200, { items: await store.listHeartbeats() });
+            return;
+          }
+          if (pathOnly === '/api/cloud/heartbeats' && req.method === 'POST') {
+            const raw = await readReq(req);
+            const body = JSON.parse(raw.toString('utf8') || '{}');
+            const saved = await store.putHeartbeat(body);
+            send(200, { ok: true, heartbeat: saved });
+            return;
+          }
+
           if (pathOnly === '/api/cloud/synagogues' && req.method === 'GET') {
             const bundles = await store.listBundles();
             send(200, {

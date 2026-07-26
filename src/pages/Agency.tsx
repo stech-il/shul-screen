@@ -22,7 +22,7 @@ import {
   touchPlatformSession,
 } from '../lib/platformAuth';
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
-import { isScreenOnline, listHeartbeats } from '../lib/analytics';
+import { fetchHeartbeatsFromCloud, isScreenOnline } from '../lib/analytics';
 import { SiteFooter } from '../components/SiteFooter';
 import {
   deleteSynagogue,
@@ -55,7 +55,7 @@ import {
   restoreBackup,
   type BackupItem,
 } from '../lib/backups';
-import type { LicenseInfo, SynagogueConfig } from '../types';
+import type { LicenseInfo, ScreenHeartbeat, SynagogueConfig } from '../types';
 import './Agency.css';
 
 function slugify(name: string) {
@@ -126,7 +126,22 @@ export function Agency() {
     dataDirSet: boolean;
   } | null>(null);
 
-  const heartbeats = useMemo(() => listHeartbeats(), [tick, msg]);
+  const [heartbeats, setHeartbeats] = useState<ScreenHeartbeat[]>([]);
+
+  useEffect(() => {
+    if (!platformOk) return;
+    let cancelled = false;
+    async function refresh() {
+      const items = await fetchHeartbeatsFromCloud();
+      if (!cancelled) setHeartbeats(items);
+    }
+    void refresh();
+    const id = window.setInterval(refresh, 15_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [platformOk, tick, msg]);
 
   const shuls = useMemo(() => {
     void tick;

@@ -42,8 +42,23 @@ export function listEvents(synagogueId?: string): AnalyticsEvent[] {
   return synagogueId ? all.filter((e) => e.synagogueId === synagogueId) : all;
 }
 
+async function postHeartbeatToCloud(hb: ScreenHeartbeat): Promise<void> {
+  try {
+    await fetch('/api/cloud/heartbeats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(hb),
+      cache: 'no-store',
+      keepalive: true,
+    });
+  } catch {
+    /* offline / server down — local copy still useful on same device */
+  }
+}
+
 export function saveHeartbeat(hb: ScreenHeartbeat): void {
   localStorage.setItem(HEART_PREFIX + hb.synagogueId, JSON.stringify(hb));
+  void postHeartbeatToCloud(hb);
   if (isSupabaseConfigured) {
     const sb = getSupabase();
     void sb?.from('screen_heartbeats').upsert({
@@ -65,6 +80,7 @@ export function loadHeartbeat(synagogueId: string): ScreenHeartbeat | null {
   }
 }
 
+/** Local-only (same browser). Prefer fetchHeartbeatsFromCloud for Agency. */
 export function listHeartbeats(): ScreenHeartbeat[] {
   const out: ScreenHeartbeat[] = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -79,12 +95,28 @@ export function listHeartbeats(): ScreenHeartbeat[] {
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 
+/** Server-backed heartbeats — works across kiosk vs admin browsers. */
+export async function fetchHeartbeatsFromCloud(): Promise<ScreenHeartbeat[]> {
+  try {
+    const res = await fetch(`/api/cloud/heartbeats?_=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return listHeartbeats();
+    const data = (await res.json()) as { items?: ScreenHeartbeat[] };
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (items.length === 0) return listHeartbeats();
+    return items
+      .filter((h) => h?.synagogueId && h?.at)
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  } catch {
+    return listHeartbeats();
+  }
+}
+
 export function isScreenOnline(hb: ScreenHeartbeat | null, withinMs = 90_000): boolean {
   if (!hb) return false;
   return Date.now() - Date.parse(hb.at) < withinMs;
 }
 
-/** Call from display every 30s */
+/** Call from display every 30s — posts to server so Agency sees online status */
 export function startHeartbeat(
   synagogueId: string,
   getLayout: () => string,
