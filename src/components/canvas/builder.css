@@ -90,16 +90,32 @@
   direction: rtl;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.4rem;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
-.cb-stage-col .cb-stage {
+/* Frame keeps aspect ratio — never stretch the stage (that broke templates) */
+.cb-stage-frame {
   flex: 1 1 auto;
-  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  container-type: size;
+}
+
+.cb-stage-frame .cb-stage {
+  flex: none;
+  width: min(100cqw, calc(100cqh * var(--cb-aspect, 1.777778)));
+  height: auto;
+  max-width: 100%;
   max-height: 100%;
-  min-height: 220px;
+  aspect-ratio: var(--cb-aspect, 1.777778);
+  margin: 0;
 }
 
 .cb-stage-settings-wrap {

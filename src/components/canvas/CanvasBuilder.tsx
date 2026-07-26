@@ -494,11 +494,13 @@ export function CanvasBuilder({
 
       <div className="cb-workspace">
         <div className="cb-stage-col">
+        <div className="cb-stage-frame">
         <div
           ref={stageRef}
           className={`canvas-stage cb-stage ${dragging ? 'is-dragging' : ''}`}
           style={{
             aspectRatio: String(ratio),
+            ['--cb-aspect' as string]: String(ratio),
             ['--cv-overlay' as string]: String(canvas.overlayOpacity),
             ...(canvas.backgroundUrl
               ? {
@@ -663,6 +665,7 @@ export function CanvasBuilder({
               </button>
             </div>
           ) : null}
+        </div>
         </div>
 
         <ul className="cb-layers">
