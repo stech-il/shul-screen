@@ -367,6 +367,20 @@ export function DesignStudio({
   return (
     <div className="design-studio">
       <section className="card wide tpl-gallery">
+        <div className="tpl-custom-banner">
+          <div>
+            <strong>רוצים עיצוב מיוחד לבית הכנסת?</strong>
+            <p>אפשר להזמין תבנית מותאמת אישית — אנא צרו קשר ונשמח לעזור.</p>
+          </div>
+          <a
+            className="btn primary"
+            href="https://wa.me/972524521527?text=%D7%A9%D7%9C%D7%95%D7%9D%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%94%D7%96%D7%9E%D7%99%D7%9F%20%D7%A2%D7%99%D7%A6%D7%95%D7%91%20%D7%9E%D7%99%D7%95%D7%97%D7%93%20%D7%9C%D7%9E%D7%A1%D7%9A"
+            target="_blank"
+            rel="noreferrer"
+          >
+            צרו קשר בוואטסאפ
+          </a>
+        </div>
         <div className="tpl-gallery-head">
           <div>
             <h2>תבניות ({SEED_DESIGN_TEMPLATES.length + saved.length})</h2>
