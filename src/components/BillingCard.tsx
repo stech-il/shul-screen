@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { LicenseInfo } from '../types';
 import {
+  applyBillingCoupon,
   fetchBillingConfig,
   fetchSubscription,
   formatBillingDate,
@@ -33,6 +34,9 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
   const [expYear, setExpYear] = useState('');
   const [cvv, setCvv] = useState('');
   const [citizenId, setCitizenId] = useState('');
+  const [couponCode, setCouponCode] = useState('');
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponMsg, setCouponMsg] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +54,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
         setSub(s);
         if (s?.payerEmail) setPayerEmail(s.payerEmail);
         if (s?.payerName) setPayerName(s.payerName);
+        if (s?.couponCode) setCouponCode(s.couponCode);
       })
       .catch(() => {
         if (!cancelled) setConfig({ configured: false, companyId: null, publicKey: null });
@@ -79,6 +84,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
         singleUseToken: token,
         name: payerName,
         email: payerEmail,
+        couponCode: couponCode.trim() || undefined,
       });
       setSub(next);
       setShowForm(false);
@@ -100,6 +106,25 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
     }
   }
 
+  async function onApplyCoupon() {
+    const code = couponCode.trim();
+    if (!code) {
+      setCouponMsg('נא להזין קוד קופון');
+      return;
+    }
+    setCouponBusy(true);
+    setCouponMsg('');
+    try {
+      const { subscription: next, preview } = await applyBillingCoupon(synagogueId, code);
+      setSub(next);
+      setCouponMsg(preview.label || `הקופון הוחל — ${formatIls(preview.amount)} לחודש`);
+    } catch (err) {
+      setCouponMsg(err instanceof Error ? err.message : 'החלת הקופון נכשלה');
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <section className="card">
@@ -118,7 +143,8 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
     );
   }
 
-  const amountSet = (sub?.amount ?? 0) > 0;
+  const amountSet = (sub?.amount ?? 0) > 0 || (sub?.listAmount ?? 0) > 0;
+  const listAmount = sub?.listAmount && sub.listAmount > sub.amount ? sub.listAmount : null;
   const invoices = sub?.history ?? [];
 
   return (
@@ -130,9 +156,45 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
       ) : (
         <>
           <p>
-            מנוי חודשי: <strong>{formatIls(sub!.amount)}</strong> — כל חיוב מוצלח מחדש את
-            רישיון המסך לחודש נוסף.
+            מנוי חודשי:{' '}
+            {listAmount ? (
+              <>
+                <s>{formatIls(listAmount)}</s>{' '}
+                <strong>{formatIls(sub!.amount)}</strong>
+              </>
+            ) : (
+              <strong>{formatIls(sub!.amount)}</strong>
+            )}{' '}
+            — כל חיוב מוצלח מחדש את רישיון המסך לחודש נוסף.
           </p>
+          {sub?.discountLabel ? <p className="hint">{sub.discountLabel}</p> : null}
+
+          {!sub?.hasPaymentMethod ? (
+            <div className="billing-coupon">
+              <label>
+                קוד קופון להנחה
+                <div className="billing-row">
+                  <input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="WELCOME20"
+                    dir="ltr"
+                    style={{ textAlign: 'left' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    disabled={couponBusy || !couponCode.trim()}
+                    onClick={() => void onApplyCoupon()}
+                  >
+                    {couponBusy ? 'בודק…' : 'החל קופון'}
+                  </button>
+                </div>
+              </label>
+              {couponMsg ? <p className="hint">{couponMsg}</p> : null}
+            </div>
+          ) : null}
+
           {sub?.hasPaymentMethod ? (
             <p className="hint">
               כרטיס שמור: •••• {sub.cardMask || '????'} · סטטוס:{' '}

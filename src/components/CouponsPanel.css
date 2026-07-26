@@ -1,0 +1,65 @@
+.coupons-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.65rem 0.75rem;
+  margin-top: 0.75rem;
+  align-items: end;
+}
+
+.coupons-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  font-size: 0.84rem;
+  color: var(--muted, #5f737a);
+}
+
+.coupons-form input,
+.coupons-form select {
+  font: inherit;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--line, rgba(22, 48, 56, 0.14));
+  background: #fff;
+  color: var(--ink, #163038);
+}
+
+.coupons-note {
+  grid-column: 1 / -1;
+}
+
+.coupons-form .btn {
+  justify-self: start;
+}
+
+.coupons-list {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.coupons-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--line, rgba(22, 48, 56, 0.12));
+  background: #fff;
+}
+
+.coupons-list strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.coupons-list span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: var(--muted, #5f737a);
+}

@@ -15,6 +15,7 @@ import { fetchMailStatus, notifyTrialStarted, sendTestMail } from '../lib/notifi
 import { fetchInquiries } from '../lib/inquiries';
 import { InquiriesPanel } from '../components/InquiriesPanel';
 import { DiskFilesPanel } from '../components/DiskFilesPanel';
+import { CouponsPanel } from '../components/CouponsPanel';
 import {
   changePlatformPassword,
   clearPlatformSession,
@@ -126,6 +127,7 @@ export function Agency() {
   const [backupItems, setBackupItems] = useState<BackupItem[]>([]);
   const [backupMsg, setBackupMsg] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
+  const [defaultBillingAmount, setDefaultBillingAmount] = useState('99');
   const [adminEmailMsg, setAdminEmailMsg] = useState('');
   const [mailStatus, setMailStatus] = useState<{
     configured: boolean;
@@ -209,7 +211,10 @@ export function Agency() {
     void reloadFromCloud();
     void reloadInquiries();
     void fetchPlatformBilling()
-      .then((p) => setAdminEmail(p.adminEmail || ''))
+      .then((p) => {
+        setAdminEmail(p.adminEmail || '');
+        setDefaultBillingAmount(String(p.defaultAmount > 0 ? p.defaultAmount : 99));
+      })
       .catch(() => {});
     void fetchMailStatus()
       .then(setMailStatus)
@@ -240,13 +245,22 @@ export function Agency() {
   async function onSaveAdminEmail(e: FormEvent) {
     e.preventDefault();
     setAdminEmailMsg('');
+    const amount = Number(defaultBillingAmount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      setAdminEmailMsg('סכום הו״ק ברירת מחדל לא תקין');
+      return;
+    }
     setBusy(true);
     try {
-      const r = await savePlatformBilling(adminEmail.trim());
+      const r = await savePlatformBilling({
+        adminEmail: adminEmail.trim(),
+        defaultAmount: amount,
+      });
       setAdminEmail(r.adminEmail || '');
-      setAdminEmailMsg('מייל מנהל המערכת נשמר — חשבוניות יועתקו לשם כשזמין ב־SUMIT');
+      setDefaultBillingAmount(String(r.defaultAmount > 0 ? r.defaultAmount : 99));
+      setAdminEmailMsg('הגדרות ברירת המחדל נשמרו');
     } catch (err) {
-      setAdminEmailMsg(err instanceof Error ? err.message : 'שמירת המייל נכשלה');
+      setAdminEmailMsg(err instanceof Error ? err.message : 'שמירה נכשלה');
     } finally {
       setBusy(false);
     }
@@ -627,6 +641,21 @@ export function Agency() {
       summary: `יצירת בית כנסת + ניסיון ${TRIAL_DAYS} ימים`,
     });
 
+    // Auto-seed default standing-order amount so the customer can pay after trial
+    try {
+      const plat = await fetchPlatformBilling();
+      const amount =
+        plat.defaultAmount > 0 ? plat.defaultAmount : Number(defaultBillingAmount) || 99;
+      await saveBillingSettings(id, {
+        amount,
+        active: true,
+        invoiceEmail: email,
+      });
+      refreshSubs();
+    } catch {
+      /* billing optional if SUMIT off */
+    }
+
     const origin = window.location.origin;
     const loginUrl = `${origin}/#/login/${encodeURIComponent(id)}`;
     const displayUrl = `${origin}/#/display/${encodeURIComponent(id)}`;
@@ -861,13 +890,24 @@ export function Agency() {
           <DiskFilesPanel />
 
           <form className="side-card" onSubmit={(e) => void onSaveAdminEmail(e)}>
-            <h2>מייל חשבונית ברירת מחדל</h2>
+            <h2>ברירת מחדל — חיוב ומייל</h2>
             <p className="hint">
-              משמש כגיבוי בלבד. את מייל החשבונית לכל בית כנסת קובעים בכפתור «הו״ק»
-              של אותו בית כנסת.
+              סכום הו״ק ברירת מחדל מוזן אוטומטית לכל מסך חדש שנפתח. מייל המנהל משמש כגיבוי
+              להעתקת חשבוניות.
             </p>
             <label>
-              אימייל
+              סכום חודשי ברירת מחדל (₪)
+              <input
+                value={defaultBillingAmount}
+                onChange={(e) => setDefaultBillingAmount(e.target.value)}
+                inputMode="decimal"
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+                required
+              />
+            </label>
+            <label>
+              אימייל מנהל מערכת
               <input
                 type="email"
                 value={adminEmail}
@@ -879,9 +919,11 @@ export function Agency() {
             </label>
             {adminEmailMsg ? <p className="hint">{adminEmailMsg}</p> : null}
             <button type="submit" className="btn ghost" disabled={busy}>
-              שמור מייל
+              שמור ברירות מחדל
             </button>
           </form>
+
+          <CouponsPanel />
 
           <div className="side-card">
             <h2>SMTP — התראות מייל</h2>

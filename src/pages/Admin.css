@@ -876,6 +876,21 @@ textarea {
   margin-top: 0.5rem;
 }
 
+.billing-coupon {
+  margin: 0.75rem 0;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line, rgba(22, 48, 56, 0.12));
+  background: color-mix(in srgb, #9a7a32 7%, #fff);
+}
+
+.billing-coupon label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
 .billing-row {
   display: flex;
   flex-wrap: wrap;

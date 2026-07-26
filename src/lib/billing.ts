@@ -20,6 +20,10 @@ export interface BillingHistoryItem {
 export interface BillingSubscription {
   synagogueId: string;
   amount: number;
+  /** Original monthly price before coupon */
+  listAmount?: number;
+  couponCode?: string;
+  discountLabel?: string;
   active: boolean;
   status: 'none' | 'active' | 'failed' | 'canceled';
   hasPaymentMethod: boolean;
@@ -64,14 +68,21 @@ export function fetchBillingConfig(): Promise<BillingConfig> {
   return api<BillingConfig>('/api/billing/config');
 }
 
-export function fetchPlatformBilling(): Promise<{ adminEmail: string; configured: boolean }> {
+export function fetchPlatformBilling(): Promise<{
+  adminEmail: string;
+  defaultAmount: number;
+  configured: boolean;
+}> {
   return api('/api/billing/platform');
 }
 
-export function savePlatformBilling(adminEmail: string): Promise<{ adminEmail: string }> {
+export function savePlatformBilling(input: {
+  adminEmail: string;
+  defaultAmount?: number;
+}): Promise<{ adminEmail: string; defaultAmount: number }> {
   return api('/api/billing/platform', {
     method: 'PUT',
-    body: JSON.stringify({ adminEmail }),
+    body: JSON.stringify(input),
   });
 }
 
@@ -111,12 +122,74 @@ export function saveBillingSettings(
 
 export function subscribeBilling(
   id: string,
-  payload: { singleUseToken: string; name?: string; email?: string; phone?: string },
+  payload: {
+    singleUseToken: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    couponCode?: string;
+  },
 ): Promise<SubscribeResult> {
   return api<{ ok: boolean; subscription: BillingSubscription; license?: LicenseInfo }>(
     `/api/billing/subscriptions/${encodeURIComponent(id)}/subscribe`,
     { method: 'POST', body: JSON.stringify(payload) },
   ).then((r) => ({ subscription: r.subscription, license: r.license ?? null }));
+}
+
+export function applyBillingCoupon(
+  id: string,
+  code: string,
+): Promise<{
+  subscription: BillingSubscription;
+  preview: {
+    code: string;
+    listAmount: number;
+    amount: number;
+    saved: number;
+    label: string;
+  };
+}> {
+  return api(
+    `/api/billing/subscriptions/${encodeURIComponent(id)}/coupon`,
+    { method: 'POST', body: JSON.stringify({ code }) },
+  );
+}
+
+export interface BillingCoupon {
+  code: string;
+  type: 'percent' | 'fixed';
+  value: number;
+  active: boolean;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string | null;
+  note: string;
+  createdAt?: string;
+}
+
+export function fetchCoupons(): Promise<BillingCoupon[]> {
+  return api<{ items: BillingCoupon[] }>('/api/billing/coupons').then((r) => r.items ?? []);
+}
+
+export function saveCoupon(input: {
+  code: string;
+  type: 'percent' | 'fixed';
+  value: number;
+  maxUses?: number;
+  expiresAt?: string | null;
+  note?: string;
+  active?: boolean;
+}): Promise<BillingCoupon> {
+  return api<{ item: BillingCoupon }>('/api/billing/coupons', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }).then((r) => r.item);
+}
+
+export function deleteCoupon(code: string): Promise<void> {
+  return api(`/api/billing/coupons/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  }).then(() => undefined);
 }
 
 export function chargeBillingNow(id: string): Promise<SubscribeResult> {

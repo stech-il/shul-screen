@@ -13,6 +13,18 @@
  * Env: SUMIT_COMPANY_ID, SUMIT_API_KEY, SUMIT_API_PUBLIC_KEY
  */
 import { getBundle, getRecord, listRecords, putBundle, putRecord } from './cloudStore.mjs';
+import {
+  assertCouponUsable,
+  computeDiscountedAmount,
+  discountLabel,
+  getCoupon,
+  listCoupons,
+  normalizeCouponCode,
+  previewCoupon,
+  redeemCoupon,
+  removeCoupon,
+  saveCoupon,
+} from './coupons.mjs';
 
 const SUMIT_BASE = 'https://api.sumit.co.il';
 const COMPANY_ID = Number(process.env.SUMIT_COMPANY_ID || 0);
@@ -43,6 +55,8 @@ function defaultSubscription(id) {
   return {
     synagogueId: id,
     amount: 0,
+    listAmount: 0,
+    couponCode: '',
     active: false,
     status: 'none',
     customerId: null,
@@ -64,6 +78,8 @@ function defaultPlatform() {
   return {
     synagogueId: PLATFORM_ID,
     adminEmail: '',
+    /** Default monthly HO"K amount applied to newly created screens */
+    defaultAmount: 99,
     updatedAt: nowIso(),
   };
 }
@@ -501,7 +517,15 @@ async function applySuccessfulPayment(rec, result, { extend = true } = {}) {
 }
 
 async function chargeAndRenew(id, options = {}) {
-  const rec = await getSubscription(id);
+  let rec = await getSubscription(id);
+  if (options.couponCode) {
+    const applied = await applyCouponToSubscription(rec, options.couponCode, { redeem: false });
+    rec = applied.rec;
+    await saveSubscription(rec);
+  }
+  if (!(rec.amount > 0) && !(Number(rec.amount) === 0 && rec.couponCode)) {
+    // allow 0 only if coupon made it free? SUMIT might not like 0 — require > 0
+  }
   if (!(rec.amount > 0)) {
     throw new Error('מנהל המערכת טרם קבע סכום חודשי לבית כנסת זה');
   }
@@ -523,6 +547,10 @@ async function chargeAndRenew(id, options = {}) {
       options.singleUseToken,
       platform.adminEmail || undefined,
     );
+    if (rec.couponCode && !rec.couponRedeemed) {
+      await redeemCoupon(rec.couponCode);
+      rec.couponRedeemed = true;
+    }
     return await applySuccessfulPayment(rec, result, { extend: true });
   } catch (err) {
     const message = String(err?.message || err);
@@ -631,16 +659,26 @@ function sendJson(res, status, obj) {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,PUT,POST,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,PUT,POST,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   });
   res.end(JSON.stringify(obj));
 }
 
 function publicRecord(rec) {
+  const listAmount =
+    Number(rec.listAmount) > 0 ? Number(rec.listAmount) : Number(rec.amount) || 0;
+  const amount = Number(rec.amount) || 0;
+  const couponCode = rec.couponCode || '';
   return {
     synagogueId: rec.synagogueId,
-    amount: rec.amount,
+    amount,
+    listAmount,
+    couponCode,
+    discountLabel:
+      couponCode && listAmount > amount
+        ? `קופון ${couponCode} · חיסכון ${Math.round((listAmount - amount) * 100) / 100}₪`
+        : '',
     active: rec.active,
     status: rec.status,
     hasPaymentMethod: Boolean(rec.customerId),
@@ -653,6 +691,45 @@ function publicRecord(rec) {
     lastChargeAt: rec.lastChargeAt,
     lastError: rec.lastError,
     history: (rec.history || []).slice(-12).reverse(),
+  };
+}
+
+async function applyCouponToSubscription(rec, code, { redeem = false } = {}) {
+  const normalized = normalizeCouponCode(code);
+  if (!normalized) throw new Error('קוד קופון חסר');
+  const list =
+    Number(rec.listAmount) > 0
+      ? Number(rec.listAmount)
+      : Number(rec.amount) > 0
+        ? Number(rec.amount)
+        : 0;
+  if (!(list > 0)) throw new Error('ספק המערכת עדיין לא קבע סכום חודשי');
+  const coupon = await getCoupon(normalized);
+  if (!coupon) throw new Error('קוד קופון לא נמצא');
+  assertCouponUsable(coupon);
+  if (rec.couponCode && rec.couponCode !== normalized && rec.customerId) {
+    throw new Error('כבר הוחל קופון על מנוי זה');
+  }
+  const amount = computeDiscountedAmount(list, coupon);
+  rec.listAmount = list;
+  rec.amount = amount;
+  rec.couponCode = coupon.code;
+  if (redeem && rec.couponCode) {
+    // redeem only once per subscription binding
+    if (!rec.couponRedeemed) {
+      await redeemCoupon(coupon.code);
+      rec.couponRedeemed = true;
+    }
+  }
+  return {
+    rec,
+    preview: {
+      code: coupon.code,
+      listAmount: list,
+      amount,
+      saved: Math.round((list - amount) * 100) / 100,
+      label: discountLabel(coupon, list, amount),
+    },
   };
 }
 
@@ -702,11 +779,20 @@ export async function handleBilling(req, res, url) {
 
   if (url.pathname === '/api/billing/platform' && req.method === 'GET') {
     if (!billingConfigured()) {
-      sendJson(res, 200, { adminEmail: '', configured: false });
+      sendJson(res, 200, {
+        adminEmail: '',
+        defaultAmount: 99,
+        configured: false,
+      });
       return;
     }
     const platform = await getPlatformSettings();
-    sendJson(res, 200, { adminEmail: platform.adminEmail || '', configured: true });
+    sendJson(res, 200, {
+      adminEmail: platform.adminEmail || '',
+      defaultAmount:
+        Number(platform.defaultAmount) > 0 ? Number(platform.defaultAmount) : 99,
+      configured: true,
+    });
     return;
   }
 
@@ -721,8 +807,81 @@ export async function handleBilling(req, res, url) {
       sendJson(res, 400, { error: 'כתובת מייל לא תקינה' });
       return;
     }
-    const platform = await savePlatformSettings({ adminEmail: email });
-    sendJson(res, 200, { adminEmail: platform.adminEmail || '', configured: true });
+    const patch = { adminEmail: email };
+    if (typeof body.defaultAmount === 'number') {
+      const amt = Math.round(body.defaultAmount * 100) / 100;
+      if (!Number.isFinite(amt) || amt < 0) {
+        sendJson(res, 400, { error: 'סכום ברירת מחדל לא תקין' });
+        return;
+      }
+      patch.defaultAmount = amt;
+    }
+    const platform = await savePlatformSettings(patch);
+    sendJson(res, 200, {
+      adminEmail: platform.adminEmail || '',
+      defaultAmount:
+        Number(platform.defaultAmount) > 0 ? Number(platform.defaultAmount) : 99,
+      configured: true,
+    });
+    return;
+  }
+
+  // —— Coupons ——
+  if (url.pathname === '/api/billing/coupons' && req.method === 'GET') {
+    sendJson(res, 200, { items: await listCoupons() });
+    return;
+  }
+
+  if (url.pathname === '/api/billing/coupons' && req.method === 'POST') {
+    const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
+    try {
+      const item = await saveCoupon(body);
+      sendJson(res, 201, { ok: true, item });
+    } catch (err) {
+      sendJson(res, 400, { error: String(err?.message || err) });
+    }
+    return;
+  }
+
+  if (url.pathname === '/api/billing/coupons/preview' && req.method === 'POST') {
+    const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
+    try {
+      const id = String(body.synagogueId || '').trim();
+      const rec = id ? await getSubscription(id) : null;
+      const list =
+        Number(body.listAmount) > 0
+          ? Number(body.listAmount)
+          : Number(rec?.listAmount) > 0
+            ? Number(rec.listAmount)
+            : Number(rec?.amount) || 0;
+      const preview = await previewCoupon(body.code, list);
+      sendJson(res, 200, preview);
+    } catch (err) {
+      sendJson(res, 400, { error: String(err?.message || err) });
+    }
+    return;
+  }
+
+  const couponMatch = url.pathname.match(/^\/api\/billing\/coupons\/([^/]+)$/);
+  if (couponMatch && req.method === 'PUT') {
+    const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
+    try {
+      const item = await saveCoupon({
+        ...body,
+        code: decodeURIComponent(couponMatch[1]),
+      });
+      sendJson(res, 200, { ok: true, item });
+    } catch (err) {
+      sendJson(res, 400, { error: String(err?.message || err) });
+    }
+    return;
+  }
+  if (couponMatch && req.method === 'DELETE') {
+    try {
+      sendJson(res, 200, await removeCoupon(decodeURIComponent(couponMatch[1])));
+    } catch (err) {
+      sendJson(res, 400, { error: String(err?.message || err) });
+    }
     return;
   }
 
@@ -828,7 +987,16 @@ export async function handleBilling(req, res, url) {
       const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
       const rec = await getSubscription(id);
       if (typeof body.amount === 'number' && body.amount >= 0) {
-        rec.amount = Math.round(body.amount * 100) / 100;
+        const amt = Math.round(body.amount * 100) / 100;
+        rec.amount = amt;
+        // Platform-set amount becomes the list price; clear prior coupon unless kept
+        if (!body.keepCoupon) {
+          rec.listAmount = amt;
+          rec.couponCode = '';
+          rec.couponRedeemed = false;
+        } else if (!(Number(rec.listAmount) > 0)) {
+          rec.listAmount = amt;
+        }
       }
       if (typeof body.invoiceEmail === 'string') {
         const email = body.invoiceEmail.trim();
@@ -850,6 +1018,21 @@ export async function handleBilling(req, res, url) {
       return;
     }
 
+    if (req.method === 'POST' && action === 'coupon') {
+      const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
+      try {
+        const rec = await getSubscription(id);
+        const { rec: next, preview } = await applyCouponToSubscription(rec, body.code, {
+          redeem: false,
+        });
+        await saveSubscription(next);
+        sendJson(res, 200, { ok: true, subscription: publicRecord(next), preview });
+      } catch (err) {
+        sendJson(res, 400, { error: String(err?.message || err) });
+      }
+      return;
+    }
+
     if (req.method === 'POST' && action === 'subscribe') {
       const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
       if (!body.singleUseToken) {
@@ -859,6 +1042,7 @@ export async function handleBilling(req, res, url) {
       const { subscription, license } = await chargeAndRenew(id, {
         singleUseToken: String(body.singleUseToken),
         payer: { name: body.name, email: body.email, phone: body.phone },
+        couponCode: body.couponCode ? String(body.couponCode) : undefined,
       });
       sendJson(res, 200, {
         ok: true,
