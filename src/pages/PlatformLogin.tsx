@@ -37,7 +37,7 @@ export function PlatformLogin() {
     <div className="agency" dir="rtl" lang="he">
       <div className="agency-login-shell">
         <div className="agency-brand-block">
-          <p className="agency-brand">smartech</p>
+          <p className="agency-brand">smartscreen</p>
           <h1>ניהול על</h1>
           <p className="agency-lead">
             כניסת מנהל מערכת — ניהול בתי כנסת, רישיונות והשבתות ממקום אחד.

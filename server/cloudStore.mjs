@@ -145,7 +145,7 @@ async function ghFetch(apiPath, options = {}) {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${GH_TOKEN}`,
       'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'smartech-cloud',
+      'User-Agent': 'smartscreen-cloud',
       ...(options.headers || {}),
     },
   });
