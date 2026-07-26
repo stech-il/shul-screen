@@ -78,13 +78,17 @@
 .cb-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0;
+  gap: 0.5rem;
   align-items: stretch;
-  direction: ltr;
+  direction: ltr; /* stage on the left, panel on the right */
   flex: 1;
   min-height: 0;
   height: 100%;
   position: relative;
+}
+
+.cb-workspace.is-editing {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 300px);
 }
 
 .cb-stage-col {
@@ -97,7 +101,7 @@
   height: 100%;
 }
 
-/* Fill available editor space; JS sets exact stage pixel size to max fit */
+/* Stage hugs the left and fills the column */
 .cb-stage-frame {
   flex: 1 1 auto;
   min-height: 0;
@@ -106,7 +110,7 @@
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* push canvas to the left */
   overflow: hidden;
   background: #12161a;
   border-radius: 6px;
@@ -124,19 +128,22 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-/* Elementor-style: panel floats over the canvas, does not shrink it */
+/* Editor panel — fixed to the visual right */
 .cb-inspector-el {
-  position: absolute !important;
-  top: 0.35rem;
-  inset-inline-end: 0.35rem;
-  bottom: 0.35rem;
-  width: min(300px, 34vw);
-  z-index: 30;
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: 100% !important;
   max-height: none !important;
-  height: auto !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
-  border-radius: 10px;
+  z-index: 5;
+  box-shadow: none;
+  border-radius: 8px;
   overflow: hidden;
+  direction: rtl;
 }
 
 .cb-fit-meta {
@@ -680,8 +687,17 @@
 }
 
 @media (max-width: 1000px) {
+  .cb-workspace.is-editing {
+    grid-template-columns: 1fr;
+  }
   .cb-inspector-el {
-    width: min(300px, 92vw);
-    inset-inline-end: 0.2rem;
+    position: absolute !important;
+    top: 0.25rem;
+    right: 0.25rem;
+    left: auto;
+    bottom: 0.25rem;
+    width: min(300px, 92vw) !important;
+    z-index: 40;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
   }
 }

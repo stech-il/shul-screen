@@ -540,7 +540,7 @@ export function CanvasBuilder({
         </details>
       </div>
 
-      <div className="cb-workspace">
+      <div className={`cb-workspace${selected ? ' is-editing' : ''}`}>
         <div className="cb-stage-col">
         <div className="cb-stage-frame" ref={frameRef}>
         <div
