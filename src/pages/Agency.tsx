@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { CITIES, getCity } from '../data/cities';
 import { createDefaultConfig } from '../data/defaults';
-import { enterAsPlatformAdmin, hashPassword } from '../lib/auth';
+import { enterAsPlatformAdmin, generateExclusiveAdminPassword, generateExclusiveAdminUsername, hashPassword } from '../lib/auth';
 import {
   daysLeft,
   issueScreenLicense,
@@ -73,6 +73,16 @@ function slugify(name: string) {
 type Modal =
   | null
   | { kind: 'create' }
+  | {
+      kind: 'created';
+      config: SynagogueConfig;
+      username: string;
+      password: string;
+      loginUrl: string;
+      displayUrl: string;
+      emailSentTo: string;
+      mailOk: boolean;
+    }
   | { kind: 'rename'; config: SynagogueConfig }
   | { kind: 'duplicate'; config: SynagogueConfig }
   | { kind: 'delete'; config: SynagogueConfig }
@@ -589,7 +599,11 @@ export function Agency() {
     }
     if (!name.trim()) return;
     const email = contactEmail.trim();
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email) {
+      setMsg('נא להזין מייל לקוח — אליו יישלחו פרטי הכניסה');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setMsg('כתובת המייל אינה תקינה');
       return;
     }
@@ -600,8 +614,10 @@ export function Agency() {
       setMsg('מזהה בית כנסת כבר קיים — נסה שם אחר');
       return;
     }
-    const config = await createDefaultConfig(id, name.trim(), cityId, 'admin123', 'admin');
-    config.contactEmail = email || undefined;
+    const adminUser = generateExclusiveAdminUsername(id, email);
+    const adminPass = generateExclusiveAdminPassword();
+    const config = await createDefaultConfig(id, name.trim(), cityId, adminPass, adminUser);
+    config.contactEmail = email;
     config.license = issueScreenLicense(id, 'trial', name.trim(), {
       durationDays: TRIAL_DAYS,
     });
@@ -609,13 +625,36 @@ export function Agency() {
       by: `platform:${loadPlatformSession()?.username ?? 'admin'}`,
       summary: `יצירת בית כנסת + ניסיון ${TRIAL_DAYS} ימים`,
     });
-    void notifyTrialStarted(id);
+
+    const origin = window.location.origin;
+    const loginUrl = `${origin}/#/login/${encodeURIComponent(id)}`;
+    const displayUrl = `${origin}/#/display/${encodeURIComponent(id)}`;
+    const mailResult = await notifyTrialStarted(id, {
+      username: adminUser,
+      password: adminPass,
+      loginUrl,
+      displayUrl,
+      to: email,
+    });
+    const mailOk = Boolean(mailResult && (mailResult as { ok?: boolean }).ok);
+
     setName('');
     setContactEmail('');
     setBusy(false);
-    setModal(null);
+    setModal({
+      kind: 'created',
+      config,
+      username: adminUser,
+      password: adminPass,
+      loginUrl,
+      displayUrl,
+      emailSentTo: email,
+      mailOk,
+    });
     refresh(
-      `נוצר «${config.name}» — ניסיון ${TRIAL_DAYS} ימים${email ? ` · מייל נשלח ל־${email}` : ''}`,
+      mailOk
+        ? `נוצר «${config.name}» — פרטי הכניסה נשלחו ל־${email}`
+        : `נוצר «${config.name}» — בדקו את פרטי הכניסה למטה (שליחת המייל נכשלה או SMTP כבוי)`,
     );
   }
 
@@ -1160,8 +1199,8 @@ export function Agency() {
               <form onSubmit={(e) => void createShul(e)}>
                 <h2>בית כנסת חדש</h2>
                 <p className="hint">
-                  נוצר מסך חדש עם <strong>ניסיון חינם ל־{TRIAL_DAYS} ימים</strong> ומשתמש
-                  admin. בתום הניסיון — הפעל מנוי («הפעל לפי תשלום» או הוראת קבע).
+                  נוצר מסך עם <strong>ניסיון חינם ל־{TRIAL_DAYS} ימים</strong>, שם משתמש וסיסמת מנהל
+                  ייחודיים — הפרטים נשלחים אוטומטית למייל הלקוח.
                 </p>
                 <label>
                   שם בית הכנסת
@@ -1174,11 +1213,12 @@ export function Agency() {
                   />
                 </label>
                 <label>
-                  מייל ליצירת קשר (להתראות ניסיון/תשלום)
+                  מייל הלקוח (חובה — פרטי כניסה)
                   <input
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
+                    required
                     placeholder="gabbai@example.com"
                     dir="ltr"
                     style={{ textAlign: 'left' }}
@@ -1203,6 +1243,67 @@ export function Agency() {
                   </button>
                 </div>
               </form>
+            ) : null}
+
+            {modal.kind === 'created' ? (
+              <div>
+                <h2>המערכת מוכנה</h2>
+                <p className="hint">
+                  «{modal.config.name}» · ניסיון {TRIAL_DAYS} ימים
+                  {modal.mailOk
+                    ? ` · נשלח מייל אל ${modal.emailSentTo}`
+                    : ` · שליחת המייל ל־${modal.emailSentTo} נכשלה — העתיקו את הפרטים ידנית`}
+                </p>
+                <div className="agency-creds-card">
+                  <p>
+                    <span>שם משתמש</span>
+                    <code dir="ltr">{modal.username}</code>
+                  </p>
+                  <p>
+                    <span>סיסמה</span>
+                    <code dir="ltr">{modal.password}</code>
+                  </p>
+                  <p>
+                    <span>ניהול</span>
+                    <a href={modal.loginUrl} target="_blank" rel="noreferrer" dir="ltr">
+                      {modal.loginUrl}
+                    </a>
+                  </p>
+                  <p>
+                    <span>מסך חי</span>
+                    <a href={modal.displayUrl} target="_blank" rel="noreferrer" dir="ltr">
+                      {modal.displayUrl}
+                    </a>
+                  </p>
+                </div>
+                <p className="hint warn-inline">
+                  הסיסמה מוצגת כאן פעם אחת בלבד — העתיקו לפני הסגירה.
+                </p>
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => {
+                      const text = [
+                        `בית כנסת: ${modal.config.name}`,
+                        `שם משתמש: ${modal.username}`,
+                        `סיסמה: ${modal.password}`,
+                        `ניהול: ${modal.loginUrl}`,
+                        `מסך: ${modal.displayUrl}`,
+                      ].join('\n');
+                      void navigator.clipboard?.writeText(text).then(
+                        () => setMsg('פרטי הכניסה הועתקו'),
+                        () => setMsg('ההעתקה נכשלה'),
+                      );
+                    }}
+                  >
+                    העתק הכל
+                  </button>
+                  <button type="button" className="btn primary" onClick={() => setModal(null)}>
+                    סגור
+                  </button>
+                </div>
+              </div>
             ) : null}
 
             {modal.kind === 'rename' ? (

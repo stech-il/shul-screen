@@ -90,7 +90,7 @@ function wrapHtml(title, bodyHtml) {
 </body></html>`;
 }
 
-async function dispatch(synagogueId, key, { subject, text, html, alsoAdmin = true }) {
+async function dispatch(synagogueId, key, { subject, text, html, alsoAdmin = true, toOverride = '' }) {
   if (!mailConfigured()) {
     return { ok: false, skipped: true, error: 'SMTP לא מוגדר' };
   }
@@ -100,8 +100,9 @@ async function dispatch(synagogueId, key, { subject, text, html, alsoAdmin = tru
   }
   const { to, admin, name } = await resolveRecipient(synagogueId);
   const recipients = [];
-  if (to) recipients.push(to);
-  if (alsoAdmin && admin && admin !== to) recipients.push(admin);
+  const primary = String(toOverride || to || '').trim();
+  if (primary) recipients.push(primary);
+  if (alsoAdmin && admin && admin !== primary) recipients.push(admin);
   if (!recipients.length) {
     return { ok: false, skipped: true, error: 'אין כתובת מייל ללקוח או למנהל' };
   }
@@ -116,22 +117,64 @@ async function dispatch(synagogueId, key, { subject, text, html, alsoAdmin = tru
   return { ...result, to: recipients };
 }
 
-export async function notifyTrialStarted(synagogueId) {
+export async function notifyTrialStarted(synagogueId, opts = {}) {
   const { name, license } = await resolveRecipient(synagogueId);
   const until = formatDateHe(license?.expiresAt);
-  const subject = `תקופת ניסיון התחילה — ${name}`;
-  const text = `שלום,\n\nבית הכנסת «${name}» קיבל תקופת ניסיון של ${TRIAL_DAYS} ימים במערכת screensmart.\nהניסיון בתוקף עד ${until}.\n\nלאחר מכן יש להפעיל מנוי חודשי כדי שהמסך ימשיך לפעול.\n`;
+  const username = String(opts.username || '').trim();
+  const password = String(opts.password || '').trim();
+  const loginUrl = String(opts.loginUrl || '').trim();
+  const displayUrl = String(opts.displayUrl || '').trim();
+  const hasCreds = Boolean(username && password);
+
+  const subject = hasCreds
+    ? `ברוכים הבאים ל־screensmart — פרטי הכניסה של ${name}`
+    : `תקופת ניסיון התחילה — ${name}`;
+
+  const credsText = hasCreds
+    ? `\nפרטי כניסה לניהול המסך:\nשם משתמש: ${username}\nסיסמה: ${password}\nקישור לניהול: ${loginUrl || '—'}\nקישור למסך החי: ${displayUrl || '—'}\n\nשמרו את הסיסמה במקום בטוח — היא לא תוצג שוב במערכת.\n`
+    : '';
+
+  const text = `שלום,\n\nבית הכנסת «${name}» נפתח במערכת screensmart עם תקופת ניסיון של ${TRIAL_DAYS} ימים.\nהניסיון בתוקף עד ${until}.\n${credsText}\nלאחר תקופת הניסיון יש להפעיל מנוי כדי שהמסך ימשיך לפעול.\n`;
+
+  const credsHtml = hasCreds
+    ? `<div style="margin:20px 0;padding:18px;background:#f4f8f6;border:1px solid #d5e5dc;border-radius:10px">
+         <p style="margin:0 0 10px;font-weight:700;color:#1c5c3e">פרטי הכניסה לניהול</p>
+         <table style="width:100%;border-collapse:collapse;font-size:15px">
+           <tr><td style="padding:6px 0;color:#6b7a80;width:110px">שם משתמש</td><td style="padding:6px 0;font-family:Consolas,monospace;font-weight:700;direction:ltr;text-align:left">${escapeHtml(username)}</td></tr>
+           <tr><td style="padding:6px 0;color:#6b7a80">סיסמה</td><td style="padding:6px 0;font-family:Consolas,monospace;font-weight:700;direction:ltr;text-align:left">${escapeHtml(password)}</td></tr>
+         </table>
+         <p style="margin:14px 0 6px">
+           <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#163038;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600">כניסה לניהול המסך</a>
+         </p>
+         ${displayUrl ? `<p style="margin:8px 0 0;font-size:13px"><a href="${escapeHtml(displayUrl)}" style="color:#163038">פתיחת המסך החי</a></p>` : ''}
+         <p style="margin:14px 0 0;font-size:12px;color:#8a5a2b">שמרו את הסיסמה במקום בטוח — היא לא תוצג שוב במערכת.</p>
+       </div>`
+    : '';
+
   const html = wrapHtml(
-    'תקופת ניסיון התחילה',
-    `<p>בית הכנסת <strong>«${name}»</strong> קיבל תקופת ניסיון של <strong>${TRIAL_DAYS} ימים</strong>.</p>
-     <p>הניסיון בתוקף עד <strong>${until}</strong>.</p>
-     <p>לאחר מכן יש להפעיל מנוי חודשי כדי שהמסך ימשיך לפעול.</p>`,
+    hasCreds ? 'המערכת מוכנה — פרטי הכניסה' : 'תקופת ניסיון התחילה',
+    `<p>שלום,</p>
+     <p>בית הכנסת <strong>«${escapeHtml(name)}»</strong> נפתח במערכת <strong>screensmart</strong>.</p>
+     <p>תקופת ניסיון של <strong>${TRIAL_DAYS} ימים</strong> בתוקף עד <strong>${escapeHtml(until)}</strong>.</p>
+     ${credsHtml}
+     <p style="margin-top:18px;color:#5f737a;font-size:14px">בתום הניסיון יש להפעיל מנוי חודשי כדי שהמסך ימשיך לפעול.</p>`,
   );
+
   return dispatch(synagogueId, `trial-started:${license?.expiresAt || 'x'}`, {
     subject,
     text,
     html,
+    alsoAdmin: true,
+    toOverride: String(opts.to || '').trim(),
   });
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 export async function notifyTrialEnding(synagogueId, daysLeft) {
@@ -400,7 +443,13 @@ export async function handleNotifications(req, res, url) {
       }
       let result;
       if (type === 'trial-started') {
-        result = await notifyTrialStarted(synagogueId);
+        result = await notifyTrialStarted(synagogueId, {
+          username: body.username,
+          password: body.password,
+          loginUrl: body.loginUrl,
+          displayUrl: body.displayUrl,
+          to: body.to,
+        });
       } else if (type === 'payment-failed') {
         result = await notifyPaymentFailed(synagogueId, { error: body.error });
       } else if (type === 'payment-success') {

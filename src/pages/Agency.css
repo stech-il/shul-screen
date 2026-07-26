@@ -781,6 +781,47 @@ select {
   gap: 0.7rem;
 }
 
+.agency-creds-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ok) 8%, #fff);
+  border: 1px solid color-mix(in srgb, var(--ok) 22%, var(--line));
+}
+
+.agency-creds-card p {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.5rem;
+  align-items: start;
+  font-size: 0.92rem;
+}
+
+.agency-creds-card span {
+  color: var(--muted);
+}
+
+.agency-creds-card code,
+.agency-creds-card a {
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.88rem;
+  word-break: break-all;
+  direction: ltr;
+  text-align: left;
+}
+
+.agency-creds-card a {
+  color: var(--ink);
+}
+
+.hint.warn-inline {
+  color: var(--warn);
+  margin: 0;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

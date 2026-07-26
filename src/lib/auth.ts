@@ -13,6 +13,8 @@ import {
  * Prefer Supabase Auth / Argon2 server-side when cloud is connected.
  */
 
+const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+
 function toHex(buf: ArrayBuffer | Uint8Array): string {
   const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -24,6 +26,26 @@ async function sha256(bytes: Uint8Array): Promise<string> {
   copy.set(bytes);
   const buf = await crypto.subtle.digest('SHA-256', copy);
   return toHex(buf);
+}
+
+/** Exclusive admin username for a newly provisioned screen (ASCII, unique-ish). */
+export function generateExclusiveAdminUsername(synagogueId: string, email?: string): string {
+  const fromEmail = (email || '')
+    .split('@')[0]
+    ?.replace(/[^a-z0-9._-]/gi, '')
+    .toLowerCase()
+    .slice(0, 14);
+  const fromId = synagogueId.replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10);
+  const base = (fromEmail || fromId || 'admin').replace(/^[._-]+|[._-]+$/g, '') || 'admin';
+  const bytes = crypto.getRandomValues(new Uint8Array(3));
+  const suffix = [...bytes].map((b) => (b % 36).toString(36)).join('');
+  return `${base}_${suffix}`;
+}
+
+/** Strong one-time admin password — shown once in email / agency UI. */
+export function generateExclusiveAdminPassword(length = 12): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(Math.max(8, length)));
+  return [...bytes].map((b) => PASSWORD_ALPHABET[b % PASSWORD_ALPHABET.length]).join('');
 }
 
 export async function hashPassword(password: string): Promise<string> {

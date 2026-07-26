@@ -35,9 +35,18 @@ export function sendTestMail(to: string) {
   });
 }
 
-export function notifyTrialStarted(synagogueId: string) {
+export function notifyTrialStarted(
+  synagogueId: string,
+  opts?: {
+    username?: string;
+    password?: string;
+    loginUrl?: string;
+    displayUrl?: string;
+    to?: string;
+  },
+) {
   return api('/api/notifications/event', {
     method: 'POST',
-    body: JSON.stringify({ type: 'trial-started', synagogueId }),
+    body: JSON.stringify({ type: 'trial-started', synagogueId, ...opts }),
   }).catch(() => null);
 }
