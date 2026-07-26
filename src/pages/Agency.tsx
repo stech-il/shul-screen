@@ -103,6 +103,7 @@ export function Agency() {
   const [billingSub, setBillingSub] = useState<BillingSubscription | null>(null);
   const [billingAmount, setBillingAmount] = useState('99');
   const [billingActive, setBillingActive] = useState(true);
+  const [billingInvoiceEmail, setBillingInvoiceEmail] = useState('');
   const [billingMsg, setBillingMsg] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminEmailMsg, setAdminEmailMsg] = useState('');
@@ -293,6 +294,7 @@ export function Agency() {
       setBillingSub(sub);
       setBillingAmount(String(sub.amount > 0 ? sub.amount : 99));
       setBillingActive(sub.amount > 0 ? sub.active : true);
+      setBillingInvoiceEmail(sub.invoiceEmail || sub.payerEmail || '');
     } catch (err) {
       setBillingConfigured(false);
       setBillingMsg(err instanceof Error ? err.message : 'טעינת נתוני חיוב נכשלה');
@@ -307,14 +309,21 @@ export function Agency() {
       setBillingMsg('סכום לא תקין');
       return;
     }
+    const invoiceEmail = billingInvoiceEmail.trim();
+    if (invoiceEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invoiceEmail)) {
+      setBillingMsg('כתובת מייל לחשבונית לא תקינה');
+      return;
+    }
     setBusy(true);
     setBillingMsg('');
     try {
       const sub = await saveBillingSettings(modal.config.id, {
         amount,
         active: billingActive,
+        invoiceEmail,
       });
       setBillingSub(sub);
+      setBillingInvoiceEmail(sub.invoiceEmail || '');
       refreshSubs();
       setBillingMsg('הגדרות החיוב נשמרו — בית הכנסת יכול להזין כרטיס בניהול שלו');
     } catch (err) {
@@ -854,8 +863,11 @@ export function Agency() {
           </form>
 
           <form className="side-card" onSubmit={(e) => void onSaveAdminEmail(e)}>
-            <h2>מייל מנהל מערכת</h2>
-            <p className="hint">לקבלת עותקי חשבוניות מתשלומי בתי הכנסת (SUMIT).</p>
+            <h2>מייל חשבונית ברירת מחדל</h2>
+            <p className="hint">
+              משמש כגיבוי בלבד. את מייל החשבונית לכל בית כנסת קובעים בכפתור «הו״ק»
+              של אותו בית כנסת.
+            </p>
             <label>
               אימייל
               <input
@@ -1102,6 +1114,21 @@ export function Agency() {
                         dir="ltr"
                         style={{ textAlign: 'left' }}
                       />
+                    </label>
+                    <label>
+                      מייל לחשבונית (לבית כנסת זה)
+                      <input
+                        type="email"
+                        value={billingInvoiceEmail}
+                        onChange={(e) => setBillingInvoiceEmail(e.target.value)}
+                        dir="ltr"
+                        style={{ textAlign: 'left' }}
+                        placeholder="name@example.com"
+                      />
+                      <span className="hint">
+                        לכאן תישלח החשבונית מ־SUMIT עבור בית כנסת זה. אם ריק — תישלח
+                        למייל שהזין בית הכנסת בעת הזנת הכרטיס.
+                      </span>
                     </label>
                     <label className="check">
                       <input

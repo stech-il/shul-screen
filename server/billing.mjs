@@ -50,6 +50,7 @@ function defaultSubscription(id) {
     payerName: '',
     payerEmail: '',
     payerPhone: '',
+    invoiceEmail: '',
     cardMask: '',
     paidUntil: null,
     lastChargeAt: null,
@@ -178,9 +179,11 @@ function extractRecurringIds(data) {
  * Without token: one-off charge against saved customer (manual / legacy).
  */
 async function sumitCharge(rec, shulName, singleUseToken, adminEmail) {
+  // Invoice recipient priority: per-synagogue invoice email → payer email → platform default
+  const invoiceTo = rec.invoiceEmail || rec.payerEmail || adminEmail || undefined;
   const customerBase = {
     Name: rec.payerName || shulName || rec.synagogueId,
-    EmailAddress: rec.payerEmail || adminEmail || undefined,
+    EmailAddress: invoiceTo,
     Phone: rec.payerPhone || undefined,
   };
 
@@ -628,6 +631,7 @@ function publicRecord(rec) {
     cardMask: rec.cardMask || '',
     payerName: rec.payerName || '',
     payerEmail: rec.payerEmail || '',
+    invoiceEmail: rec.invoiceEmail || '',
     paidUntil: rec.paidUntil,
     lastChargeAt: rec.lastChargeAt,
     lastError: rec.lastError,
@@ -808,6 +812,14 @@ export async function handleBilling(req, res, url) {
       const rec = await getSubscription(id);
       if (typeof body.amount === 'number' && body.amount >= 0) {
         rec.amount = Math.round(body.amount * 100) / 100;
+      }
+      if (typeof body.invoiceEmail === 'string') {
+        const email = body.invoiceEmail.trim();
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          sendJson(res, 400, { error: 'כתובת מייל לחשבונית לא תקינה' });
+          return;
+        }
+        rec.invoiceEmail = email;
       }
       if (typeof body.active === 'boolean') {
         rec.active = body.active;

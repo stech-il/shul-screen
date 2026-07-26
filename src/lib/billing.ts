@@ -28,6 +28,8 @@ export interface BillingSubscription {
   cardMask: string;
   payerName: string;
   payerEmail: string;
+  /** Per-synagogue email that receives the invoice (set by platform admin) */
+  invoiceEmail: string;
   paidUntil: string | null;
   lastChargeAt: string | null;
   lastError: string | null;
@@ -99,7 +101,7 @@ export function fetchAllSubscriptions(): Promise<BillingSubscription[]> {
 
 export function saveBillingSettings(
   id: string,
-  settings: { amount?: number; active?: boolean },
+  settings: { amount?: number; active?: boolean; invoiceEmail?: string },
 ): Promise<BillingSubscription> {
   return api<BillingSubscription>(
     `/api/billing/subscriptions/${encodeURIComponent(id)}/settings`,
