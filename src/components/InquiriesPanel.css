@@ -79,6 +79,69 @@
   color: #2f6b4f !important;
 }
 
+.inq-attach-field {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.inq-attach-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.86rem;
+  color: var(--muted, #5f737a);
+}
+
+.inq-attach-label input[type='file'] {
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.inq-attach-list {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.inq-attach-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--muted, #5f737a) 8%, #fff);
+  border: 1px solid var(--line, rgba(22, 48, 56, 0.1));
+  font-size: 0.88rem;
+}
+
+.inq-attach-list a {
+  color: var(--ink, #163038);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-word;
+}
+
+.inq-attach-remove {
+  margin-inline-start: auto;
+  border: 0;
+  background: transparent;
+  color: #9a4a28;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+}
+
+.inq-msg .inq-attach-list {
+  margin-top: 0.55rem;
+}
+
 .inq-inbox-head {
   display: flex;
   flex-wrap: wrap;

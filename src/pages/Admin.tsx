@@ -37,7 +37,7 @@ import { daysLeft, isLicenseValid } from '../lib/license';
 import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
 import { saveDesignTemplate } from '../lib/designTemplates';
-import { fetchInquiries, markInquiriesSeen } from '../lib/inquiries';
+import { fetchInquiries, markInquiriesSeen, type InquiryTopic } from '../lib/inquiries';
 import {
   loadLocal,
   pullFromCloud,
@@ -162,6 +162,7 @@ export function Admin({ synagogueId }: Props) {
     useState<HebcalZmanimResult['times']>({});
   const [itemDrag, setItemDrag] = useState<{ blockId: string; index: number } | null>(null);
   const [inquiryUnreadMessages, setInquiryUnreadMessages] = useState(0);
+  const [inquiryTopicPrefill, setInquiryTopicPrefill] = useState<InquiryTopic | null>(null);
 
   const setConfig = (
     updater: SynagogueConfig | null | ((c: SynagogueConfig | null) => SynagogueConfig | null),
@@ -1004,6 +1005,10 @@ export function Admin({ synagogueId }: Props) {
             onDesign={updateDesign}
             onGalleryChange={updateGallery}
             onStatus={setStatus}
+            onRequestCustomDesign={() => {
+              setInquiryTopicPrefill('custom_design');
+              setTab('support');
+            }}
           />
         ) : null}
 
@@ -2026,6 +2031,8 @@ export function Admin({ synagogueId }: Props) {
             defaultName={session?.memberName || ''}
             defaultEmail={config.contactEmail || ''}
             canManage={false}
+            initialTopic={inquiryTopicPrefill}
+            onPrefillConsumed={() => setInquiryTopicPrefill(null)}
           />
         ) : null}
 

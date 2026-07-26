@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   fetchInquiries,
+  INQUIRY_MAX_ATTACHMENTS,
   INQUIRY_STATUS_LABELS,
   INQUIRY_TOPIC_LABELS,
+  inquiryAttachAccept,
   replyToInquiry,
   submitInquiry,
   updateInquiryStatus,
+  uploadInquiryAttachment,
   type Inquiry,
+  type InquiryAttachment,
   type InquiryStatus,
   type InquiryTopic,
 } from '../lib/inquiries';
@@ -22,6 +26,34 @@ interface Props {
   defaultEmail?: string;
   defaultPhone?: string;
   canManage?: boolean;
+  initialTopic?: InquiryTopic | null;
+  onPrefillConsumed?: () => void;
+}
+
+function AttachmentList({
+  items,
+  onRemove,
+}: {
+  items: InquiryAttachment[];
+  onRemove?: (id: string) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <ul className="inq-attach-list">
+      {items.map((a) => (
+        <li key={a.id}>
+          <a href={a.url} target="_blank" rel="noreferrer">
+            {a.name}
+          </a>
+          {onRemove ? (
+            <button type="button" className="inq-attach-remove" onClick={() => onRemove(a.id)}>
+              הסר
+            </button>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export function InquiriesPanel({
@@ -32,6 +64,8 @@ export function InquiriesPanel({
   defaultEmail = '',
   defaultPhone = '',
   canManage = mode === 'agency',
+  initialTopic = null,
+  onPrefillConsumed,
 }: Props) {
   const [items, setItems] = useState<Inquiry[]>([]);
   const [unread, setUnread] = useState(0);
@@ -42,12 +76,18 @@ export function InquiriesPanel({
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replyAttachments, setReplyAttachments] = useState<Record<string, InquiryAttachment[]>>(
+    {},
+  );
+  const [replyUploading, setReplyUploading] = useState<string | null>(null);
 
   const [name, setName] = useState(defaultName);
   const [email, setEmail] = useState(defaultEmail);
   const [phone, setPhone] = useState(defaultPhone);
   const [topic, setTopic] = useState<InquiryTopic>('fault');
   const [message, setMessage] = useState('');
+  const [attachments, setAttachments] = useState<InquiryAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [formMsg, setFormMsg] = useState('');
 
@@ -56,6 +96,22 @@ export function InquiriesPanel({
     setEmail(defaultEmail);
     setPhone(defaultPhone);
   }, [defaultName, defaultEmail, defaultPhone]);
+
+  useEffect(() => {
+    if (!initialTopic) return;
+    setTopic(initialTopic);
+    if (initialTopic === 'custom_design') {
+      setMessage((prev) =>
+        prev.trim()
+          ? prev
+          : 'מעוניינים בעיצוב מיוחד / תבנית מותאמת אישית לבית הכנסת. מצורפים קבצים / השראה אם יש.',
+      );
+    }
+    onPrefillConsumed?.();
+    queueMicrotask(() => {
+      document.getElementById('inq-compose')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [initialTopic, onPrefillConsumed]);
 
   async function reload() {
     setLoading(true);
@@ -86,6 +142,47 @@ export function InquiriesPanel({
     return items.filter((i) => i.status === filter);
   }, [items, filter]);
 
+  async function addComposeFiles(files: FileList | null) {
+    if (!files?.length || !synagogueId) return;
+    setUploading(true);
+    setFormMsg('');
+    try {
+      const next = [...attachments];
+      for (const file of Array.from(files)) {
+        if (next.length >= INQUIRY_MAX_ATTACHMENTS) break;
+        next.push(await uploadInquiryAttachment(synagogueId, file));
+      }
+      setAttachments(next);
+    } catch (err) {
+      setFormMsg(err instanceof Error ? err.message : 'העלאת קובץ נכשלה');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function addReplyFilesForSynagogue(
+    inqId: string,
+    sid: string,
+    files: FileList | null,
+  ) {
+    if (!files?.length || !sid) return;
+    setReplyUploading(inqId);
+    setError('');
+    try {
+      const current = replyAttachments[inqId] || [];
+      const next = [...current];
+      for (const file of Array.from(files)) {
+        if (next.length >= INQUIRY_MAX_ATTACHMENTS) break;
+        next.push(await uploadInquiryAttachment(sid, file));
+      }
+      setReplyAttachments((d) => ({ ...d, [inqId]: next }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'העלאת קובץ נכשלה');
+    } finally {
+      setReplyUploading(null);
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!synagogueId) {
@@ -103,8 +200,10 @@ export function InquiriesPanel({
         message,
         synagogueId,
         source: 'admin',
+        attachments,
       });
       setMessage('');
+      setAttachments([]);
       setTopic('fault');
       setFormMsg('הפנייה נשלחה — התשובות יופיעו כאן במערכת.');
       await reload();
@@ -130,14 +229,22 @@ export function InquiriesPanel({
 
   async function onReply(inq: Inquiry) {
     const text = (replyDrafts[inq.id] || '').trim();
-    if (!text) return;
+    const files = replyAttachments[inq.id] || [];
+    if (!text && !files.length) return;
     setBusyId(inq.id);
     try {
       const author = mode === 'agency' ? 'support' : 'customer';
       const replyName =
         mode === 'agency' ? 'תמיכת screensmart' : name || defaultName || inq.name;
-      await replyToInquiry({ id: inq.id, text, author, name: replyName });
+      await replyToInquiry({
+        id: inq.id,
+        text,
+        author,
+        name: replyName,
+        attachments: files,
+      });
       setReplyDrafts((d) => ({ ...d, [inq.id]: '' }));
+      setReplyAttachments((d) => ({ ...d, [inq.id]: [] }));
       await reload();
       setOpenId(inq.id);
     } catch (err) {
@@ -149,16 +256,17 @@ export function InquiriesPanel({
 
   const topicOptions = (Object.keys(INQUIRY_TOPIC_LABELS) as InquiryTopic[]).filter((id) =>
     mode === 'admin'
-      ? ['fault', 'support', 'content', 'billing', 'feature', 'other'].includes(id)
+      ? ['fault', 'support', 'content', 'custom_design', 'billing', 'feature', 'other'].includes(id)
       : true,
   );
 
   const badgeCount = mode === 'agency' ? unread : unreadCustomer;
+  const attachSid = (inq: Inquiry) => synagogueId || inq.synagogueId;
 
   return (
     <div className={`inq-panel mode-${mode}`}>
       {mode === 'admin' ? (
-        <section className="inq-compose card">
+        <section className="inq-compose card" id="inq-compose">
           <h2>פתיחת פנייה</h2>
           <form className="inq-form" onSubmit={(e) => void onSubmit(e)}>
             <div className="inq-form-grid">
@@ -213,11 +321,38 @@ export function InquiriesPanel({
                 minLength={5}
                 maxLength={4000}
                 rows={5}
-                placeholder="תארו את התקלה או הבקשה…"
+                placeholder={
+                  topic === 'custom_design'
+                    ? 'תארו את העיצוב הרצוי, צבעים, לוגו, השראה…'
+                    : 'תארו את התקלה או הבקשה…'
+                }
               />
             </label>
+            <div className="inq-attach-field">
+              <label className="inq-attach-label">
+                צירוף קבצים
+                <input
+                  type="file"
+                  multiple
+                  accept={inquiryAttachAccept()}
+                  disabled={uploading || attachments.length >= INQUIRY_MAX_ATTACHMENTS}
+                  onChange={(e) => {
+                    void addComposeFiles(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              <p className="hint">
+                עד {INQUIRY_MAX_ATTACHMENTS} קבצים · תמונות, PDF ומסמכים · עד 8MB לקובץ
+                {uploading ? ' · מעלה…' : ''}
+              </p>
+              <AttachmentList
+                items={attachments}
+                onRemove={(id) => setAttachments((list) => list.filter((a) => a.id !== id))}
+              />
+            </div>
             <div className="inq-form-actions">
-              <button type="submit" className="btn primary" disabled={sending}>
+              <button type="submit" className="btn primary" disabled={sending || uploading}>
                 {sending ? 'שולח…' : 'שלחו פנייה'}
               </button>
               {formMsg ? <p className="hint inq-form-msg">{formMsg}</p> : null}
@@ -287,14 +422,17 @@ export function InquiriesPanel({
                     {
                       id: 'legacy',
                       at: inq.createdAt,
-                      author: 'customer',
+                      author: 'customer' as const,
                       name: inq.name,
                       text: inq.message,
+                      attachments: inq.attachments,
                     },
                   ];
               const waitingForMe =
                 (mode === 'agency' && inq.awaiting === 'support') ||
                 (mode === 'admin' && inq.awaiting === 'customer');
+              const draftFiles = replyAttachments[inq.id] || [];
+              const sid = attachSid(inq);
 
               return (
                 <li
@@ -341,10 +479,7 @@ export function InquiriesPanel({
 
                       <ul className="inq-messages">
                         {messages.map((m) => (
-                          <li
-                            key={m.id}
-                            className={`inq-msg author-${m.author}`}
-                          >
+                          <li key={m.id} className={`inq-msg author-${m.author}`}>
                             <div className="inq-msg-head">
                               <strong>
                                 {m.author === 'support' ? m.name || 'תמיכה' : m.name || inq.name}
@@ -355,6 +490,7 @@ export function InquiriesPanel({
                               </time>
                             </div>
                             <p>{m.text}</p>
+                            <AttachmentList items={m.attachments || []} />
                           </li>
                         ))}
                       </ul>
@@ -377,11 +513,46 @@ export function InquiriesPanel({
                               }
                             />
                           </label>
+                          <div className="inq-attach-field">
+                            <label className="inq-attach-label">
+                              צירוף קבצים
+                              <input
+                                type="file"
+                                multiple
+                                accept={inquiryAttachAccept()}
+                                disabled={
+                                  !sid ||
+                                  replyUploading === inq.id ||
+                                  draftFiles.length >= INQUIRY_MAX_ATTACHMENTS
+                                }
+                                onChange={(e) => {
+                                  void addReplyFilesForSynagogue(inq.id, sid, e.target.files);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                            {replyUploading === inq.id ? (
+                              <p className="hint">מעלה קבצים…</p>
+                            ) : null}
+                            <AttachmentList
+                              items={draftFiles}
+                              onRemove={(id) =>
+                                setReplyAttachments((d) => ({
+                                  ...d,
+                                  [inq.id]: (d[inq.id] || []).filter((a) => a.id !== id),
+                                }))
+                              }
+                            />
+                          </div>
                           <div className="inq-item-actions">
                             <button
                               type="button"
                               className="btn primary"
-                              disabled={busyId === inq.id || !(replyDrafts[inq.id] || '').trim()}
+                              disabled={
+                                busyId === inq.id ||
+                                replyUploading === inq.id ||
+                                (!(replyDrafts[inq.id] || '').trim() && !draftFiles.length)
+                              }
                               onClick={() => void onReply(inq)}
                             >
                               {busyId === inq.id ? 'שולח…' : 'שלחו במערכת'}

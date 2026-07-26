@@ -11,6 +11,7 @@ const TOPICS = new Set([
   'fault',
   'support',
   'content',
+  'custom_design',
   'billing',
   'feature',
   'other',
@@ -19,6 +20,7 @@ const TOPICS = new Set([
 ]);
 const STATUSES = new Set(['new', 'read', 'done']);
 const AUTHORS = new Set(['customer', 'support']);
+const MAX_ATTACHMENTS = 5;
 
 /** @type {Map<string, number[]>} */
 const rateByIp = new Map();
@@ -79,6 +81,7 @@ function topicLabel(topic) {
     fault: 'תקלה במסך',
     support: 'תמיכה טכנית',
     content: 'תוכן / עיצוב',
+    custom_design: 'עיצוב מיוחד',
     billing: 'תשלום / רישיון',
     feature: 'בקשת שיפור',
     other: 'אחר',
@@ -86,6 +89,28 @@ function topicLabel(topic) {
     demo: 'בקשת הדגמה',
   };
   return map[topic] || topic;
+}
+
+function normalizeAttachments(list, synagogueId = '') {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const raw of list.slice(0, MAX_ATTACHMENTS)) {
+    const url = String(raw?.url || '').trim().slice(0, 2000);
+    if (!url) continue;
+    const okCloud =
+      synagogueId && url.startsWith(`/api/cloud/media/${encodeURIComponent(synagogueId)}/`);
+    const okCloudRaw = synagogueId && url.startsWith(`/api/cloud/media/${synagogueId}/`);
+    const okHttp = /^https:\/\//i.test(url);
+    if (!okCloud && !okCloudRaw && !okHttp) continue;
+    out.push({
+      id: String(raw?.id || uid('att')).slice(0, 64),
+      name: String(raw?.name || 'קובץ').trim().slice(0, 160) || 'קובץ',
+      url,
+      contentType: String(raw?.contentType || '').trim().slice(0, 120),
+      size: Math.max(0, Math.min(Number(raw?.size) || 0, 20 * 1024 * 1024)),
+    });
+  }
+  return out;
 }
 
 function wrapHtml(title, bodyHtml) {
@@ -133,6 +158,7 @@ async function synagogueContact(synagogueId) {
 }
 
 function normalizeMessages(rec) {
+  const synagogueId = String(rec.synagogueId || '');
   if (Array.isArray(rec.messages) && rec.messages.length) {
     return rec.messages.map((m) => ({
       id: m.id || uid('msg'),
@@ -140,6 +166,7 @@ function normalizeMessages(rec) {
       author: AUTHORS.has(m.author) ? m.author : 'customer',
       name: String(m.name || '').slice(0, 120),
       text: String(m.text || '').slice(0, 4000),
+      attachments: normalizeAttachments(m.attachments, synagogueId),
     }));
   }
   // Legacy tickets: first message = original body
@@ -150,6 +177,7 @@ function normalizeMessages(rec) {
       author: 'customer',
       name: rec.name || '',
       text: rec.message || '',
+      attachments: normalizeAttachments(rec.attachments, synagogueId),
     },
   ];
 }
@@ -192,6 +220,7 @@ function publicInquiry(rec) {
     status,
     source: rec.source || 'admin',
     messages,
+    attachments: normalizeAttachments(rec.attachments, rec.synagogueId || ''),
     awaiting,
     replyCount: Math.max(0, messages.length - 1),
     unreadForCustomer: unreadMessagesForRole(rec, 'customer'),
@@ -339,6 +368,7 @@ export async function handleInquiries(req, res, url) {
         return;
       }
 
+      const attachments = normalizeAttachments(body.attachments, synagogueId);
       const id = uid('inq');
       const createdAt = nowIso();
       const firstMsg = {
@@ -347,6 +377,7 @@ export async function handleInquiries(req, res, url) {
         author: 'customer',
         name,
         text: message,
+        attachments,
       };
       const inquiry = {
         id,
@@ -361,6 +392,7 @@ export async function handleInquiries(req, res, url) {
         status: 'new',
         source,
         awaiting: 'support',
+        attachments,
         messages: [firstMsg],
         ip: clientIp(req).slice(0, 80),
       };
@@ -465,18 +497,21 @@ export async function handleInquiries(req, res, url) {
         sendJson(res, 400, { error: 'חסר מחבר הודעה' });
         return;
       }
-      if (!text || text.length < 1) {
-        sendJson(res, 400, { error: 'נא לכתוב תשובה' });
+
+      const synagogueId = String(existing.synagogueId || '');
+      const attachments = normalizeAttachments(body.attachments, synagogueId);
+      if ((!text || text.length < 1) && !attachments.length) {
+        sendJson(res, 400, { error: 'נא לכתוב תשובה או לצרף קובץ' });
         return;
       }
-
       const messages = normalizeMessages(existing);
       const reply = {
         id: uid('msg'),
         at: nowIso(),
         author,
         name: name || (author === 'support' ? 'תמיכה' : 'לקוח'),
-        text,
+        text: text || (attachments.length ? '📎 קבצים מצורפים' : ''),
+        attachments,
       };
       messages.push(reply);
 

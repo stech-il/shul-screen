@@ -35,6 +35,7 @@ interface Props {
   onDesign: (patch: Partial<DesignSettings>) => void;
   onGalleryChange: (gallery: GalleryItem[]) => void;
   onStatus?: (msg: string) => void;
+  onRequestCustomDesign?: () => void;
 }
 
 const LAYOUTS: { id: ScreenLayout; label: string }[] = [
@@ -187,6 +188,7 @@ export function DesignStudio({
   onDesign,
   onGalleryChange,
   onStatus,
+  onRequestCustomDesign,
 }: Props) {
   const d = config.design;
   const customFonts = config.media?.customFonts ?? [];
@@ -370,16 +372,15 @@ export function DesignStudio({
         <div className="tpl-custom-banner">
           <div>
             <strong>רוצים עיצוב מיוחד לבית הכנסת?</strong>
-            <p>אפשר להזמין תבנית מותאמת אישית — אנא צרו קשר ונשמח לעזור.</p>
+            <p>אפשר להזמין תבנית מותאמת אישית — פתחו פנייה וצרפו קבצים או השראה.</p>
           </div>
-          <a
+          <button
+            type="button"
             className="btn primary"
-            href="https://wa.me/972524521527?text=%D7%A9%D7%9C%D7%95%D7%9D%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%94%D7%96%D7%9E%D7%99%D7%9F%20%D7%A2%D7%99%D7%A6%D7%95%D7%91%20%D7%9E%D7%99%D7%95%D7%97%D7%93%20%D7%9C%D7%9E%D7%A1%D7%9A"
-            target="_blank"
-            rel="noreferrer"
+            onClick={() => onRequestCustomDesign?.()}
           >
-            צרו קשר בוואטסאפ
-          </a>
+            פתיחת פנייה — עיצוב מיוחד
+          </button>
         </div>
         <div className="tpl-gallery-head">
           <div>
