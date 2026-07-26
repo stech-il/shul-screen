@@ -275,6 +275,8 @@ export interface SynagogueConfig {
   modes: ModeSettings;
   emergency: EmergencyState;
   kioskExitPinHash?: string;
+  /** Contact email for trial/payment notifications */
+  contactEmail?: string;
   license?: LicenseInfo;
   updatedAt: string;
   revision: number;

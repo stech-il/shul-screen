@@ -23,6 +23,11 @@ import {
 } from './server/cloudStore.mjs';
 import { billingConfigured, handleBilling, startBillingCron } from './server/billing.mjs';
 import { handleBackups, startBackupCron } from './server/backups.mjs';
+import {
+  handleNotifications,
+  startNotificationCron,
+  mailConfigured,
+} from './server/notifications.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, 'dist');
@@ -344,6 +349,10 @@ const server = http.createServer((req, res) => {
     void handleBilling(req, res, url);
     return;
   }
+  if (url.pathname.startsWith('/api/notifications')) {
+    void handleNotifications(req, res, url);
+    return;
+  }
   serveStatic(url.pathname, res);
 });
 
@@ -369,4 +378,8 @@ server.listen(PORT, () => {
   }
   startBackupCron();
   console.log('Backups: daily at 00:00 Asia/Jerusalem, 7-day retention');
+  startNotificationCron();
+  if (mailConfigured()) {
+    console.log('Notifications: SMTP enabled — daily scan at 09:00 Asia/Jerusalem');
+  }
 });

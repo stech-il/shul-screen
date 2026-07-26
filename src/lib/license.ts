@@ -27,12 +27,15 @@ function randomSeg(): string {
 function expiresForPlan(plan: LicenseInfo['plan']): string {
   const expires = new Date();
   if (plan === 'trial') {
-    expires.setDate(expires.getDate() + 30);
+    expires.setDate(expires.getDate() + 7);
   } else {
     expires.setFullYear(expires.getFullYear() + 1);
   }
   return expires.toISOString();
 }
+
+/** Default length of a free trial on new synagogues. */
+export const TRIAL_DAYS = 7;
 
 /** Expiry from paid period (months). */
 export function expiresAfterMonths(months: number): string {

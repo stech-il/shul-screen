@@ -486,6 +486,17 @@ async function applySuccessfulPayment(rec, result, { extend = true } = {}) {
       await saveSubscription(rec).catch(() => {});
     }
   }
+
+  try {
+    const { notifyPaymentSuccess } = await import('./notifications.mjs');
+    await notifyPaymentSuccess(rec.synagogueId, {
+      amount: result.amount ?? rec.amount,
+      paidUntil: rec.paidUntil,
+    });
+  } catch (err) {
+    console.warn('payment success email failed', err);
+  }
+
   return { subscription: rec, license };
 }
 
@@ -522,6 +533,12 @@ async function chargeAndRenew(id, options = {}) {
       { at: nowIso(), amount: rec.amount, ok: false, error: message.slice(0, 200) },
     ];
     await saveSubscription(rec).catch(() => {});
+    try {
+      const { notifyPaymentFailed } = await import('./notifications.mjs');
+      await notifyPaymentFailed(id, { error: message });
+    } catch (mailErr) {
+      console.warn('payment fail email failed', mailErr);
+    }
     throw new Error(message);
   }
 }

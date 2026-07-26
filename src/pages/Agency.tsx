@@ -5,10 +5,13 @@ import { createDefaultConfig } from '../data/defaults';
 import { enterAsPlatformAdmin, hashPassword } from '../lib/auth';
 import {
   daysLeft,
+  issueScreenLicense,
   isLicenseValid,
   renewScreenLicense,
   setScreenLicenseLocked,
+  TRIAL_DAYS,
 } from '../lib/license';
+import { fetchMailStatus, notifyTrialStarted, sendTestMail } from '../lib/notifications';
 import {
   changePlatformPassword,
   clearPlatformSession,
@@ -94,6 +97,7 @@ export function Agency() {
 
   const [name, setName] = useState('');
   const [cityId, setCityId] = useState('petah-tikva');
+  const [contactEmail, setContactEmail] = useState('');
   const [editName, setEditName] = useState('');
   const [licMonths, setLicMonths] = useState(12);
   const [resetMemberId, setResetMemberId] = useState('');
@@ -110,6 +114,12 @@ export function Agency() {
   const [backupMsg, setBackupMsg] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminEmailMsg, setAdminEmailMsg] = useState('');
+  const [mailStatus, setMailStatus] = useState<{
+    configured: boolean;
+    host: string | null;
+    from: string | null;
+  } | null>(null);
+  const [mailTestMsg, setMailTestMsg] = useState('');
   const [subsById, setSubsById] = useState<Record<string, BillingSubscription>>({});
   const [diskStatus, setDiskStatus] = useState<{
     diskOk: boolean;
@@ -164,6 +174,9 @@ export function Agency() {
     void fetchPlatformBilling()
       .then((p) => setAdminEmail(p.adminEmail || ''))
       .catch(() => {});
+    void fetchMailStatus()
+      .then(setMailStatus)
+      .catch(() => setMailStatus({ configured: false, host: null, from: null }));
     void fetchAllSubscriptions()
       .then((items) => {
         const map: Record<string, BillingSubscription> = {};
@@ -547,6 +560,11 @@ export function Agency() {
       return;
     }
     if (!name.trim()) return;
+    const email = contactEmail.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setMsg('כתובת המייל אינה תקינה');
+      return;
+    }
     setBusy(true);
     const id = slugify(name);
     if (listSynagogueIds().includes(id) || loadLocal(id)) {
@@ -555,16 +573,37 @@ export function Agency() {
       return;
     }
     const config = await createDefaultConfig(id, name.trim(), cityId, 'admin123', 'admin');
-    // New synagogues start without a license — activate separately (payment / manual)
-    config.license = undefined;
+    config.contactEmail = email || undefined;
+    config.license = issueScreenLicense(id, 'trial', name.trim(), {
+      durationDays: TRIAL_DAYS,
+    });
     await saveConfig(config, undefined, {
       by: `platform:${loadPlatformSession()?.username ?? 'admin'}`,
-      summary: 'יצירת בית כנסת (ללא רישיון)',
+      summary: `יצירת בית כנסת + ניסיון ${TRIAL_DAYS} ימים`,
     });
+    void notifyTrialStarted(id);
     setName('');
+    setContactEmail('');
     setBusy(false);
     setModal(null);
-    refresh(`נוצר «${config.name}» — ללא רישיון. הפעל דרך «הפעל לפי תשלום» או הו״ק`);
+    refresh(
+      `נוצר «${config.name}» — ניסיון ${TRIAL_DAYS} ימים${email ? ` · מייל נשלח ל־${email}` : ''}`,
+    );
+  }
+
+  async function onTestSmtp() {
+    const to = adminEmail.trim();
+    if (!to) {
+      setMailTestMsg('שמור קודם מייל מנהל ואז בדוק');
+      return;
+    }
+    setMailTestMsg('שולח…');
+    try {
+      await sendTestMail(to);
+      setMailTestMsg(`נשלח מייל בדיקה אל ${to}`);
+    } catch (err) {
+      setMailTestMsg(err instanceof Error ? err.message : 'שליחת בדיקה נכשלה');
+    }
   }
 
   async function removeLicense(config: SynagogueConfig) {
@@ -935,6 +974,35 @@ export function Agency() {
             </button>
           </form>
 
+          <div className="side-card">
+            <h2>SMTP — התראות מייל</h2>
+            {mailStatus == null ? (
+              <p className="hint">טוען…</p>
+            ) : mailStatus.configured ? (
+              <p className="hint">
+                מחובר · {mailStatus.host || 'שרת'} · מ־{' '}
+                <span dir="ltr">{mailStatus.from}</span>
+              </p>
+            ) : (
+              <p className="hint warn">
+                לא מוגדר — הוסף ב־Render: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS,
+                MAIL_FROM
+              </p>
+            )}
+            <p className="hint">
+              נשלחות התראות על תחילת ניסיון, סיום ניסיון, כשל תשלום וחידוש מוצלח.
+            </p>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={!mailStatus?.configured || busy}
+              onClick={() => void onTestSmtp()}
+            >
+              שלח מייל בדיקה למנהל
+            </button>
+            {mailTestMsg ? <p className="hint">{mailTestMsg}</p> : null}
+          </div>
+
           <form className="side-card" onSubmit={onChangePassword}>
             <h2>סיסמת מנהל מערכת</h2>
             <label>
@@ -980,8 +1048,8 @@ export function Agency() {
               <form onSubmit={(e) => void createShul(e)}>
                 <h2>בית כנסת חדש</h2>
                 <p className="hint">
-                  נוצר מסך חדש <strong>ללא רישיון</strong> עם משתמש admin — הפעל רישיון
-                  בנפרד («הפעל לפי תשלום» או הוראת קבע).
+                  נוצר מסך חדש עם <strong>ניסיון חינם ל־{TRIAL_DAYS} ימים</strong> ומשתמש
+                  admin. בתום הניסיון — הפעל מנוי («הפעל לפי תשלום» או הוראת קבע).
                 </p>
                 <label>
                   שם בית הכנסת
@@ -991,6 +1059,17 @@ export function Agency() {
                     required
                     autoFocus
                     placeholder="לדוגמה: קהילת נווה שלום"
+                  />
+                </label>
+                <label>
+                  מייל ליצירת קשר (להתראות ניסיון/תשלום)
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="gabbai@example.com"
+                    dir="ltr"
+                    style={{ textAlign: 'left' }}
                   />
                 </label>
                 <label>

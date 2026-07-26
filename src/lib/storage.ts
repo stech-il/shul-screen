@@ -813,11 +813,27 @@ export async function duplicateSynagogue(
     emergency: { active: false, message: '', updatedAt: new Date().toISOString() },
   };
 
+  // Fresh trial for the copy (same as a newly created synagogue)
+  try {
+    const { issueScreenLicense, TRIAL_DAYS } = await import('./license');
+    copy.license = issueScreenLicense(newId, 'trial', trimmed, {
+      durationDays: TRIAL_DAYS,
+    });
+  } catch {
+    /* keep unlicensed if issue fails */
+  }
+
   const result = await saveConfig(copy, undefined, {
     by,
     summary: `שכפול מ־${src.name}`,
   });
   if (!result.ok) return { ok: false, error: result.error };
+  try {
+    const { notifyTrialStarted } = await import('./notifications');
+    void notifyTrialStarted(newId);
+  } catch {
+    /* optional */
+  }
   return { ok: true, newId };
 }
 

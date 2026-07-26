@@ -25,11 +25,13 @@
     "@hebcal/core": "^5.10.1",
     "@hebcal/learning": "^6.9.5",
     "@supabase/supabase-js": "^2.50.0",
+    "nodemailer": "^9.0.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.0"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
