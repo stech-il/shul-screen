@@ -234,9 +234,11 @@
 
 .cw-text {
   font-family: var(--font-heading, serif);
-  font-size: 1.8em;
-  line-height: 1.35;
+  font-size: inherit;
+  line-height: inherit;
   word-break: break-word;
+  width: 100%;
+  height: 100%;
 }
 
 .cw-text-placeholder {
