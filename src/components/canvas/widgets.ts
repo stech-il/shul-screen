@@ -167,6 +167,10 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
     text: w.text != null ? decodeHtmlEntities(w.text) : w.text,
     align: w.align ?? fallback.align,
     fontScale: w.fontScale ?? 1,
+    fontSizePx:
+      typeof w.fontSizePx === 'number' && w.fontSizePx > 0 ? w.fontSizePx : undefined,
+    letterSpacingPx:
+      typeof w.letterSpacingPx === 'number' ? w.letterSpacingPx : undefined,
     titleScale: w.titleScale ?? fallback.titleScale,
     fontWeight: w.fontWeight ?? fallback.fontWeight,
     bg: w.bg ?? fallback.bg,

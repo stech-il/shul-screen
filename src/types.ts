@@ -112,6 +112,10 @@ export interface CanvasWidget {
   zmanKey?: ZmanKey;
   align: 'right' | 'center' | 'left';
   fontScale: number;
+  /** Absolute font size in px — when set, overrides responsive fontScale */
+  fontSizePx?: number;
+  /** Letter spacing in px */
+  letterSpacingPx?: number;
   /** scale of title relative to the widget font */
   titleScale: number;
   fontFamily?: string;

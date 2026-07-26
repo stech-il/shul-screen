@@ -743,6 +743,58 @@ export function CanvasBuilder({
               </label>
 
               <label>
+                גודל פונט (px)
+                <input
+                  type="number"
+                  min={8}
+                  max={200}
+                  step={1}
+                  placeholder="אוטומטי"
+                  value={selected.fontSizePx ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.trim();
+                    if (!raw) {
+                      patchWidget(selected.id, { fontSizePx: undefined });
+                      return;
+                    }
+                    const n = Number(raw);
+                    if (!Number.isFinite(n)) return;
+                    patchWidget(selected.id, {
+                      fontSizePx: Math.min(200, Math.max(8, Math.round(n))),
+                    });
+                  }}
+                  dir="ltr"
+                  style={{ textAlign: 'left' }}
+                />
+              </label>
+
+              <label>
+                מרווח בין אותיות (px)
+                <input
+                  type="number"
+                  min={-5}
+                  max={40}
+                  step={0.5}
+                  placeholder="0"
+                  value={selected.letterSpacingPx ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.trim();
+                    if (!raw) {
+                      patchWidget(selected.id, { letterSpacingPx: undefined });
+                      return;
+                    }
+                    const n = Number(raw);
+                    if (!Number.isFinite(n)) return;
+                    patchWidget(selected.id, {
+                      letterSpacingPx: Math.min(40, Math.max(-5, n)),
+                    });
+                  }}
+                  dir="ltr"
+                  style={{ textAlign: 'left' }}
+                />
+              </label>
+
+              <label>
                 יישור טקסט
                 <select
                   value={selected.align}
@@ -757,13 +809,14 @@ export function CanvasBuilder({
               </label>
 
               <label>
-                גודל שעה / תוכן ({selected.fontScale.toFixed(2)}×)
+                קנה מידה יחסי ({selected.fontScale.toFixed(2)}×)
                 <input
                   type="range"
                   min={0.5}
                   max={3}
                   step={0.05}
                   value={selected.fontScale}
+                  disabled={Boolean(selected.fontSizePx)}
                   onChange={(e) => patchWidget(selected.id, { fontScale: Number(e.target.value) })}
                 />
               </label>

@@ -68,7 +68,7 @@
   font-family: var(--font-heading, serif);
   font-size: 1.05em;
   color: var(--accent, #a8893d);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--cw-ls, 0.02em);
 }
 
 .cw-title strong {
@@ -138,7 +138,7 @@
   font-weight: 500;
   line-height: 1.15;
   color: var(--cw-title-color, var(--accent, #a8893d));
-  letter-spacing: 0.01em;
+  letter-spacing: var(--cw-ls, 0.01em);
 }
 
 .cw-zman-time {

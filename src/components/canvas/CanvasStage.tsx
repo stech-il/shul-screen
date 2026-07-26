@@ -5,6 +5,13 @@ import { ASPECT_RATIOS } from './widgets';
 import './canvas.css';
 
 export function widgetStyle(widget: CanvasWidget): CSSProperties {
+  const fontSizePx =
+    typeof widget.fontSizePx === 'number' && widget.fontSizePx > 0
+      ? widget.fontSizePx
+      : undefined;
+  const letterSpacingPx =
+    typeof widget.letterSpacingPx === 'number' ? widget.letterSpacingPx : undefined;
+
   return {
     left: `${widget.x}%`,
     top: `${widget.y}%`,
@@ -21,6 +28,13 @@ export function widgetStyle(widget: CanvasWidget): CSSProperties {
       widget.fontWeight === 'bold' ? 700 : widget.fontWeight === 'medium' ? 500 : 400,
     ['--cw-fs' as string]: String(widget.fontScale ?? 1),
     ['--cw-title-fs' as string]: String(widget.titleScale ?? 0.55),
+    ...(fontSizePx != null ? { fontSize: `${fontSizePx}px` } : {}),
+    ...(letterSpacingPx != null
+      ? {
+          letterSpacing: `${letterSpacingPx}px`,
+          ['--cw-ls' as string]: `${letterSpacingPx}px`,
+        }
+      : {}),
     ...(widget.color ? { color: widget.color } : {}),
     ...(widget.titleColor ? { ['--cw-title-color' as string]: widget.titleColor } : {}),
   };
