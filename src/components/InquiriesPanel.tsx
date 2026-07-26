@@ -27,7 +27,7 @@ interface Props {
 export function InquiriesPanel({
   mode,
   synagogueId = '',
-  synagogueName = '',
+  synagogueName: _synagogueName = '',
   defaultName = '',
   defaultEmail = '',
   defaultPhone = '',
