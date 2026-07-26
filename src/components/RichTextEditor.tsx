@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { sanitizeRichHtml } from '../lib/sanitizeHtml';
 import './RichTextEditor.css';
 
@@ -22,6 +22,8 @@ type Cmd =
   | 'justifyLeft'
   | 'removeFormat';
 
+const SIZE_PRESETS = [16, 20, 24, 28, 32, 40, 48, 64, 80] as const;
+
 function run(cmd: Cmd, value?: string) {
   document.execCommand(cmd, false, value);
 }
@@ -35,6 +37,8 @@ export function RichTextEditor({
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const lastEmitted = useRef(value);
+  const savedRange = useRef<Range | null>(null);
+  const [sizeDraft, setSizeDraft] = useState('');
 
   useEffect(() => {
     const el = ref.current;
@@ -55,42 +59,109 @@ export function RichTextEditor({
     onChange(html);
   }
 
+  function saveSelection() {
+    const el = ref.current;
+    const sel = window.getSelection();
+    if (!el || !sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.commonAncestorContainer)) return;
+    savedRange.current = range.cloneRange();
+  }
+
+  function restoreSelection(): boolean {
+    const el = ref.current;
+    const range = savedRange.current;
+    if (!el || !range) return false;
+    el.focus();
+    const sel = window.getSelection();
+    if (!sel) return false;
+    try {
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function selectAllContent() {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    if (!sel) return;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    savedRange.current = range.cloneRange();
+  }
+
   function onToolbar(cmd: Cmd) {
+    restoreSelection();
     ref.current?.focus();
     run(cmd);
+    saveSelection();
     emit();
   }
 
   function setColor(color: string) {
+    restoreSelection();
     ref.current?.focus();
     document.execCommand('foreColor', false, color);
+    saveSelection();
     emit();
   }
 
   /**
-   * Apply an absolute font-size in px to the current selection.
-   * Uses the classic fontSize=7 trick, then rewrites those <font> tags
-   * to <span style="font-size:Npx"> so the value survives sanitize + display.
+   * Apply font-size in px to the current selection (or all text if nothing selected).
+   * Saves/restores selection so clicking the size field doesn't lose the range.
    */
   function setSizePx(raw: string) {
     const n = Math.round(Number(raw));
     if (!Number.isFinite(n) || n < 8 || n > 400) return;
     const el = ref.current;
     if (!el) return;
+
     el.focus();
+    if (!restoreSelection()) {
+      selectAllContent();
+    }
 
-    // Mark selected text with a temporary size-7 font tag.
-    document.execCommand('styleWithCSS', false, 'false');
-    document.execCommand('fontSize', false, '7');
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) {
+      selectAllContent();
+    }
+    const active = window.getSelection();
+    if (!active || active.rangeCount === 0) return;
 
-    el.querySelectorAll('font[size="7"]').forEach((font) => {
-      const span = document.createElement('span');
-      span.style.fontSize = `${n}px`;
-      // Preserve nested markup from the selection.
-      while (font.firstChild) span.appendChild(font.firstChild);
-      font.replaceWith(span);
-    });
+    let range = active.getRangeAt(0);
+    if (range.collapsed || !el.contains(range.commonAncestorContainer)) {
+      selectAllContent();
+      const again = window.getSelection();
+      if (!again || again.rangeCount === 0) return;
+      range = again.getRangeAt(0);
+    }
 
+    const span = document.createElement('span');
+    span.style.fontSize = `${n}px`;
+    try {
+      range.surroundContents(span);
+    } catch {
+      const frag = range.extractContents();
+      span.appendChild(frag);
+      range.insertNode(span);
+    }
+
+    // Place caret after the sized span
+    const after = document.createRange();
+    after.setStartAfter(span);
+    after.collapse(true);
+    active.removeAllRanges();
+    active.addRange(after);
+    savedRange.current = after.cloneRange();
+
+    setSizeDraft(String(n));
     emit();
   }
 
@@ -157,16 +228,61 @@ export function RichTextEditor({
           1. רשימה
         </button>
         <span className="rte-sep" />
-        <label className="rte-size" title="גודל פונט בפיקסלים — סמן טקסט והזן ערך">
-          <span className="rte-size-label">גודל</span>
+        <label className="rte-color" title="צבע טקסט">
+          <input
+            type="color"
+            defaultValue="#1c3140"
+            onChange={(e) => setColor(e.target.value)}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              saveSelection();
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          className="rte-btn"
+          title="נקה עיצוב"
+          onClick={() => onToolbar('removeFormat')}
+        >
+          נקה
+        </button>
+      </div>
+
+      <div className="rte-size-row">
+        <span className="rte-size-label">גודל טקסט</span>
+        <div className="rte-size-presets">
+          {SIZE_PRESETS.map((px) => (
+            <button
+              key={px}
+              type="button"
+              className={`rte-size-chip${sizeDraft === String(px) ? ' on' : ''}`}
+              title={`${px}px — סמן טקסט או החל על הכל`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+              }}
+              onClick={() => setSizePx(String(px))}
+            >
+              {px}
+            </button>
+          ))}
+        </div>
+        <label className="rte-size" title="הזן גודל מותאם בפיקסלים">
           <input
             type="number"
             min={8}
             max={400}
             step={1}
-            placeholder="px"
+            placeholder="מספר"
             dir="ltr"
-            onMouseDown={(e) => e.stopPropagation()}
+            value={sizeDraft}
+            onChange={(e) => setSizeDraft(e.target.value)}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              saveSelection();
+            }}
+            onFocus={() => saveSelection()}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -179,23 +295,9 @@ export function RichTextEditor({
           />
           <span className="rte-size-unit">px</span>
         </label>
-        <label className="rte-color" title="צבע טקסט">
-          <input
-            type="color"
-            defaultValue="#1c3140"
-            onChange={(e) => setColor(e.target.value)}
-            onMouseDown={(e) => e.stopPropagation()}
-          />
-        </label>
-        <button
-          type="button"
-          className="rte-btn"
-          title="נקה עיצוב"
-          onClick={() => onToolbar('removeFormat')}
-        >
-          נקה
-        </button>
       </div>
+      <p className="rte-size-hint">סמנו טקסט ולחצו גודל — בלי סימון יוחל על כל התוכן</p>
+
       <div
         ref={ref}
         className="rte-editor"
@@ -205,8 +307,13 @@ export function RichTextEditor({
         data-placeholder={placeholder}
         style={{ minHeight }}
         suppressContentEditableWarning
-        onInput={emit}
+        onInput={() => {
+          saveSelection();
+          emit();
+        }}
         onBlur={emit}
+        onMouseUp={saveSelection}
+        onKeyUp={saveSelection}
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       />
