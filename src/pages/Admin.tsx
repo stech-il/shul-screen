@@ -139,9 +139,16 @@ export function Admin({ synagogueId }: Props) {
     if (searchParams.get('billing') === '1' && canEditSettings(loadSession()?.role ?? 'editor')) {
       return 'settings';
     }
-    // Always land on daily content — design is for setup, not everyday use
+    try {
+      const saved = localStorage.getItem(`screensmart:admin-tab:${synagogueId}`) as TabId | null;
+      if (saved && TABS.some((t) => t.id === saved)) return saved;
+    } catch {
+      /* ignore */
+    }
     return 'content';
   });
+  const [toast, setToast] = useState<string | null>(null);
+  const [collapsedBlocks, setCollapsedBlocks] = useState<Record<string, boolean>>({});
   const [kioskPin, setKioskPin] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [previewKey, setPreviewKey] = useState(0);
@@ -227,10 +234,37 @@ export function Admin({ synagogueId }: Props) {
   }, [config?.media?.customFonts]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem(`screensmart:admin-tab:${synagogueId}`, tab);
+    } catch {
+      /* ignore */
+    }
+  }, [tab, synagogueId]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
       const key = e.key.toLowerCase();
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+      if (key === 's') {
+        e.preventDefault();
+        void onSave('פרסום למסך (Ctrl+S)');
+        return;
+      }
+      if (typing) return;
       if (key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undoEdit();
@@ -394,6 +428,25 @@ export function Admin({ synagogueId }: Props) {
         blocks: c.blocks.map((b) =>
           b.id !== blockId ? b : { ...b, items: [...b.items, newItem] },
         ),
+      };
+    });
+  }
+
+  function duplicateItem(blockId: string, itemId: string) {
+    setConfig((c) => {
+      if (!c) return c;
+      return {
+        ...c,
+        blocks: c.blocks.map((b) => {
+          if (b.id !== blockId) return b;
+          const idx = b.items.findIndex((it) => it.id === itemId);
+          if (idx < 0) return b;
+          const src = b.items[idx]!;
+          const copy: ScheduleItem = { ...src, id: uid(), title: `${src.title} (העתק)` };
+          const items = [...b.items];
+          items.splice(idx + 1, 0, copy);
+          return { ...b, items };
+        }),
       };
     });
   }
@@ -693,6 +746,7 @@ export function Admin({ synagogueId }: Props) {
     } else if (!result.online) {
       setDirty(false);
       setStatus('נשמר מקומית — יסונכרן אוטומטית כשיהיה אינטרנט');
+      setToast('נשמר במכשיר — יפורסם כשיהיה אינטרנט');
     } else if (result.pending) {
       setDirty(false);
       setStatus(
@@ -700,9 +754,11 @@ export function Admin({ synagogueId }: Props) {
           ? `שמירה מקומית — סנכרון נכשל: ${result.error}`
           : 'שמירה מקומית — המתנה לסנכרון ענן',
       );
+      setToast('נשמר — ממתין לסנכרון');
     } else {
       setDirty(false);
       setStatus('נשמר ופורסם למסך ✓');
+      setToast('פורסם למסך בהצלחה');
     }
   }
 
@@ -822,10 +878,16 @@ export function Admin({ synagogueId }: Props) {
             onClick={() => void onSave()}
             disabled={saving}
           >
-            {saving ? 'שומר...' : dirty ? 'שמור ועדכן מסך · יש שינויים' : 'שמור ועדכן מסך'}
+            {saving ? 'שומר...' : dirty ? 'פרסם למסך · יש שינויים' : 'פרסם למסך'}
           </button>
         </div>
       </header>
+
+      {toast ? (
+        <div className="admin-toast" role="status">
+          {toast}
+        </div>
+      ) : null}
 
       <div className="admin-body">
         <nav className="admin-tabs" aria-label="ניווט ניהול">
@@ -853,22 +915,24 @@ export function Admin({ synagogueId }: Props) {
         </nav>
 
         <div className="admin-main">
-        {tab === 'content' || tab === 'announce' || tab === 'live' ? (
-          <div className="admin-quick" role="navigation" aria-label="פעולות מהירות">
-            <button type="button" className={tab === 'content' ? 'on' : ''} onClick={() => setTab('content')}>
-              עדכן תפילות
-            </button>
-            <button type="button" className={tab === 'announce' ? 'on' : ''} onClick={() => setTab('announce')}>
-              פרסם הודעה
-            </button>
-            <button type="button" className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>
-              בדוק מסך
-            </button>
-            <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
-              פתח תצוגה חיה ↗
-            </Link>
-          </div>
-        ) : null}
+        <div className="admin-quick" role="navigation" aria-label="פעולות מהירות">
+          <button type="button" className={tab === 'content' ? 'on' : ''} onClick={() => setTab('content')}>
+            תפילות
+          </button>
+          <button type="button" className={tab === 'announce' ? 'on' : ''} onClick={() => setTab('announce')}>
+            הודעות
+          </button>
+          <button type="button" className={tab === 'zmanim' ? 'on' : ''} onClick={() => setTab('zmanim')}>
+            זמנים
+          </button>
+          <button type="button" className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>
+            תצוגה מקדימה
+          </button>
+          <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
+            מסך חי ↗
+          </Link>
+          <span className="admin-quick-hint">Ctrl+S לפרסום</span>
+        </div>
 
         <div className="admin-grid">
         {tab === 'design' && isOwner ? (
@@ -1539,18 +1603,50 @@ export function Admin({ synagogueId }: Props) {
                 + בלוק
               </button>
             </div>
+            <div className="admin-today">
+              <span>
+                {config.blocks.filter((b) => b.enabled).length} בלוקים פעילים ·{' '}
+                {config.blocks.reduce((n, b) => n + b.items.length, 0)} פריטים
+              </span>
+              <span>
+                {config.announcements.filter((a) => a.enabled && a.text.trim()).length} הודעות
+                פעילות
+              </span>
+              {dirty ? <strong className="warn">שינויים ממתינים לפרסום</strong> : <em>מעודכן</em>}
+            </div>
             <p className="hint">
-              הזן כותרת ושעה לכל פריט. לחיצה על «עוד» פותחת הערה, זמן הלכתי וסידור.
+              הזן כותרת ושעה. «עוד» לפתיחת הערה / זמן הלכתי. Ctrl+S מפרסם למסך.
             </p>
-            {config.blocks.map((block) => (
-              <div className="block" key={block.id}>
+            {config.blocks.length === 0 ? (
+              <div className="admin-empty">
+                <p>עדיין אין בלוקי תפילה</p>
+                <button type="button" className="btn primary" onClick={addBlock}>
+                  צור בלוק ראשון (למשל שחרית)
+                </button>
+              </div>
+            ) : null}
+            {config.blocks.map((block) => {
+              const collapsed = Boolean(collapsedBlocks[block.id]);
+              return (
+              <div className={`block ${collapsed ? 'is-collapsed' : ''}`} key={block.id}>
                 <div className="block-head">
+                  <button
+                    type="button"
+                    className="btn ghost block-collapse"
+                    aria-expanded={!collapsed}
+                    onClick={() =>
+                      setCollapsedBlocks((m) => ({ ...m, [block.id]: !collapsed }))
+                    }
+                  >
+                    {collapsed ? '▸' : '▾'}
+                  </button>
                   <input
                     className="block-title"
                     value={block.title}
                     onChange={(e) => updateBlock(block.id, { title: e.target.value })}
                     placeholder="שם הבלוק (למשל שחרית)"
                   />
+                  <span className="block-count">{block.items.length}</span>
                   <label className="check">
                     <input
                       type="checkbox"
@@ -1560,6 +1656,8 @@ export function Admin({ synagogueId }: Props) {
                     פעיל
                   </label>
                 </div>
+                {collapsed ? null : (
+                <>
                 {block.items.map((item, index) => {
                   const open = expandedItemId === item.id;
                   return (
@@ -1618,6 +1716,14 @@ export function Admin({ synagogueId }: Props) {
                         onClick={() => setExpandedItemId(open ? null : item.id)}
                       >
                         {open ? 'סגור' : 'עוד'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        title="שכפל פריט"
+                        onClick={() => duplicateItem(block.id, item.id)}
+                      >
+                        שכפל
                       </button>
                       <button
                         type="button"
@@ -1715,73 +1821,137 @@ export function Admin({ synagogueId }: Props) {
                     + שורה בלי שעה
                   </button>
                 </div>
+                </>
+                )}
               </div>
-            ))}
+            );
+            })}
           </section>
         ) : null}
 
         {tab === 'announce' ? (
           <section className="card wide">
             <div className="section-head">
-              <h2>הודעות מתוזמנות</h2>
+              <h2>הודעות למסך</h2>
               <button
                 type="button"
-                className="btn ghost"
+                className="btn primary"
                 onClick={() =>
                   update({
                     announcements: [
                       ...config.announcements,
-                      { id: uid(), text: '', enabled: true },
+                      {
+                        id: uid(),
+                        text: '',
+                        enabled: true,
+                        startDate: new Date().toISOString().slice(0, 10),
+                      },
                     ],
                   })
                 }
               >
-                + הודעה
+                + הודעה חדשה
               </button>
             </div>
-            <p className="hint">מוצג במסך רק בין תאריכי ההתחלה והסיום</p>
-            {config.announcements.map((a) => (
-              <div className="announce-row" key={a.id}>
-                <input
-                  value={a.text}
-                  onChange={(e) => updateAnnouncement(a.id, { text: e.target.value })}
-                  placeholder="טקסט ההודעה"
-                />
-                <input
-                  type="date"
-                  value={a.startDate ?? ''}
-                  onChange={(e) =>
-                    updateAnnouncement(a.id, { startDate: e.target.value || undefined })
-                  }
-                />
-                <input
-                  type="date"
-                  value={a.endDate ?? ''}
-                  onChange={(e) =>
-                    updateAnnouncement(a.id, { endDate: e.target.value || undefined })
-                  }
-                />
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={a.enabled}
-                    onChange={(e) => updateAnnouncement(a.id, { enabled: e.target.checked })}
-                  />
-                  פעיל
-                </label>
+            <p className="hint">ההודעה תופיע במסך רק בין התאריכים שתגדיר (אופציונלי).</p>
+            {config.announcements.length === 0 ? (
+              <div className="admin-empty">
+                <p>אין הודעות עדיין</p>
                 <button
                   type="button"
-                  className="btn danger"
+                  className="btn primary"
                   onClick={() =>
                     update({
-                      announcements: config.announcements.filter((x) => x.id !== a.id),
+                      announcements: [
+                        {
+                          id: uid(),
+                          text: '',
+                          enabled: true,
+                          startDate: new Date().toISOString().slice(0, 10),
+                        },
+                      ],
                     })
                   }
                 >
-                  מחק
+                  כתוב הודעה ראשונה
                 </button>
               </div>
-            ))}
+            ) : (
+              config.announcements.map((a) => (
+                <div className="announce-card" key={a.id}>
+                  <label className="announce-text">
+                    טקסט ההודעה
+                    <textarea
+                      value={a.text}
+                      rows={2}
+                      onChange={(e) => updateAnnouncement(a.id, { text: e.target.value })}
+                      placeholder="לדוגמה: שיעור אחרי ערבית · מניין נוסף בשבת"
+                    />
+                  </label>
+                  <div className="announce-dates">
+                    <label>
+                      מתאריך
+                      <input
+                        type="date"
+                        value={a.startDate ?? ''}
+                        onChange={(e) =>
+                          updateAnnouncement(a.id, { startDate: e.target.value || undefined })
+                        }
+                      />
+                    </label>
+                    <label>
+                      עד תאריך
+                      <input
+                        type="date"
+                        value={a.endDate ?? ''}
+                        onChange={(e) =>
+                          updateAnnouncement(a.id, { endDate: e.target.value || undefined })
+                        }
+                      />
+                    </label>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={a.enabled}
+                        onChange={(e) => updateAnnouncement(a.id, { enabled: e.target.checked })}
+                      />
+                      פעיל במסך
+                    </label>
+                  </div>
+                  <div className="row-actions">
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() =>
+                        update({
+                          announcements: [
+                            ...config.announcements,
+                            {
+                              ...a,
+                              id: uid(),
+                              text: a.text ? `${a.text} (העתק)` : '',
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      שכפל
+                    </button>
+                    <button
+                      type="button"
+                      className="btn danger"
+                      onClick={() =>
+                        update({
+                          announcements: config.announcements.filter((x) => x.id !== a.id),
+                        })
+                      }
+                    >
+                      מחק
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </section>
         ) : null}
 
@@ -1916,14 +2086,14 @@ export function Admin({ synagogueId }: Props) {
       </div>
 
       <div className={`admin-save-bar ${dirty ? 'show' : ''}`}>
-        <span>{dirty ? 'יש שינויים שלא פורסמו למסך' : 'הכל מעודכן'}</span>
+        <span>{dirty ? 'יש שינויים — לחץ לפרסום למסך' : 'הכל מעודכן'}</span>
         <button
           type="button"
           className="btn primary"
           disabled={saving || !dirty}
           onClick={() => void onSave()}
         >
-          {saving ? 'שומר…' : 'שמור ועדכן מסך'}
+          {saving ? 'מפרסם…' : 'פרסם למסך'}
         </button>
       </div>
 

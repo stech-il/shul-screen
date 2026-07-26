@@ -132,6 +132,17 @@ export function Agency() {
   const [heartbeats, setHeartbeats] = useState<ScreenHeartbeat[]>([]);
 
   useEffect(() => {
+    if (!moreOpenId) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.('.shul-more')) return;
+      setMoreOpenId(null);
+    };
+    document.addEventListener('click', onDoc);
+    return () => document.removeEventListener('click', onDoc);
+  }, [moreOpenId]);
+
+  useEffect(() => {
     if (!platformOk) return;
     let cancelled = false;
     async function refresh() {

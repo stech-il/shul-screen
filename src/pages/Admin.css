@@ -197,10 +197,124 @@
   border-color: var(--ink);
 }
 
-.admin-quick-ext {
+.admin-quick-hint {
   margin-inline-start: auto;
+  font-size: 0.75rem;
   color: var(--muted);
-  font-weight: 500;
+}
+
+.admin-today {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.1rem;
+  align-items: center;
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  background: color-mix(in srgb, var(--accent, #a8893d) 8%, #fff);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.admin-today strong.warn {
+  color: #a66b1a;
+  font-weight: 700;
+}
+
+.admin-today em {
+  font-style: normal;
+  color: #2f6b4f;
+  font-weight: 600;
+}
+
+.admin-empty {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  padding: 1.5rem 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.admin-empty p {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.block-collapse {
+  min-width: 2rem;
+  padding-inline: 0.35rem !important;
+}
+
+.block-count {
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}
+
+.announce-card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.announce-text textarea {
+  width: 100%;
+  font: inherit;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  resize: vertical;
+  min-height: 3.2rem;
+}
+
+.announce-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.announce-dates label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.admin-toast {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  background: #1c3140;
+  color: #fff;
+  padding: 0.7rem 1.15rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  animation: admin-toast-in 0.25s ease;
+}
+
+@keyframes admin-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .tab-group {
