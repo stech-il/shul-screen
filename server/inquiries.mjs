@@ -1,9 +1,6 @@
 /**
- * Public contact / inquiry inbox for platform admin (Agency).
- * Stores records under cloudStore prefix `inquiries` and emails:
- *  - platform admin (new inquiry)
- *  - submitter (auto-reply confirmation)
- *  - synagogue contactEmail when synagogueId is provided
+ * Inquiries / support tickets with in-app reply threads.
+ * Optional SMTP still notifies about new tickets / replies, but conversation stays in-app.
  */
 import { getBundle, getRecord, listRecords, putRecord } from './cloudStore.mjs';
 import { mailConfigured, sendMail } from './mail.mjs';
@@ -21,6 +18,7 @@ const TOPICS = new Set([
   'demo',
 ]);
 const STATUSES = new Set(['new', 'read', 'done']);
+const AUTHORS = new Set(['customer', 'support']);
 
 /** @type {Map<string, number[]>} */
 const rateByIp = new Map();
@@ -29,8 +27,8 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function uid() {
-  return `inq_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+function uid(prefix = 'inq') {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function readBody(req) {
@@ -61,7 +59,7 @@ function clientIp(req) {
 function rateOk(ip) {
   const now = Date.now();
   const windowMs = 60 * 60 * 1000;
-  const max = 8;
+  const max = 20;
   const prev = (rateByIp.get(ip) || []).filter((t) => now - t < windowMs);
   if (prev.length >= max) {
     rateByIp.set(ip, prev);
@@ -101,6 +99,14 @@ function wrapHtml(title, bodyHtml) {
 </body></html>`;
 }
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 async function platformAdminEmail() {
   try {
     const plat = await getRecord('billing', PLATFORM_ID);
@@ -126,111 +132,39 @@ async function synagogueContact(synagogueId) {
   }
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+function normalizeMessages(rec) {
+  if (Array.isArray(rec.messages) && rec.messages.length) {
+    return rec.messages.map((m) => ({
+      id: m.id || uid('msg'),
+      at: m.at || rec.createdAt || nowIso(),
+      author: AUTHORS.has(m.author) ? m.author : 'customer',
+      name: String(m.name || '').slice(0, 120),
+      text: String(m.text || '').slice(0, 4000),
+    }));
+  }
+  // Legacy tickets: first message = original body
+  return [
+    {
+      id: uid('msg'),
+      at: rec.createdAt || nowIso(),
+      author: 'customer',
+      name: rec.name || '',
+      text: rec.message || '',
+    },
+  ];
 }
 
-async function notifyEmails(inquiry) {
-  if (!mailConfigured()) {
-    return { admin: { skipped: true }, submitter: { skipped: true }, synagogue: { skipped: true } };
-  }
-
-  const admin = await platformAdminEmail();
-  const shul = await synagogueContact(inquiry.synagogueId);
-  const topic = topicLabel(inquiry.topic);
-  const safeMsg = escapeHtml(inquiry.message).replace(/\n/g, '<br/>');
-
-  const results = {
-    admin: { skipped: true },
-    submitter: { skipped: true },
-    synagogue: { skipped: true },
-  };
-
-  if (admin) {
-    results.admin = await sendMail({
-      to: admin,
-      replyTo: inquiry.email,
-      subject: `פנייה חדשה — ${topic} · ${inquiry.name}`,
-      text: [
-        `פנייה חדשה ב־screensmart`,
-        `נושא: ${topic}`,
-        `שם: ${inquiry.name}`,
-        `מייל: ${inquiry.email}`,
-        inquiry.phone ? `טלפון: ${inquiry.phone}` : '',
-        inquiry.synagogueId ? `בית כנסת: ${shul.name || inquiry.synagogueId}` : '',
-        '',
-        inquiry.message,
-        '',
-        `מזהה: ${inquiry.id}`,
-      ]
-        .filter(Boolean)
-        .join('\n'),
-      html: wrapHtml(
-        'פנייה חדשה',
-        `<p><strong>נושא:</strong> ${escapeHtml(topic)}</p>
-         <p><strong>שם:</strong> ${escapeHtml(inquiry.name)}<br/>
-         <strong>מייל:</strong> <a href="mailto:${escapeHtml(inquiry.email)}">${escapeHtml(inquiry.email)}</a>
-         ${inquiry.phone ? `<br/><strong>טלפון:</strong> ${escapeHtml(inquiry.phone)}` : ''}
-         ${inquiry.synagogueId ? `<br/><strong>בית כנסת:</strong> ${escapeHtml(shul.name || inquiry.synagogueId)}` : ''}
-         </p>
-         <div style="margin-top:16px;padding:14px;background:#f7f4ee;border-radius:8px">${safeMsg}</div>
-         <p style="font-size:12px;color:#6b7a80;margin-top:16px">מזהה: ${escapeHtml(inquiry.id)}</p>`,
-      ),
-    });
-  }
-
-  if (inquiry.email) {
-    results.submitter = await sendMail({
-      to: inquiry.email,
-      subject: 'screensmart — קיבלנו את פנייתך',
-      text: [
-        `שלום ${inquiry.name},`,
-        '',
-        'קיבלנו את פנייתך ונחזור אליך בהקדם.',
-        `נושא: ${topic}`,
-        '',
-        '— צוות screensmart',
-      ].join('\n'),
-      html: wrapHtml(
-        'קיבלנו את פנייתך',
-        `<p>שלום ${escapeHtml(inquiry.name)},</p>
-         <p>קיבלנו את פנייתך בנושא <strong>${escapeHtml(topic)}</strong> ונחזור אליך בהקדם.</p>
-         <p style="color:#6b7a80">אין צורך להשיב למייל זה.</p>`,
-      ),
-    });
-  }
-
-  if (shul.email && shul.email.toLowerCase() !== admin.toLowerCase()) {
-    results.synagogue = await sendMail({
-      to: shul.email,
-      replyTo: inquiry.email,
-      subject: `פנייה חדשה לגבי ${shul.name || 'בית הכנסת'}`,
-      text: [
-        `התקבלה פנייה לגבי ${shul.name || inquiry.synagogueId}`,
-        `מאת: ${inquiry.name} <${inquiry.email}>`,
-        inquiry.phone ? `טלפון: ${inquiry.phone}` : '',
-        '',
-        inquiry.message,
-      ]
-        .filter(Boolean)
-        .join('\n'),
-      html: wrapHtml(
-        'פנייה לגבי בית הכנסת',
-        `<p>התקבלה פנייה לגבי <strong>${escapeHtml(shul.name || inquiry.synagogueId)}</strong>.</p>
-         <p>מאת: ${escapeHtml(inquiry.name)} · <a href="mailto:${escapeHtml(inquiry.email)}">${escapeHtml(inquiry.email)}</a></p>
-         <div style="margin-top:16px;padding:14px;background:#f7f4ee;border-radius:8px">${safeMsg}</div>`,
-      ),
-    });
-  }
-
-  return results;
+function awaitingFromMessages(messages, status) {
+  if (status === 'done') return null;
+  const last = messages[messages.length - 1];
+  if (!last) return 'support';
+  return last.author === 'customer' ? 'support' : 'customer';
 }
 
 function publicInquiry(rec) {
+  const messages = normalizeMessages(rec);
+  const status = rec.status || 'new';
+  const awaiting = rec.awaiting ?? awaitingFromMessages(messages, status);
   return {
     id: rec.id,
     createdAt: rec.createdAt,
@@ -241,9 +175,100 @@ function publicInquiry(rec) {
     topic: rec.topic,
     message: rec.message,
     synagogueId: rec.synagogueId || '',
-    status: rec.status || 'new',
-    source: rec.source || 'landing',
+    status,
+    source: rec.source || 'admin',
+    messages,
+    awaiting,
+    replyCount: Math.max(0, messages.length - 1),
   };
+}
+
+async function notifyNewTicket(inquiry) {
+  if (!mailConfigured()) {
+    return { admin: { skipped: true }, submitter: { skipped: true } };
+  }
+  const admin = await platformAdminEmail();
+  const shul = await synagogueContact(inquiry.synagogueId);
+  const topic = topicLabel(inquiry.topic);
+  const safeMsg = escapeHtml(inquiry.message).replace(/\n/g, '<br/>');
+  const results = { admin: { skipped: true }, submitter: { skipped: true } };
+
+  if (admin) {
+    results.admin = await sendMail({
+      to: admin,
+      subject: `פנייה חדשה — ${topic} · ${inquiry.name}`,
+      text: [
+        'פנייה חדשה במערכת screensmart',
+        `נושא: ${topic}`,
+        `שם: ${inquiry.name}`,
+        inquiry.synagogueId ? `בית כנסת: ${shul.name || inquiry.synagogueId}` : '',
+        '',
+        inquiry.message,
+        '',
+        'השיבו מתוך פאנל המנהל → פניות (לא מהמייל).',
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      html: wrapHtml(
+        'פנייה חדשה',
+        `<p><strong>נושא:</strong> ${escapeHtml(topic)}</p>
+         <p><strong>שם:</strong> ${escapeHtml(inquiry.name)}
+         ${inquiry.synagogueId ? `<br/><strong>בית כנסת:</strong> ${escapeHtml(shul.name || inquiry.synagogueId)}` : ''}
+         </p>
+         <div style="margin-top:16px;padding:14px;background:#f7f4ee;border-radius:8px">${safeMsg}</div>
+         <p style="margin-top:14px;color:#6b7a80">השיבו מתוך פאנל המנהל ← פניות.</p>`,
+      ),
+    });
+  }
+
+  if (inquiry.email) {
+    results.submitter = await sendMail({
+      to: inquiry.email,
+      subject: 'screensmart — קיבלנו את פנייתך',
+      text: `שלום ${inquiry.name},\n\nקיבלנו את פנייתך. המענה יופיע במערכת — ניהול המסך ← פניות.\n`,
+      html: wrapHtml(
+        'קיבלנו את פנייתך',
+        `<p>שלום ${escapeHtml(inquiry.name)},</p>
+         <p>קיבלנו את פנייתך. <strong>התשובה תופיע במערכת</strong> תחת ניהול המסך ← פניות.</p>`,
+      ),
+    });
+  }
+  return results;
+}
+
+async function notifyReply(inquiry, reply) {
+  if (!mailConfigured()) return { skipped: true };
+  const topic = topicLabel(inquiry.topic);
+  const safe = escapeHtml(reply.text).replace(/\n/g, '<br/>');
+
+  if (reply.author === 'support' && inquiry.email) {
+    return sendMail({
+      to: inquiry.email,
+      subject: `תשובה חדשה לפנייה — ${topic}`,
+      text: `יש תשובה חדשה במערכת screensmart.\nניהול המסך ← פניות\n\n${reply.text}`,
+      html: wrapHtml(
+        'תשובה חדשה במערכת',
+        `<p>התקבלה תשובה לפנייתכם. פתחו <strong>ניהול המסך ← פניות</strong> לקריאה ולהמשך שיחה.</p>
+         <div style="margin-top:14px;padding:14px;background:#f7f4ee;border-radius:8px">${safe}</div>`,
+      ),
+    });
+  }
+
+  if (reply.author === 'customer') {
+    const admin = await platformAdminEmail();
+    if (!admin) return { skipped: true };
+    return sendMail({
+      to: admin,
+      subject: `הודעה חדשה בפנייה — ${topic}`,
+      text: `הודעה חדשה מ־${inquiry.name} בפנייה ${inquiry.id}.\nפאנל מנהל ← פניות\n\n${reply.text}`,
+      html: wrapHtml(
+        'הודעה חדשה בפנייה',
+        `<p>מאת ${escapeHtml(inquiry.name)}. השיבו בפאנל המנהל ← פניות.</p>
+         <div style="margin-top:14px;padding:14px;background:#f7f4ee;border-radius:8px">${safe}</div>`,
+      ),
+    });
+  }
+  return { skipped: true };
 }
 
 /**
@@ -252,7 +277,6 @@ function publicInquiry(rec) {
  * @param {URL} url
  */
 export async function handleInquiries(req, res, url) {
-  // CORS for public form (same-origin usually; keep simple)
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -282,7 +306,7 @@ export async function handleInquiries(req, res, url) {
         .slice(0, 64);
       const source = String(body.source || 'admin').trim().slice(0, 40) || 'admin';
 
-      if (!synagogueId && source === 'admin') {
+      if (!synagogueId) {
         sendJson(res, 400, { error: 'חסר מזהה בית כנסת' });
         return;
       }
@@ -299,11 +323,19 @@ export async function handleInquiries(req, res, url) {
         return;
       }
 
-      const id = uid();
+      const id = uid('inq');
+      const createdAt = nowIso();
+      const firstMsg = {
+        id: uid('msg'),
+        at: createdAt,
+        author: 'customer',
+        name,
+        text: message,
+      };
       const inquiry = {
         id,
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
+        createdAt,
+        updatedAt: createdAt,
         name,
         email,
         phone,
@@ -312,15 +344,18 @@ export async function handleInquiries(req, res, url) {
         synagogueId,
         status: 'new',
         source,
+        awaiting: 'support',
+        messages: [firstMsg],
         ip: clientIp(req).slice(0, 80),
       };
       await putRecord(PREFIX, id, inquiry);
-      const mail = await notifyEmails(inquiry).catch((err) => ({
+      const mail = await notifyNewTicket(inquiry).catch((err) => ({
         error: String(err?.message || err),
       }));
       sendJson(res, 201, {
         ok: true,
         id,
+        item: publicInquiry(inquiry),
         mailConfigured: mailConfigured(),
         mail,
       });
@@ -334,9 +369,78 @@ export async function handleInquiries(req, res, url) {
         .map(publicInquiry)
         .filter((i) => (statusFilter && STATUSES.has(statusFilter) ? i.status === statusFilter : true))
         .filter((i) => (synagogueFilter ? i.synagogueId === synagogueFilter : true))
-        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-      const unread = items.filter((i) => i.status === 'new').length;
-      sendJson(res, 200, { items, unread, total: items.length });
+        .sort((a, b) => String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)));
+
+      const unreadSupport = items.filter((i) => i.awaiting === 'support' || i.status === 'new').length;
+      const unreadCustomer = items.filter((i) => i.awaiting === 'customer').length;
+      sendJson(res, 200, {
+        items,
+        unread: unreadSupport,
+        unreadCustomer,
+        total: items.length,
+      });
+      return;
+    }
+
+    const replyMatch = url.pathname.match(/^\/api\/inquiries\/([^/]+)\/replies$/);
+    if (replyMatch && req.method === 'POST') {
+      if (!rateOk(clientIp(req))) {
+        sendJson(res, 429, { error: 'נשלחו יותר מדי הודעות — נסו שוב בעוד שעה' });
+        return;
+      }
+      const id = decodeURIComponent(replyMatch[1]);
+      const existing = await getRecord(PREFIX, id);
+      if (!existing) {
+        sendJson(res, 404, { error: 'פנייה לא נמצאה' });
+        return;
+      }
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const text = String(body.text || '').trim().slice(0, 4000);
+      const authorRaw = String(body.author || '').trim();
+      const author = AUTHORS.has(authorRaw) ? authorRaw : '';
+      const name = String(body.name || (author === 'support' ? 'תמיכה' : existing.name) || '')
+        .trim()
+        .slice(0, 120);
+
+      if (!author) {
+        sendJson(res, 400, { error: 'חסר מחבר הודעה' });
+        return;
+      }
+      if (!text || text.length < 1) {
+        sendJson(res, 400, { error: 'נא לכתוב תשובה' });
+        return;
+      }
+
+      const messages = normalizeMessages(existing);
+      const reply = {
+        id: uid('msg'),
+        at: nowIso(),
+        author,
+        name: name || (author === 'support' ? 'תמיכה' : 'לקוח'),
+        text,
+      };
+      messages.push(reply);
+
+      let status = existing.status || 'new';
+      if (author === 'support') {
+        status = status === 'done' ? 'read' : status === 'new' ? 'read' : status;
+      } else if (status === 'done') {
+        status = 'read';
+      } else if (status === 'read') {
+        status = 'new';
+      }
+
+      const updated = {
+        ...existing,
+        messages,
+        status,
+        awaiting: author === 'support' ? 'customer' : 'support',
+        updatedAt: nowIso(),
+      };
+      await putRecord(PREFIX, id, updated);
+      void notifyReply(updated, reply).catch(() => {});
+      sendJson(res, 201, { ok: true, item: publicInquiry(updated), reply });
       return;
     }
 
@@ -355,9 +459,12 @@ export async function handleInquiries(req, res, url) {
         sendJson(res, 400, { error: 'סטטוס לא תקין' });
         return;
       }
+      const messages = normalizeMessages(existing);
       const updated = {
         ...existing,
+        messages,
         status: nextStatus,
+        awaiting: nextStatus === 'done' ? null : awaitingFromMessages(messages, nextStatus),
         updatedAt: nowIso(),
       };
       await putRecord(PREFIX, id, updated);

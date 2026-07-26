@@ -215,6 +215,123 @@
   text-decoration: none;
 }
 
+.inq-item.needs-reply {
+  border-color: color-mix(in srgb, #9a4a28 45%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #9a4a28 12%, transparent);
+}
+
+.inq-item-summary {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  text-align: right;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.inq-preview {
+  margin: 0.15rem 0 0.35rem;
+  color: var(--muted, #5f737a);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.inq-thread-toggle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent, #9a7a32);
+}
+
+.inq-await {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.12rem 0.4rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, #9a4a28 18%, transparent);
+  color: #9a4a28;
+}
+
+.inq-thread {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line, rgba(22, 48, 56, 0.1));
+}
+
+.inq-messages {
+  list-style: none;
+  margin: 0 0 0.85rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-height: 22rem;
+  overflow: auto;
+}
+
+.inq-msg {
+  border-radius: 10px;
+  padding: 0.65rem 0.8rem;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--line, rgba(22, 48, 56, 0.1));
+}
+
+.inq-msg.author-support {
+  background: color-mix(in srgb, #2f6b4f 8%, #fff);
+  border-color: color-mix(in srgb, #2f6b4f 22%, transparent);
+}
+
+.inq-msg.author-customer {
+  background: color-mix(in srgb, #9a7a32 7%, #fff);
+}
+
+.inq-msg-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  align-items: center;
+  margin-bottom: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.inq-msg-head span {
+  color: var(--muted, #5f737a);
+}
+
+.inq-msg-head time {
+  margin-inline-start: auto;
+  color: var(--muted, #5f737a);
+}
+
+.inq-msg p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.inq-reply-box label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.86rem;
+  color: var(--muted, #5f737a);
+}
+
+.inq-reply-box textarea {
+  font: inherit;
+  color: var(--ink, #163038);
+  background: #fff;
+  border: 1px solid var(--line, rgba(22, 48, 56, 0.14));
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  resize: vertical;
+  min-height: 4.5rem;
+  margin-bottom: 0.55rem;
+}
+
 @media (max-width: 700px) {
   .inq-form-grid {
     grid-template-columns: 1fr;

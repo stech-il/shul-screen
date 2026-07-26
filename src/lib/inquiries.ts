@@ -9,6 +9,16 @@ export type InquiryTopic =
   | 'demo';
 
 export type InquiryStatus = 'new' | 'read' | 'done';
+export type InquiryAuthor = 'customer' | 'support';
+export type InquiryAwaiting = 'customer' | 'support' | null;
+
+export interface InquiryMessage {
+  id: string;
+  at: string;
+  author: InquiryAuthor | string;
+  name: string;
+  text: string;
+}
 
 export interface Inquiry {
   id: string;
@@ -22,6 +32,9 @@ export interface Inquiry {
   synagogueId: string;
   status: InquiryStatus | string;
   source: string;
+  messages?: InquiryMessage[];
+  awaiting?: InquiryAwaiting;
+  replyCount?: number;
 }
 
 export const INQUIRY_TOPIC_LABELS: Record<InquiryTopic, string> = {
@@ -57,7 +70,7 @@ export async function submitInquiry(input: {
   topic?: InquiryTopic;
   synagogueId?: string;
   source?: string;
-}): Promise<{ ok: boolean; id: string; mailConfigured?: boolean }> {
+}): Promise<{ ok: boolean; id: string; item?: Inquiry; mailConfigured?: boolean }> {
   const res = await fetch('/api/inquiries', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -72,6 +85,7 @@ export async function fetchInquiries(opts?: {
 }): Promise<{
   items: Inquiry[];
   unread: number;
+  unreadCustomer: number;
   total: number;
 }> {
   const params = new URLSearchParams();
@@ -90,6 +104,24 @@ export async function updateInquiryStatus(
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
+  });
+  return parseJson(res);
+}
+
+export async function replyToInquiry(input: {
+  id: string;
+  text: string;
+  author: InquiryAuthor;
+  name?: string;
+}): Promise<{ ok: boolean; item: Inquiry }> {
+  const res = await fetch(`/api/inquiries/${encodeURIComponent(input.id)}/replies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: input.text,
+      author: input.author,
+      name: input.name,
+    }),
   });
   return parseJson(res);
 }

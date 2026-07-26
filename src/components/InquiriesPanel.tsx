@@ -3,6 +3,7 @@ import {
   fetchInquiries,
   INQUIRY_STATUS_LABELS,
   INQUIRY_TOPIC_LABELS,
+  replyToInquiry,
   submitInquiry,
   updateInquiryStatus,
   type Inquiry,
@@ -20,7 +21,6 @@ interface Props {
   defaultName?: string;
   defaultEmail?: string;
   defaultPhone?: string;
-  /** Agency: manage status. Admin: submit + view own tickets only */
   canManage?: boolean;
 }
 
@@ -35,10 +35,13 @@ export function InquiriesPanel({
 }: Props) {
   const [items, setItems] = useState<Inquiry[]>([]);
   const [unread, setUnread] = useState(0);
+  const [unreadCustomer, setUnreadCustomer] = useState(0);
   const [filter, setFilter] = useState<'all' | InquiryStatus>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
 
   const [name, setName] = useState(defaultName);
   const [email, setEmail] = useState(defaultEmail);
@@ -63,6 +66,7 @@ export function InquiriesPanel({
       });
       setItems(data.items);
       setUnread(data.unread);
+      setUnreadCustomer(data.unreadCustomer || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'טעינת פניות נכשלה');
     } finally {
@@ -72,9 +76,9 @@ export function InquiriesPanel({
 
   useEffect(() => {
     void reload();
-    const id = window.setInterval(() => void reload(), 30_000);
+    const id = window.setInterval(() => void reload(), 20_000);
     return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload on synagogue/mode
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, synagogueId]);
 
   const visible = useMemo(() => {
@@ -91,7 +95,7 @@ export function InquiriesPanel({
     setSending(true);
     setFormMsg('');
     try {
-      await submitInquiry({
+      const result = await submitInquiry({
         name,
         email,
         phone,
@@ -102,8 +106,9 @@ export function InquiriesPanel({
       });
       setMessage('');
       setTopic('fault');
-      setFormMsg('הפנייה נשלחה לתמיכה — נחזור אליכם בהקדם.');
+      setFormMsg('הפנייה נשלחה — התשובות יופיעו כאן במערכת.');
       await reload();
+      if (result.id) setOpenId(result.id);
     } catch (err) {
       setFormMsg(err instanceof Error ? err.message : 'שליחה נכשלה');
     } finally {
@@ -123,11 +128,32 @@ export function InquiriesPanel({
     }
   }
 
+  async function onReply(inq: Inquiry) {
+    const text = (replyDrafts[inq.id] || '').trim();
+    if (!text) return;
+    setBusyId(inq.id);
+    try {
+      const author = mode === 'agency' ? 'support' : 'customer';
+      const replyName =
+        mode === 'agency' ? 'תמיכת screensmart' : name || defaultName || inq.name;
+      await replyToInquiry({ id: inq.id, text, author, name: replyName });
+      setReplyDrafts((d) => ({ ...d, [inq.id]: '' }));
+      await reload();
+      setOpenId(inq.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שליחת התשובה נכשלה');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const topicOptions = (Object.keys(INQUIRY_TOPIC_LABELS) as InquiryTopic[]).filter((id) =>
     mode === 'admin'
       ? ['fault', 'support', 'content', 'billing', 'feature', 'other'].includes(id)
       : true,
   );
+
+  const badgeCount = mode === 'agency' ? unread : unreadCustomer;
 
   return (
     <div className={`inq-panel mode-${mode}`}>
@@ -135,8 +161,8 @@ export function InquiriesPanel({
         <section className="inq-compose card">
           <h2>פתיחת פנייה</h2>
           <p className="hint">
-            תקלות, שאלות ותמיכה — הפנייה מגיעה למנהל המערכת{synagogueName ? ` · ${synagogueName}` : ''}
-            , עם התראה במייל כש־SMTP מוגדר.
+            תקלות ותמיכה — השיחה מתנהלת כאן במערכת
+            {synagogueName ? ` · ${synagogueName}` : ''}. מייל הוא רק התראה.
           </p>
           <form className="inq-form" onSubmit={(e) => void onSubmit(e)}>
             <div className="inq-form-grid">
@@ -151,7 +177,7 @@ export function InquiriesPanel({
                 />
               </label>
               <label>
-                מייל לחזרה
+                מייל להתראות
                 <input
                   type="email"
                   value={email}
@@ -191,7 +217,7 @@ export function InquiriesPanel({
                 minLength={5}
                 maxLength={4000}
                 rows={5}
-                placeholder="תארו את התקלה או הבקשה — מה קורה במסך, מתי התחיל, ומה ניסיתם…"
+                placeholder="תארו את התקלה או הבקשה…"
               />
             </label>
             <div className="inq-form-actions">
@@ -208,15 +234,17 @@ export function InquiriesPanel({
         <div className="inq-inbox-head">
           <div>
             <h2>
-              {mode === 'agency' ? 'תיבת פניות' : 'הפניות שלכם'}
-              {unread > 0 && mode === 'agency' ? (
-                <span className="inq-badge">{unread} חדשות</span>
+              {mode === 'agency' ? 'תיבת פניות' : 'הפניות והתשובות'}
+              {badgeCount > 0 ? (
+                <span className="inq-badge">
+                  {badgeCount} {mode === 'agency' ? 'ממתינות' : 'תשובות חדשות'}
+                </span>
               ) : null}
             </h2>
             <p className="hint">
               {mode === 'agency'
-                ? 'פניות מבתי הכנסת (תקלות, תמיכה, תשלום ועוד).'
-                : 'סטטוס הפניות ששלחתם מניהול המסך.'}
+                ? 'השיבו כאן במערכת — הלקוח רואה את התשובה בניהול המסך.'
+                : 'כאן מופיעות תשובות התמיכה. אפשר להמשיך את השיחה מהמערכת.'}
             </p>
           </div>
           <div className="inq-inbox-tools">
@@ -256,70 +284,148 @@ export function InquiriesPanel({
                 INQUIRY_TOPIC_LABELS[inq.topic as InquiryTopic] || inq.topic;
               const statusLabel =
                 INQUIRY_STATUS_LABELS[inq.status as InquiryStatus] || inq.status;
+              const open = openId === inq.id;
+              const messages = inq.messages?.length
+                ? inq.messages
+                : [
+                    {
+                      id: 'legacy',
+                      at: inq.createdAt,
+                      author: 'customer',
+                      name: inq.name,
+                      text: inq.message,
+                    },
+                  ];
+              const waitingForMe =
+                (mode === 'agency' && inq.awaiting === 'support') ||
+                (mode === 'admin' && inq.awaiting === 'customer');
+
               return (
-                <li key={inq.id} className={`inq-item status-${inq.status}`}>
-                  <div className="inq-item-top">
-                    <strong>{inq.name}</strong>
-                    <span className="inq-topic">{topicLabel}</span>
-                    <span className={`inq-status status-${inq.status}`}>{statusLabel}</span>
-                    <time dateTime={inq.createdAt}>
-                      {new Date(inq.createdAt).toLocaleString('he-IL')}
-                    </time>
-                  </div>
-                  <p className="inq-meta">
-                    <a href={`mailto:${inq.email}`} dir="ltr">
-                      {inq.email}
-                    </a>
-                    {inq.phone ? (
-                      <>
-                        {' · '}
-                        <a href={`tel:${inq.phone}`} dir="ltr">
-                          {inq.phone}
-                        </a>
-                      </>
-                    ) : null}
-                    {mode === 'agency' && inq.synagogueId
-                      ? ` · בית כנסת: ${inq.synagogueId}`
-                      : null}
-                  </p>
-                  <p className="inq-body">{inq.message}</p>
-                  {canManage ? (
-                    <div className="inq-item-actions">
-                      {inq.status === 'new' ? (
-                        <button
-                          type="button"
-                          className="btn ghost"
-                          disabled={busyId === inq.id}
-                          onClick={() => void onStatus(inq.id, 'read')}
-                        >
-                          בטיפול
-                        </button>
+                <li
+                  key={inq.id}
+                  className={`inq-item status-${inq.status} ${waitingForMe ? 'needs-reply' : ''} ${open ? 'is-open' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="inq-item-summary"
+                    onClick={() => setOpenId(open ? null : inq.id)}
+                  >
+                    <div className="inq-item-top">
+                      <strong>{inq.name}</strong>
+                      <span className="inq-topic">{topicLabel}</span>
+                      <span className={`inq-status status-${inq.status}`}>{statusLabel}</span>
+                      {waitingForMe ? <span className="inq-await">ממתין לתשובה</span> : null}
+                      <time dateTime={inq.updatedAt || inq.createdAt}>
+                        {new Date(inq.updatedAt || inq.createdAt).toLocaleString('he-IL')}
+                      </time>
+                    </div>
+                    <p className="inq-preview">
+                      {messages[messages.length - 1]?.text?.slice(0, 120)}
+                      {(messages[messages.length - 1]?.text?.length || 0) > 120 ? '…' : ''}
+                    </p>
+                    <span className="inq-thread-toggle">
+                      {open ? 'סגור שיחה' : `פתח שיחה (${messages.length})`}
+                    </span>
+                  </button>
+
+                  {open ? (
+                    <div className="inq-thread">
+                      <p className="inq-meta">
+                        {inq.email ? <span dir="ltr">{inq.email}</span> : null}
+                        {inq.phone ? (
+                          <>
+                            {' · '}
+                            <span dir="ltr">{inq.phone}</span>
+                          </>
+                        ) : null}
+                        {mode === 'agency' && inq.synagogueId
+                          ? ` · בית כנסת: ${inq.synagogueId}`
+                          : null}
+                      </p>
+
+                      <ul className="inq-messages">
+                        {messages.map((m) => (
+                          <li
+                            key={m.id}
+                            className={`inq-msg author-${m.author}`}
+                          >
+                            <div className="inq-msg-head">
+                              <strong>
+                                {m.author === 'support' ? m.name || 'תמיכה' : m.name || inq.name}
+                              </strong>
+                              <span>{m.author === 'support' ? 'תמיכה' : 'לקוח'}</span>
+                              <time dateTime={m.at}>
+                                {new Date(m.at).toLocaleString('he-IL')}
+                              </time>
+                            </div>
+                            <p>{m.text}</p>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {inq.status !== 'done' || canManage ? (
+                        <div className="inq-reply-box">
+                          <label>
+                            {mode === 'agency' ? 'תשובה ללקוח' : 'הודעה נוספת לתמיכה'}
+                            <textarea
+                              value={replyDrafts[inq.id] || ''}
+                              onChange={(e) =>
+                                setReplyDrafts((d) => ({ ...d, [inq.id]: e.target.value }))
+                              }
+                              rows={3}
+                              maxLength={4000}
+                              placeholder={
+                                mode === 'agency'
+                                  ? 'כתבו את התשובה כאן — הלקוח יראה אותה במערכת…'
+                                  : 'שאלה נוספת או עדכון…'
+                              }
+                            />
+                          </label>
+                          <div className="inq-item-actions">
+                            <button
+                              type="button"
+                              className="btn primary"
+                              disabled={busyId === inq.id || !(replyDrafts[inq.id] || '').trim()}
+                              onClick={() => void onReply(inq)}
+                            >
+                              {busyId === inq.id ? 'שולח…' : 'שלחו במערכת'}
+                            </button>
+                            {canManage ? (
+                              <>
+                                {inq.status === 'new' ? (
+                                  <button
+                                    type="button"
+                                    className="btn ghost"
+                                    disabled={busyId === inq.id}
+                                    onClick={() => void onStatus(inq.id, 'read')}
+                                  >
+                                    בטיפול
+                                  </button>
+                                ) : null}
+                                {inq.status !== 'done' ? (
+                                  <button
+                                    type="button"
+                                    className="btn ghost"
+                                    disabled={busyId === inq.id}
+                                    onClick={() => void onStatus(inq.id, 'done')}
+                                  >
+                                    סמן כטופל
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="btn ghost"
+                                    disabled={busyId === inq.id}
+                                    onClick={() => void onStatus(inq.id, 'read')}
+                                  >
+                                    פתח מחדש
+                                  </button>
+                                )}
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
                       ) : null}
-                      {inq.status !== 'done' ? (
-                        <button
-                          type="button"
-                          className="btn primary"
-                          disabled={busyId === inq.id}
-                          onClick={() => void onStatus(inq.id, 'done')}
-                        >
-                          טופל
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn ghost"
-                          disabled={busyId === inq.id}
-                          onClick={() => void onStatus(inq.id, 'read')}
-                        >
-                          פתח מחדש
-                        </button>
-                      )}
-                      <a
-                        className="btn ghost"
-                        href={`mailto:${inq.email}?subject=${encodeURIComponent(`Re: ${topicLabel}`)}`}
-                      >
-                        השב במייל
-                      </a>
                     </div>
                   ) : null}
                 </li>
