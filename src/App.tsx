@@ -2,6 +2,7 @@ import { HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom
 import { Admin } from './pages/Admin';
 import { Agency } from './pages/Agency';
 import { Display } from './pages/Display';
+import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { PlatformLogin } from './pages/PlatformLogin';
 
@@ -25,7 +26,7 @@ export default function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/admin" replace />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/display/:id" element={<DisplayRoute />} />
         <Route path="/screen/:id" element={<DisplayRoute />} />
         {/* Platform super-admin gate — must be before /admin/:id */}
@@ -33,7 +34,7 @@ export default function App() {
         <Route path="/admin/:id" element={<AdminRoute />} />
         <Route path="/login/:id" element={<Login />} />
         <Route path="/agency" element={<Agency />} />
-        <Route path="*" element={<Navigate to="/admin" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
   );
