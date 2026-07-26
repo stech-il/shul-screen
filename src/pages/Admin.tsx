@@ -456,24 +456,51 @@ export function Admin({ synagogueId }: Props) {
     });
   }
 
-  async function addMember(e: FormEvent) {
+  async function addMember(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!isOwner || !newMember.name || !newMember.username || !newMember.password) return;
-    const username = newMember.username.trim().toLowerCase();
-    if (config?.members.some((m) => (m.username || m.name).toLowerCase() === username)) {
+    if (!isOwner || !config) {
+      setStatus('אין הרשאה להוספת משתמשים');
+      return;
+    }
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const name = String(data.get('memberName') ?? newMember.name).trim();
+    const username = String(data.get('memberUsername') ?? newMember.username)
+      .trim()
+      .toLowerCase();
+    const password = String(data.get('memberPassword') ?? '');
+    const role = (String(data.get('memberRole') ?? newMember.role) || 'editor') as UserRole;
+    if (!name || !username || !password) {
+      setStatus('יש למלא שם לתצוגה, שם משתמש וסיסמה');
+      return;
+    }
+    if (password.trim().length < 4) {
+      setStatus('סיסמה קצרה מדי (לפחות 4 תווים)');
+      return;
+    }
+    const members = config.members ?? [];
+    if (members.some((m) => (m.username || m.name).toLowerCase() === username)) {
       setStatus('שם המשתמש כבר קיים');
       return;
     }
-    const passwordHash = await hashPassword(newMember.password);
-    const member: Member = {
-      id: uid(),
-      name: newMember.name,
-      username,
-      role: newMember.role,
-      passwordHash,
-    };
-    setConfig((c) => (c ? { ...c, members: [...c.members, member] } : c));
-    setNewMember({ name: '', username: '', password: '', role: 'editor' });
+    try {
+      const passwordHash = await hashPassword(password.trim());
+      const member: Member = {
+        id: uid(),
+        name,
+        username,
+        role: role === 'owner' ? 'owner' : 'editor',
+        passwordHash,
+      };
+      setConfig((c) =>
+        c ? { ...c, members: [...(c.members ?? []), member] } : c,
+      );
+      setNewMember({ name: '', username: '', password: '', role: 'editor' });
+      form.reset();
+      setStatus(`נוסף «${username}» — לחץ שמור כדי לשמור בענן`);
+    } catch (err) {
+      setStatus(`הוספת משתמש נכשלה: ${String((err as Error)?.message || err)}`);
+    }
   }
 
   async function resetMemberPassword(memberId: string) {
@@ -1802,30 +1829,36 @@ export function Admin({ synagogueId }: Props) {
                 ),
               )}
             </ul>
-            <form className="member-form" onSubmit={addMember}>
+            <form className="member-form member-form-add" onSubmit={(e) => void addMember(e)}>
               <input
+                name="memberName"
                 placeholder="שם לתצוגה"
                 value={newMember.name}
                 onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
+                required
               />
               <input
+                name="memberUsername"
                 placeholder="שם משתמש"
                 value={newMember.username}
                 onChange={(e) => setNewMember({ ...newMember, username: e.target.value })}
                 dir="ltr"
                 style={{ textAlign: 'left' }}
                 autoComplete="off"
+                required
               />
               <input
+                name="memberPassword"
                 placeholder="סיסמה"
                 type="password"
-                value={newMember.password}
-                onChange={(e) => setNewMember({ ...newMember, password: e.target.value })}
                 dir="ltr"
                 style={{ textAlign: 'left' }}
                 autoComplete="new-password"
+                required
+                minLength={4}
               />
               <select
+                name="memberRole"
                 value={newMember.role}
                 onChange={(e) =>
                   setNewMember({ ...newMember, role: e.target.value as UserRole })
