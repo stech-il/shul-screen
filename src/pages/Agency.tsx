@@ -1193,11 +1193,6 @@ export function Agency() {
                         {billingSub.hasPaymentMethod
                           ? ` · כרטיס •••• ${billingSub.cardMask || '????'}`
                           : ''}
-                        {billingSub.hasStandingOrder
-                          ? ' · הו״ק פעילה ב־SUMIT'
-                          : billingSub.hasPaymentMethod
-                            ? ' · אין הו״ק ב־SUMIT (חיוב חד־פעמי בלבד)'
-                            : ''}
                         {billingSub.paidUntil
                           ? ` · שולם עד ${formatBillingDate(billingSub.paidUntil)}`
                           : ''}

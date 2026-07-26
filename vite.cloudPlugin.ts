@@ -61,6 +61,20 @@ export function cloudApiPlugin(): Plugin {
             return;
           }
 
+          if (pathOnly === '/api/cloud/templates' && req.method === 'GET') {
+            send(200, { items: await store.getDesignTemplates() });
+            return;
+          }
+          if (pathOnly === '/api/cloud/templates' && req.method === 'PUT') {
+            const raw = await readReq(req);
+            const body = JSON.parse(raw.toString('utf8') || '{}');
+            const items = await store.putDesignTemplates(
+              Array.isArray(body.items) ? body.items : [],
+            );
+            send(200, { ok: true, count: items.length });
+            return;
+          }
+
           if (pathOnly === '/api/cloud/heartbeats' && req.method === 'GET') {
             send(200, { items: await store.listHeartbeats() });
             return;

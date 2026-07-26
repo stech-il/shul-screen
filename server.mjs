@@ -11,10 +11,12 @@ import {
   cloudConfigured,
   deleteBundle,
   getBundle,
+  getDesignTemplates,
   getMediaFile,
   listBundles,
   listHeartbeats,
   putBundle,
+  putDesignTemplates,
   putHeartbeat,
   putMediaFile,
   statusPayload,
@@ -163,6 +165,27 @@ async function handleCloud(req, res, url) {
   }
 
   // Heartbeats — display posts, agency reads
+  // Saved design templates — shared cloud list
+  if (url.pathname === '/api/cloud/templates' && req.method === 'GET') {
+    try {
+      sendJson(res, 200, { items: await getDesignTemplates() });
+    } catch (err) {
+      sendJson(res, 500, { error: String(err?.message || err) });
+    }
+    return;
+  }
+  if (url.pathname === '/api/cloud/templates' && req.method === 'PUT') {
+    try {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const items = await putDesignTemplates(Array.isArray(body.items) ? body.items : []);
+      sendJson(res, 200, { ok: true, count: items.length });
+    } catch (err) {
+      sendJson(res, 500, { error: String(err?.message || err) });
+    }
+    return;
+  }
+
   if (url.pathname === '/api/cloud/heartbeats' && req.method === 'GET') {
     try {
       sendJson(res, 200, { items: await listHeartbeats() });

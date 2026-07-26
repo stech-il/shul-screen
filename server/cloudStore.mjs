@@ -489,3 +489,19 @@ export async function listHeartbeats() {
   }
   return out.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
 }
+
+// —— Saved design templates — one shared list for the whole platform ——
+
+export async function getDesignTemplates() {
+  const rec = await getRecord('templates', 'list');
+  return Array.isArray(rec?.items) ? rec.items : [];
+}
+
+export async function putDesignTemplates(items) {
+  if (!Array.isArray(items)) throw new Error('items must be an array');
+  await putRecord('templates', 'list', {
+    items,
+    updatedAt: new Date().toISOString(),
+  });
+  return items;
+}

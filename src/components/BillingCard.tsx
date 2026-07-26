@@ -144,7 +144,6 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                     ? 'מבוטל'
                     : '—'}{' '}
               · שולם עד: {formatBillingDate(sub.paidUntil)}
-              {sub.hasStandingOrder ? ' · הו״ק פעילה ב־SUMIT' : ' · הו״ק עדיין לא נוצרה ב־SUMIT'}
             </p>
           ) : (
             <p className="hint">עדיין לא הוזן כרטיס אשראי.</p>
@@ -276,7 +275,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                         הורדה
                       </a>
                     ) : h.ok ? (
-                      <span className="hint">נשמר ב־SUMIT</span>
+                      <span className="hint">נשמר בענן</span>
                     ) : null}
                   </li>
                 ))}

@@ -160,14 +160,49 @@ async function migrateLegacyIfNeeded(): Promise<void> {
   return migratePromise;
 }
 
+// —— Cloud sync — templates live on the server, IndexedDB is an offline cache ——
+
+async function fetchCloudTemplates(): Promise<SavedDesignTemplate[] | null> {
+  try {
+    const res = await fetch(`/api/cloud/templates?_=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { items?: SavedDesignTemplate[] };
+    return Array.isArray(data.items) ? data.items : [];
+  } catch {
+    return null;
+  }
+}
+
+async function pushCloudTemplates(items: SavedDesignTemplate[]): Promise<boolean> {
+  try {
+    const res = await fetch('/api/cloud/templates', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function loadDesignTemplates(): Promise<SavedDesignTemplate[]> {
   purgeLegacyDesignTemplateStorage();
   await migrateLegacyIfNeeded();
-  try {
-    return await readAllFromIdb();
-  } catch {
-    return [];
+  const local = await readAllFromIdb().catch(() => [] as SavedDesignTemplate[]);
+  const cloud = await fetchCloudTemplates();
+  if (cloud === null) return local; // offline — use cache
+  if (cloud.length === 0 && local.length > 0) {
+    // First run after the cloud upgrade — keep personal templates by uploading them.
+    void pushCloudTemplates(local);
+    return local;
   }
+  try {
+    await writeAllToIdb(cloud);
+  } catch {
+    /* cache write failed — cloud copy is still authoritative */
+  }
+  return cloud;
 }
 
 export async function saveDesignTemplate(input: {
@@ -177,7 +212,12 @@ export async function saveDesignTemplate(input: {
   layout: ScreenLayout;
   design: DesignSettings;
   canvas: CanvasLayoutConfig;
-}): Promise<{ ok: boolean; template?: SavedDesignTemplate; error?: string }> {
+}): Promise<{
+  ok: boolean;
+  template?: SavedDesignTemplate;
+  error?: string;
+  warning?: string;
+}> {
   purgeLegacyDesignTemplateStorage();
   await migrateLegacyIfNeeded();
 
@@ -199,9 +239,15 @@ export async function saveDesignTemplate(input: {
   try {
     const slim = await slimTemplate(draft);
     const list = await loadDesignTemplates();
-    await writeAllToIdb([slim, ...list].slice(0, MAX_TEMPLATES));
+    const next = [slim, ...list].slice(0, MAX_TEMPLATES);
+    await writeAllToIdb(next);
     purgeLegacyDesignTemplateStorage();
-    return { ok: true, template: slim };
+    const cloudOk = await pushCloudTemplates(next);
+    return {
+      ok: true,
+      template: slim,
+      warning: cloudOk ? undefined : 'נשמר במכשיר זה בלבד — אין חיבור לענן כרגע',
+    };
   } catch (err) {
     purgeLegacyDesignTemplateStorage();
     const msg =
@@ -220,6 +266,7 @@ export async function deleteDesignTemplate(id: string): Promise<void> {
   await migrateLegacyIfNeeded();
   const list = (await loadDesignTemplates()).filter((t) => t.id !== id);
   await writeAllToIdb(list);
+  await pushCloudTemplates(list);
 }
 
 export async function getDesignTemplate(id: string): Promise<SavedDesignTemplate | undefined> {
