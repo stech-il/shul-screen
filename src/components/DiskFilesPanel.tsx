@@ -9,8 +9,32 @@ import {
 } from '../lib/diskFiles';
 import './DiskFilesPanel.css';
 
+const KIND_SHORT: Record<string, string> = {
+  media: 'מדיה',
+  backups: 'גיבויים',
+  synagogues: 'הגדרות',
+  billing: 'חיוב',
+  inquiries: 'פניות',
+  heartbeats: 'סטטוס',
+  templates: 'תבניות',
+  'notify-log': 'יומן מייל',
+};
+
 function isImageName(name: string): boolean {
   return /\.(png|jpe?g|webp|gif|svg)$/i.test(name);
+}
+
+function shortName(name: string, max = 36): string {
+  if (name.length <= max) return name;
+  const extMatch = name.match(/(\.[a-z0-9]{1,8})$/i);
+  const ext = extMatch?.[1] || '';
+  const base = ext ? name.slice(0, -ext.length) : name;
+  const keep = Math.max(8, max - ext.length - 1);
+  return `${base.slice(0, keep)}…${ext}`;
+}
+
+function kindLabel(kind: string): string {
+  return KIND_SHORT[kind] || kind;
 }
 
 export function DiskFilesPanel() {
@@ -65,7 +89,7 @@ export function DiskFilesPanel() {
     setMsg('');
     try {
       await deleteDiskFile(relative);
-      setMsg(`נמחק: ${name}`);
+      setMsg(`נמחק: ${shortName(name, 40)}`);
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'מחיקה נכשלה');
@@ -101,10 +125,7 @@ export function DiskFilesPanel() {
       <div className="disk-files-head">
         <div>
           <h2>ניהול קבצים בדיסק</h2>
-          <p className="hint">
-            כל הקבצים השמורים בדיסק השרת (מדיה, גיבויים, פניות ועוד). אפשר למחוק קבצים שלא צריך
-            יותר.
-          </p>
+          <p className="hint">מדיה, גיבויים וקבצי מערכת — מחקו מה שלא צריך.</p>
         </div>
         <button type="button" className="btn ghost" disabled={loading} onClick={() => void reload()}>
           {loading ? 'טוען…' : 'רענן'}
@@ -112,10 +133,17 @@ export function DiskFilesPanel() {
       </div>
 
       {data ? (
-        <p className="disk-files-summary">
-          <strong>{data.totalFiles}</strong> קבצים · <strong>{formatBytes(data.totalBytes)}</strong>
-          {data.dataDirSet ? ' · דיסק קבוע פעיל' : ' · ללא DATA_DIR (אחסון זמני)'}
-        </p>
+        <div className="disk-files-summary" role="status">
+          <span>
+            <strong>{data.totalFiles}</strong> קבצים
+          </span>
+          <span>
+            <strong>{formatBytes(data.totalBytes)}</strong>
+          </span>
+          <span className={data.dataDirSet ? 'ok' : 'warn'}>
+            {data.dataDirSet ? 'דיסק קבוע' : 'אחסון זמני'}
+          </span>
+        </div>
       ) : null}
 
       <div className="disk-files-tools">
@@ -125,7 +153,7 @@ export function DiskFilesPanel() {
             <option value="all">הכל</option>
             {(data?.kinds || []).map((k) => (
               <option key={k.kind} value={k.kind}>
-                {k.label}
+                {KIND_SHORT[k.kind] || k.label}
               </option>
             ))}
           </select>
@@ -149,6 +177,7 @@ export function DiskFilesPanel() {
         {groups.map((g) => {
           const key = `${g.kind}:${g.synagogueId || g.label}`;
           const open = openKey === key;
+          const title = g.synagogueId || kindLabel(g.kind);
           return (
             <li key={key} className={`disk-group ${open ? 'is-open' : ''}`}>
               <div className="disk-group-bar">
@@ -156,57 +185,70 @@ export function DiskFilesPanel() {
                   type="button"
                   className="disk-group-toggle"
                   onClick={() => setOpenKey(open ? null : key)}
+                  aria-expanded={open}
                 >
-                  <strong>{g.label}</strong>
-                  <span>
+                  <span className="disk-kind-chip">{kindLabel(g.kind)}</span>
+                  <span className="disk-group-title" dir={g.synagogueId ? 'ltr' : undefined}>
+                    {title}
+                  </span>
+                  <span className="disk-group-meta">
                     {g.files.length} קבצים · {formatBytes(g.bytes)}
+                    {open ? ' · סגור' : ' · פתח'}
                   </span>
                 </button>
                 {g.synagogueId && (g.kind === 'media' || g.kind === 'backups') ? (
                   <button
                     type="button"
-                    className="btn ghost danger-btn"
+                    className="btn ghost danger-btn disk-folder-del"
                     disabled={busy !== null}
                     onClick={() => void onDeleteFolder(g)}
                   >
-                    מחק תיקייה
+                    מחק הכל
                   </button>
                 ) : null}
               </div>
               {open ? (
                 <ul className="disk-file-list">
                   {g.files.map((f) => (
-                    <li key={f.id}>
+                    <li key={f.id} className="disk-file-row">
                       <div className="disk-file-main">
                         {f.url && isImageName(f.name) ? (
-                          <img src={f.url} alt="" className="disk-thumb" loading="lazy" />
+                          <a
+                            href={f.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="disk-thumb-link"
+                            title="פתח תמונה"
+                          >
+                            <img src={f.url} alt="" className="disk-thumb" loading="lazy" />
+                          </a>
                         ) : (
                           <span className="disk-file-icon" aria-hidden />
                         )}
-                        <div>
-                          <p className="disk-file-name" dir="ltr">
+                        <div className="disk-file-text">
+                          <p className="disk-file-name" dir="ltr" title={f.name}>
                             {f.url ? (
                               <a href={f.url} target="_blank" rel="noreferrer">
-                                {f.name}
+                                {shortName(f.name)}
                               </a>
                             ) : (
-                              f.name
+                              shortName(f.name)
                             )}
                           </p>
                           <p className="disk-file-meta">
                             {formatBytes(f.bytes)} ·{' '}
-                            {new Date(f.mtime).toLocaleString('he-IL')}
+                            {new Date(f.mtime).toLocaleDateString('he-IL')}
                             {f.protected ? ' · מוגן' : ''}
                           </p>
                         </div>
                       </div>
                       <button
                         type="button"
-                        className="btn ghost danger-btn"
+                        className="btn ghost danger-btn disk-file-del"
                         disabled={Boolean(f.protected) || busy === f.relative}
                         onClick={() => void onDeleteFile(f.relative, f.name)}
                       >
-                        {busy === f.relative ? 'מוחק…' : 'מחק'}
+                        {busy === f.relative ? '…' : 'מחק'}
                       </button>
                     </li>
                   ))}
