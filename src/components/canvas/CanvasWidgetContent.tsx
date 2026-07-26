@@ -6,25 +6,8 @@ import type {
   ScheduleBlock,
   ScheduleItem,
 } from '../../types';
-import { CANVAS_REF_WIDTH } from '../../types';
 import { sanitizeRichHtml, toPlainDisplayText } from '../../lib/sanitizeHtml';
 import { WIDGET_LABELS } from './widgets';
-
-/** Convert absolute px in rich HTML to stage-relative sizes (match TV + builder). */
-function scaleRichHtmlForStage(html: string, widgetFontSizePx?: number): string {
-  let out = html;
-  // When the widget has an explicit size, let it control — drop inline sizes that block it.
-  if (widgetFontSizePx != null && widgetFontSizePx > 0) {
-    out = out
-      .replace(/font-size\s*:\s*[^;]+;?/gi, '')
-      .replace(/style="\s*"/gi, '')
-      .replace(/style='\s*'/gi, '');
-  }
-  return out.replace(
-    /font-size\s*:\s*([\d.]+)\s*px/gi,
-    (_, n: string) => `font-size:calc(${n} * 100cqw / ${CANVAS_REF_WIDTH})`,
-  );
-}
 
 export interface CanvasData {
   name: string;
@@ -241,9 +224,7 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
       return (
         <div
           className="cw-text"
-          dangerouslySetInnerHTML={{
-            __html: scaleRichHtmlForStage(sanitizeRichHtml(raw), widget.fontSizePx),
-          }}
+          dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(raw) }}
         />
       );
     }
