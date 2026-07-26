@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   CanvasLayoutConfig,
   CanvasWidget,
@@ -12,8 +12,8 @@ import { CANVAS_REF_WIDTH } from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { fontSelectOptions } from '../../lib/customFonts';
 import { MediaGalleryModal } from '../MediaPicker';
-import { RichTextEditor } from '../RichTextEditor';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
+import { ElementorWidgetPanel, type ElementorTab } from './ElementorWidgetPanel';
 import { widgetStyle } from './CanvasStage';
 import {
   ASPECT_RATIOS,
@@ -124,82 +124,14 @@ function sizePresetPatch(w: CanvasWidget, presetId: SizePresetId): Partial<Canva
 }
 
 function detectNearestBoxMult(w: CanvasWidget): number {
-  // Approximate current multiplier from typical defaults; fall back to 1.
   const defaults: Partial<Record<CanvasWidgetType, { w: number; h: number }>> = {
     image: { w: 24, h: 24 },
     logo: { w: 12, h: 16 },
   };
   const base = defaults[w.type];
   if (!base) return 1;
-  const m = ((w.w / base.w) + (w.h / base.h)) / 2;
+  const m = (w.w / base.w + w.h / base.h) / 2;
   return Number.isFinite(m) && m > 0.2 ? m : 1;
-}
-
-function InspectSection({
-  title,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <details
-      className="cb-sec"
-      open={open}
-      onToggle={(e) => setOpen(e.currentTarget.open)}
-    >
-      <summary>{title}</summary>
-      <div className="cb-sec-body">{children}</div>
-    </details>
-  );
-}
-
-/** Numeric px input where an empty value means "automatic". */
-function PxField({
-  label,
-  value,
-  min,
-  max,
-  step = 1,
-  placeholder = 'אוטומטי',
-  onChange,
-}: {
-  label: string;
-  value: number | undefined;
-  min: number;
-  max: number;
-  step?: number;
-  placeholder?: string;
-  onChange: (value: number | undefined) => void;
-}) {
-  return (
-    <label>
-      {label} (px)
-      <input
-        type="number"
-        dir="ltr"
-        min={min}
-        max={max}
-        step={step}
-        placeholder={placeholder}
-        value={value ?? ''}
-        onChange={(e) => {
-          const raw = e.target.value.trim();
-          if (!raw) {
-            onChange(undefined);
-            return;
-          }
-          const n = Number(raw);
-          if (!Number.isFinite(n)) return;
-          onChange(clamp(step < 1 ? n : Math.round(n), min, max));
-        }}
-        style={{ textAlign: 'left' }}
-      />
-    </label>
-  );
 }
 
 export function CanvasBuilder({
@@ -223,9 +155,14 @@ export function CanvasBuilder({
   const [picker, setPicker] = useState<PickerTarget | null>(null);
   const [boxUnit, setBoxUnit] = useState<'percent' | 'px'>('px');
   const [showExtraPalette, setShowExtraPalette] = useState(false);
+  const [editTab, setEditTab] = useState<ElementorTab>('content');
   const fontOptions = fontSelectOptions(customFonts);
 
   const selected = canvas.widgets.find((w) => w.id === selectedId) ?? null;
+
+  useEffect(() => {
+    setEditTab('content');
+  }, [selectedId]);
 
   // Reference pixel canvas — real screens scale proportionally from this.
   const refWidth = CANVAS_REF_WIDTH;
@@ -622,50 +559,27 @@ export function CanvasBuilder({
                   </button>
                 ))}
               </div>
-              <div className="cb-float-group" title="יישור טקסט">
-                {(
-                  [
-                    ['right', 'ימין'],
-                    ['center', 'מרכז'],
-                    ['left', 'שמאל'],
-                  ] as const
-                ).map(([align, label]) => (
-                  <button
-                    key={align}
-                    type="button"
-                    className={selected.align === align ? 'on' : ''}
-                    onClick={() => patchWidget(selected.id, { align })}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <label className="cb-float-color" title="צבע תוכן">
-                <input
-                  type="color"
-                  value={selected.color ?? '#1c3140'}
-                  onChange={(e) => patchWidget(selected.id, { color: e.target.value })}
-                />
-              </label>
-              <select
-                className="cb-float-select"
-                value={selected.bg}
-                title="רקע"
-                onChange={(e) => {
-                  const bg = e.target.value as CanvasWidget['bg'];
-                  patchWidget(selected.id, {
-                    bg,
-                    showBorder: bg === 'none' || bg === 'ghost' ? false : selected.showBorder,
-                    textShadow: bg === 'ghost' ? true : selected.textShadow,
-                  });
-                }}
+              <button
+                type="button"
+                className={`cb-float-action ${editTab === 'content' ? 'on' : ''}`}
+                onClick={() => setEditTab('content')}
               >
-                <option value="none">שקוף</option>
-                <option value="ghost">צל טקסט</option>
-                <option value="panel">זכוכית</option>
-                <option value="solid">לבן</option>
-                <option value="dark">כהה</option>
-              </select>
+                תוכן
+              </button>
+              <button
+                type="button"
+                className={`cb-float-action ${editTab === 'style' ? 'on' : ''}`}
+                onClick={() => setEditTab('style')}
+              >
+                עיצוב
+              </button>
+              <button
+                type="button"
+                className={`cb-float-action ${editTab === 'advanced' ? 'on' : ''}`}
+                onClick={() => setEditTab('advanced')}
+              >
+                מתקדם
+              </button>
               <button
                 type="button"
                 className="cb-float-action"
@@ -693,37 +607,51 @@ export function CanvasBuilder({
               onContextMenu={(e) => e.preventDefault()}
             >
               <div className="cb-context-title">{WIDGET_LABELS[menuWidget.type]}</div>
-              <button type="button" onClick={() => { setSelectedId(menuWidget.id); setMenu(null); }}>
-                ערוך מאפיינים
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedId(menuWidget.id);
+                  setEditTab('content');
+                  setMenu(null);
+                }}
+              >
+                ערוך רכיב
               </button>
-              <button type="button" onClick={() => { duplicateWidget(menuWidget); setMenu(null); }}>
+              <button
+                type="button"
+                onClick={() => {
+                  duplicateWidget(menuWidget);
+                  setMenu(null);
+                }}
+              >
                 שכפל
               </button>
               <button
                 type="button"
-                onClick={() => { patchWidget(menuWidget.id, { visible: !menuWidget.visible }); setMenu(null); }}
+                onClick={() => {
+                  patchWidget(menuWidget.id, { visible: !menuWidget.visible });
+                  setMenu(null);
+                }}
               >
                 {menuWidget.visible ? 'הסתר' : 'הצג'}
               </button>
-              <button type="button" onClick={() => { bringToFront(menuWidget.id); setMenu(null); }}>
-                הבא לחזית
-              </button>
-              <button type="button" onClick={() => { sendToBack(menuWidget.id); setMenu(null); }}>
-                שלח לרקע
-              </button>
-              {menuWidget.showTitle !== undefined ? (
-                <button
-                  type="button"
-                  onClick={() => { patchWidget(menuWidget.id, { showTitle: !menuWidget.showTitle }); setMenu(null); }}
-                >
-                  {menuWidget.showTitle ? 'הסתר כותרת' : 'הצג כותרת'}
-                </button>
-              ) : null}
               <button
                 type="button"
-                onClick={() => { patchWidget(menuWidget.id, { bg: 'none', showBorder: false }); setMenu(null); }}
+                onClick={() => {
+                  bringToFront(menuWidget.id);
+                  setMenu(null);
+                }}
               >
-                רקע שקוף ללא מסגרת
+                הבא לחזית
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sendToBack(menuWidget.id);
+                  setMenu(null);
+                }}
+              >
+                שלח לרקע
               </button>
               <div className="cb-context-sep" />
               <button type="button" className="danger" onClick={() => removeWidget(menuWidget.id)}>
@@ -733,508 +661,43 @@ export function CanvasBuilder({
           ) : null}
         </div>
 
-        <aside className="cb-inspector">
+        <aside className="cb-inspector cb-inspector-el">
           {selected ? (
-            <>
-              <div className="cb-inspector-head">
-                <h3>{WIDGET_LABELS[selected.type]}</h3>
-                <div className="cb-row-actions">
-                  <button type="button" className="btn ghost" onClick={() => duplicateWidget(selected)}>
-                    שכפל
-                  </button>
-                  <button type="button" className="btn danger" onClick={() => removeWidget(selected.id)}>
-                    מחק
-                  </button>
-                </div>
-              </div>
-
-              <div className="cb-align">
-                <button type="button" onClick={() => alignSelected('right')}>
-                  ימין
-                </button>
-                <button type="button" onClick={() => alignSelected('h-center')}>
-                  מרכז ↔
-                </button>
-                <button type="button" onClick={() => alignSelected('left')}>
-                  שמאל
-                </button>
-                <button type="button" onClick={() => alignSelected('top')}>
-                  למעלה
-                </button>
-                <button type="button" onClick={() => alignSelected('v-center')}>
-                  מרכז ↕
-                </button>
-                <button type="button" onClick={() => alignSelected('bottom')}>
-                  למטה
-                </button>
-              </div>
-
-              <InspectSection title="מיקום וגודל" defaultOpen>
-                <div className="cb-unit-switch">
-                  <span>יחידות</span>
-                  <div className="cb-unit-buttons">
-                    <button
-                      type="button"
-                      className={boxUnit === 'px' ? 'on' : ''}
-                      onClick={() => setBoxUnit('px')}
-                    >
-                      px
-                    </button>
-                    <button
-                      type="button"
-                      className={boxUnit === 'percent' ? 'on' : ''}
-                      onClick={() => setBoxUnit('percent')}
-                    >
-                      %
-                    </button>
-                  </div>
-                </div>
-
-                <div className="cb-grid-fields">
-                  <label>
-                    X {boxUnit === 'px' ? 'px' : '%'}
-                    <input
-                      type="number"
-                      dir="ltr"
-                      value={
-                        boxUnit === 'px'
-                          ? pctToPx(selected.x, 'x')
-                          : Math.round(selected.x * 10) / 10
-                      }
-                      onChange={(e) => {
-                        const n = Number(e.target.value);
-                        if (!Number.isFinite(n)) return;
-                        patchWidget(selected.id, { x: boxUnit === 'px' ? pxToPct(n, 'x') : n });
-                      }}
-                    />
-                  </label>
-                  <label>
-                    Y {boxUnit === 'px' ? 'px' : '%'}
-                    <input
-                      type="number"
-                      dir="ltr"
-                      value={
-                        boxUnit === 'px'
-                          ? pctToPx(selected.y, 'y')
-                          : Math.round(selected.y * 10) / 10
-                      }
-                      onChange={(e) => {
-                        const n = Number(e.target.value);
-                        if (!Number.isFinite(n)) return;
-                        patchWidget(selected.id, { y: boxUnit === 'px' ? pxToPct(n, 'y') : n });
-                      }}
-                    />
-                  </label>
-                  <label>
-                    רוחב {boxUnit === 'px' ? 'px' : '%'}
-                    <input
-                      type="number"
-                      dir="ltr"
-                      value={
-                        boxUnit === 'px'
-                          ? pctToPx(selected.w, 'x')
-                          : Math.round(selected.w * 10) / 10
-                      }
-                      onChange={(e) => {
-                        const n = Number(e.target.value);
-                        if (!Number.isFinite(n)) return;
-                        patchWidget(selected.id, { w: boxUnit === 'px' ? pxToPct(n, 'x') : n });
-                      }}
-                    />
-                  </label>
-                  <label>
-                    גובה {boxUnit === 'px' ? 'px' : '%'}
-                    <input
-                      type="number"
-                      dir="ltr"
-                      value={
-                        boxUnit === 'px'
-                          ? pctToPx(selected.h, 'y')
-                          : Math.round(selected.h * 10) / 10
-                      }
-                      onChange={(e) => {
-                        const n = Number(e.target.value);
-                        if (!Number.isFinite(n)) return;
-                        patchWidget(selected.id, { h: boxUnit === 'px' ? pxToPct(n, 'y') : n });
-                      }}
-                    />
-                  </label>
-                </div>
-                {boxUnit === 'px' ? (
-                  <p className="cb-hint">
-                    פיקסלים ביחס למסך {refWidth}×{refHeight} — מותאם אוטומטית לכל גודל מסך.
-                  </p>
-                ) : null}
-                <div className="cb-row-actions">
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    onClick={() =>
-                      patchWidget(selected.id, {
-                        z: canvas.widgets.reduce((m, w) => Math.max(m, w.z), 0) + 1,
-                      })
-                    }
-                  >
-                    הבא לחזית
-                  </button>
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    onClick={() => patchWidget(selected.id, { z: 0 })}
-                  >
-                    שלח לרקע
-                  </button>
-                </div>
-              </InspectSection>
-
-              <InspectSection title="תוכן" defaultOpen>
-                <label>
-                  כותרת מותאמת
-                  <input
-                    value={selected.title ?? ''}
-                    placeholder="ריק = ברירת מחדל"
-                    onChange={(e) => patchWidget(selected.id, { title: e.target.value })}
-                  />
-                </label>
-
-                {selected.type === 'text' ? (
-                  <div className="cb-rich-field">
-                    <div className="cb-label">טקסט חופשי — עיצוב</div>
-                    <RichTextEditor
-                      value={selected.text ?? ''}
-                      onChange={(html) => patchWidget(selected.id, { text: html })}
-                      placeholder="כתוב טקסט חופשי עם עיצוב…"
-                    />
-                  </div>
-                ) : null}
-
-                {selected.type === 'image' ? (
-                  <div className="mg-field">
-                    <div className="mg-field-label">תמונה</div>
-                    <button
-                      type="button"
-                      className="btn primary"
-                      onClick={() => setPicker({ kind: 'widget', id: selected.id })}
-                    >
-                      בחר מהגלריה / העלה
-                    </button>
-                    {selected.imageUrl ? (
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        onClick={() => patchWidget(selected.id, { imageUrl: '' })}
-                      >
-                        נקה תמונה
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {selected.type === 'block' ? (
-                  <label>
-                    בלוק
-                    <select
-                      value={selected.blockId ?? ''}
-                      onChange={(e) => patchWidget(selected.id, { blockId: e.target.value })}
-                    >
-                      <option value="">ראשון פעיל</option>
-                      {blocks.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-
-                {selected.type === 'zman' ? (
-                  <>
-                    <label>
-                      איזה זמן
-                      <select
-                        value={selected.zmanKey ?? 'sunrise'}
-                        onChange={(e) => {
-                          const key = e.target.value as ZmanKey;
-                          const def = ZMAN_DEFS.find((d) => d.key === key);
-                          patchWidget(selected.id, {
-                            zmanKey: key,
-                            title: selected.title?.trim() ? selected.title : def?.label,
-                          });
-                        }}
-                      >
-                        {(enabledZmanim.length
-                          ? ZMAN_DEFS.filter((d) => enabledZmanim.includes(d.key))
-                          : ZMAN_DEFS
-                        ).map((d) => (
-                          <option key={d.key} value={d.key}>
-                            {d.label}
-                          </option>
-                        ))}
-                        {selected.zmanKey &&
-                        !enabledZmanim.includes(selected.zmanKey) &&
-                        enabledZmanim.length > 0 ? (
-                          <option value={selected.zmanKey}>
-                            {ZMAN_DEFS.find((d) => d.key === selected.zmanKey)?.label ??
-                              selected.zmanKey}
-                          </option>
-                        ) : null}
-                      </select>
-                    </label>
-                    <label>
-                      מיקום כותרת
-                      <select
-                        value={selected.titleLayout ?? 'above'}
-                        onChange={(e) =>
-                          patchWidget(selected.id, {
-                            titleLayout: e.target.value as CanvasWidget['titleLayout'],
-                          })
-                        }
-                      >
-                        <option value="above">מעל השעה</option>
-                        <option value="below">מתחת לשעה</option>
-                        <option value="side">בצד (כותרת | שעה)</option>
-                        <option value="side-reverse">בצד הפוך (שעה | כותרת)</option>
-                      </select>
-                    </label>
-                  </>
-                ) : null}
-
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={selected.showTitle}
-                    onChange={(e) => patchWidget(selected.id, { showTitle: e.target.checked })}
-                  />
-                  הצג כותרת
-                </label>
-
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={selected.visible}
-                    onChange={(e) => patchWidget(selected.id, { visible: e.target.checked })}
-                  />
-                  מוצג במסך
-                </label>
-              </InspectSection>
-
-              <InspectSection title="טיפוגרפיה">
-                <label>
-                  גופן
-                  <select
-                    value={selected.fontFamily ?? ''}
-                    onChange={(e) =>
-                      patchWidget(selected.id, {
-                        fontFamily: e.target.value || undefined,
-                      })
-                    }
-                  >
-                    <option value="">ברירת מחדל של העיצוב</option>
-                    {fontOptions.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  משקל גופן
-                  <select
-                    value={selected.fontWeight ?? 'normal'}
-                    onChange={(e) =>
-                      patchWidget(selected.id, {
-                        fontWeight: e.target.value as CanvasWidget['fontWeight'],
-                      })
-                    }
-                  >
-                    <option value="normal">רגיל</option>
-                    <option value="medium">בינוני</option>
-                    <option value="bold">מודגש</option>
-                  </select>
-                </label>
-
-                <div className="cb-grid-fields">
-                  <PxField
-                    label="גודל פונט"
-                    value={selected.fontSizePx}
-                    min={8}
-                    max={400}
-                    onChange={(v) => patchWidget(selected.id, { fontSizePx: v })}
-                  />
-                  <PxField
-                    label="גודל כותרת"
-                    value={selected.titleSizePx}
-                    min={6}
-                    max={400}
-                    onChange={(v) => patchWidget(selected.id, { titleSizePx: v })}
-                  />
-                  <PxField
-                    label="מרווח אותיות"
-                    value={selected.letterSpacingPx}
-                    min={-20}
-                    max={80}
-                    step={0.5}
-                    placeholder="0"
-                    onChange={(v) => patchWidget(selected.id, { letterSpacingPx: v })}
-                  />
-                  <PxField
-                    label="גובה שורה"
-                    value={selected.lineHeightPx}
-                    min={4}
-                    max={400}
-                    onChange={(v) => patchWidget(selected.id, { lineHeightPx: v })}
-                  />
-                </div>
-                <p className="cb-hint">שדה ריק = אוטומטי (מתאים את עצמו לגודל המסך).</p>
-
-                <label>
-                  יישור טקסט
-                  <select
-                    value={selected.align}
-                    onChange={(e) =>
-                      patchWidget(selected.id, { align: e.target.value as CanvasWidget['align'] })
-                    }
-                  >
-                    <option value="right">ימין</option>
-                    <option value="center">מרכז</option>
-                    <option value="left">שמאל</option>
-                  </select>
-                </label>
-
-                <label>
-                  קנה מידה יחסי ({selected.fontScale.toFixed(2)}×)
-                  <input
-                    type="range"
-                    min={0.5}
-                    max={3}
-                    step={0.05}
-                    value={selected.fontScale}
-                    disabled={Boolean(selected.fontSizePx)}
-                    onChange={(e) => patchWidget(selected.id, { fontScale: Number(e.target.value) })}
-                  />
-                </label>
-
-                <label>
-                  גודל כותרת ({(selected.titleScale ?? 0.55).toFixed(2)}×)
-                  <input
-                    type="range"
-                    min={0.3}
-                    max={1.5}
-                    step={0.05}
-                    value={selected.titleScale ?? 0.55}
-                    disabled={Boolean(selected.titleSizePx)}
-                    onChange={(e) => patchWidget(selected.id, { titleScale: Number(e.target.value) })}
-                  />
-                </label>
-              </InspectSection>
-
-              <InspectSection title="מראה">
-                <label>
-                  רקע
-                  <select
-                    value={selected.bg}
-                    onChange={(e) => {
-                      const bg = e.target.value as CanvasWidget['bg'];
-                      patchWidget(selected.id, {
-                        bg,
-                        showBorder: bg === 'none' || bg === 'ghost' ? false : selected.showBorder,
-                        textShadow: bg === 'ghost' ? true : selected.textShadow,
-                      });
-                    }}
-                  >
-                    <option value="none">שקוף לגמרי (בלי מסגרת)</option>
-                    <option value="ghost">שקוף עם צל טקסט</option>
-                    <option value="panel">פאנל זכוכית</option>
-                    <option value="solid">לבן מלא</option>
-                    <option value="dark">כהה</option>
-                  </select>
-                </label>
-
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={selected.showBorder}
-                    onChange={(e) => patchWidget(selected.id, { showBorder: e.target.checked })}
-                  />
-                  מסגרת
-                </label>
-
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={selected.textShadow}
-                    onChange={(e) => patchWidget(selected.id, { textShadow: e.target.checked })}
-                  />
-                  צל טקסט (לקריאות על רקע)
-                </label>
-
-                <PxField
-                  label="ריפוד פנימי"
-                  value={selected.paddingPx}
-                  min={0}
-                  max={200}
-                  onChange={(v) => patchWidget(selected.id, { paddingPx: v })}
-                />
-                <PxField
-                  label="עיגול פינות"
-                  value={selected.radius}
-                  min={0}
-                  max={200}
-                  placeholder="0"
-                  onChange={(v) => patchWidget(selected.id, { radius: v ?? 0 })}
-                />
-
-                <label>
-                  שקיפות ({selected.opacity.toFixed(2)})
-                  <input
-                    type="range"
-                    min={0.1}
-                    max={1}
-                    step={0.05}
-                    value={selected.opacity}
-                    onChange={(e) => patchWidget(selected.id, { opacity: Number(e.target.value) })}
-                  />
-                </label>
-
-                <div className="cb-grid-fields">
-                  <label>
-                    צבע תוכן
-                    <input
-                      type="color"
-                      value={selected.color ?? '#1c3140'}
-                      onChange={(e) => patchWidget(selected.id, { color: e.target.value })}
-                    />
-                  </label>
-                  <label>
-                    צבע כותרת
-                    <input
-                      type="color"
-                      value={selected.titleColor ?? '#a8893d'}
-                      onChange={(e) => patchWidget(selected.id, { titleColor: e.target.value })}
-                    />
-                  </label>
-                </div>
-              </InspectSection>
-            </>
+            <ElementorWidgetPanel
+              selected={selected}
+              tab={editTab}
+              onTab={setEditTab}
+              blocks={blocks}
+              enabledZmanim={enabledZmanim}
+              fontOptions={fontOptions}
+              boxUnit={boxUnit}
+              onBoxUnit={setBoxUnit}
+              refWidth={refWidth}
+              refHeight={refHeight}
+              pctToPx={pctToPx}
+              pxToPct={pxToPct}
+              patchWidget={patchWidget}
+              onPickImage={() => setPicker({ kind: 'widget', id: selected.id })}
+              onDuplicate={() => duplicateWidget(selected)}
+              onRemove={() => removeWidget(selected.id)}
+              onBringFront={() => bringToFront(selected.id)}
+              onSendBack={() => sendToBack(selected.id)}
+              alignSelected={alignSelected}
+              onClose={() => setSelectedId(null)}
+              label={WIDGET_LABELS[selected.type]}
+            />
           ) : (
             <div className="cb-empty-inspector">
-              <h3>בונה המסך</h3>
+              <h3>בחרו רכיב לעריכה</h3>
               <p>
-                לחץ על רכיב כדי לערוך, גרור להזזה, וגרור את ידית הגודל בפינה (בצד הפנימי של RTL)
-                לשינוי גודל.
+                כמו באלמנטור: לחצו על רכיב במסך — ייפתח כאן פאנל מלא עם לשוניות תוכן, עיצוב
+                ומתקדם. על הרכיב עצמו מופיע סרגל מהיר.
               </p>
               <ul>
-                <li>חיצים — הזזה מדויקת</li>
-                <li>Shift + חיצים — קפיצה של 5%</li>
-                <li>Alt בזמן גרירה — בלי הצמדה לרשת</li>
-                <li>קליק ימני — תפריט מחיקה ואפשרויות</li>
-                <li>Delete — מחיקת רכיב</li>
+                <li>גררו להזזה · ידית בפינה לשינוי גודל</li>
+                <li>חיצים / Delete · קליק ימני לאפשרויות</li>
+                <li>הוסיפו רכיבים מהשורה למעלה</li>
               </ul>
-              <p className="cb-note">
-                בכניסה ללשונית הבונה מופעל אוטומטית מצב «בונה חופשי» — לחצו «פרסם למסך» כדי
-                שהטלוויזיה תציג את הפריסה.
-              </p>
             </div>
           )}
         </aside>

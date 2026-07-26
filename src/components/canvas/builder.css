@@ -75,7 +75,7 @@
 
 .cb-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 290px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
   gap: 0.9rem;
   align-items: start;
 }
@@ -252,6 +252,111 @@
 }
 .cb-float-action.danger:hover {
   background: rgba(179, 38, 30, 0.35);
+}
+
+.cb-float-action.on {
+  background: var(--accent, #a8893d);
+  border-color: var(--accent, #a8893d);
+  color: #fff;
+}
+
+.cb-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.cb-inspector-el {
+  padding: 0;
+  gap: 0;
+  max-height: min(78vh, 760px);
+}
+
+.cb-el-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+}
+
+.cb-el-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem 0.55rem;
+  border-bottom: 1px solid var(--line, rgba(28, 49, 64, 0.12));
+}
+.cb-el-head strong {
+  display: block;
+  font-size: 1rem;
+}
+.cb-el-head em {
+  display: block;
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--muted, #5a6b73);
+}
+.cb-el-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+.cb-el-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--line, rgba(28, 49, 64, 0.12));
+}
+.cb-el-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 0.55rem 0.3rem;
+  cursor: pointer;
+  color: var(--muted, #5a6b73);
+}
+.cb-el-tabs button.on {
+  color: var(--ink, #1c3140);
+  border-bottom-color: var(--accent, #a8893d);
+}
+.cb-el-tabs button:hover {
+  color: var(--ink, #1c3140);
+}
+
+.cb-el-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem 1rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.cb-el-quick-size {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.cb-el-quick-size .cb-float-group button {
+  color: inherit;
+  background: #fff;
+}
+.cb-el-quick-size .cb-float-group {
+  border-color: var(--line, rgba(28, 49, 64, 0.16));
+}
+.cb-el-quick-size .cb-float-group button + button {
+  border-inline-start-color: var(--line, rgba(28, 49, 64, 0.14));
+}
+.cb-el-quick-size .cb-float-group button:hover {
+  background: color-mix(in srgb, var(--accent, #a8893d) 12%, #fff);
 }
 
 .cb-context-menu {
