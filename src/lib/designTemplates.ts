@@ -13,7 +13,7 @@ export const LEGACY_DESIGN_TEMPLATES_KEY = 'shul-screen:design-templates';
 const DB_NAME = 'shul-screen-templates';
 const DB_VERSION = 1;
 const STORE = 'templates';
-const MAX_TEMPLATES = 24;
+const MAX_TEMPLATES = 40;
 
 function clone<T>(value: T): T {
   try {
@@ -262,9 +262,10 @@ export async function saveDesignTemplate(input: {
 }
 
 export async function deleteDesignTemplate(id: string): Promise<void> {
+  if (id.startsWith('seed:')) return;
   purgeLegacyDesignTemplateStorage();
   await migrateLegacyIfNeeded();
-  const list = (await loadDesignTemplates()).filter((t) => t.id !== id);
+  const list = (await loadDesignTemplates()).filter((t) => t.id !== id && !t.id.startsWith('seed:'));
   await writeAllToIdb(list);
   await pushCloudTemplates(list);
 }

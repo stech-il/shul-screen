@@ -1333,6 +1333,40 @@ code {
   color: var(--accent);
 }
 
+.tpl-group {
+  margin-top: 1rem;
+}
+
+.tpl-group + .tpl-group {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+}
+
+.tpl-group-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.tpl-badge {
+  display: inline-block;
+  margin-inline-start: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-body, system-ui, sans-serif);
+  vertical-align: middle;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 4px;
+}
+
+.tpl-card.is-seed .tpl-delete {
+  display: none;
+}
+
 .preset-card.active .tpl-apply {
   color: var(--ink);
 }

@@ -28,6 +28,7 @@ import {
   startNotificationCron,
   mailConfigured,
 } from './server/notifications.mjs';
+import { handleInquiries } from './server/inquiries.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, 'dist');
@@ -351,6 +352,10 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname.startsWith('/api/notifications')) {
     void handleNotifications(req, res, url);
+    return;
+  }
+  if (url.pathname.startsWith('/api/inquiries')) {
+    void handleInquiries(req, res, url);
     return;
   }
   serveStatic(url.pathname, res);

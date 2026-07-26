@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_DESIGN, layoutLabel } from '../data/designPresets';
 import {
+  isSeedTemplateId,
+  mergeGalleryTemplates,
+  SEED_DESIGN_TEMPLATES,
+} from '../data/seedDesignTemplates';
+import {
   applyDesignTemplate,
   deleteDesignTemplate,
   loadDesignTemplates,
@@ -264,30 +269,96 @@ export function DesignStudio({
   }
 
   async function onDeleteTemplate(id: string, name: string) {
+    if (isSeedTemplateId(id)) {
+      onStatus?.('לא ניתן למחוק תבנית מובנית');
+      return;
+    }
     if (!confirm(`למחוק את התבנית «${name}»?`)) return;
     await deleteDesignTemplate(id);
     setSaved(await loadDesignTemplates());
     onStatus?.(`נמחקה התבנית «${name}»`);
   }
 
-  const filteredSaved = useMemo(() => {
+  const templateGallery = useMemo(() => mergeGalleryTemplates(saved), [saved]);
+
+  const filteredGallery = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return saved;
-    return saved.filter(
+    if (!q) return templateGallery;
+    return templateGallery.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
         (t.description ?? '').toLowerCase().includes(q) ||
         layoutLabel(t.layout).includes(query.trim()),
     );
-  }, [saved, query]);
+  }, [templateGallery, query]);
+
+  const filteredSeeds = useMemo(
+    () => filteredGallery.filter((t) => isSeedTemplateId(t.id)),
+    [filteredGallery],
+  );
+  const filteredUser = useMemo(
+    () => filteredGallery.filter((t) => !isSeedTemplateId(t.id)),
+    [filteredGallery],
+  );
+
+  function renderTemplateCard(t: SavedDesignTemplate, opts?: { seed?: boolean }) {
+    const active = d.presetId === t.design.presetId;
+    const seed = opts?.seed ?? isSeedTemplateId(t.id);
+    return (
+      <div
+        key={t.id}
+        className={`preset-card saved-tpl tpl-card ${active ? 'active' : ''} ${seed ? 'is-seed' : ''}`}
+        style={{
+          ['--p1' as string]: t.design.primaryColor,
+          ['--p2' as string]: t.design.accentColor,
+          ['--pb' as string]: t.design.backgroundColor,
+        }}
+      >
+        <button type="button" className="preset-card-main" onClick={() => void pickSaved(t)}>
+          <TemplatePreview
+            primary={t.design.primaryColor}
+            accent={t.design.accentColor}
+            bg={t.design.backgroundColor}
+            bg2={t.design.backgroundColor2}
+            panel={t.design.panelColor}
+            dark={t.theme === 'dark'}
+          />
+          <div className="tpl-card-body">
+            <strong>
+              {t.name}
+              {seed ? <span className="tpl-badge">מובנית</span> : null}
+            </strong>
+            <em>
+              {t.description}
+              {t.layout === 'canvas' ? ' · כולל בונה מסך' : ''}
+            </em>
+            <span className="tpl-meta">{layoutLabel(t.layout)}</span>
+            <span className="tpl-apply">{active ? 'פעילה כעת' : 'החל תבנית'}</span>
+          </div>
+        </button>
+        {!seed ? (
+          <button
+            type="button"
+            className="tpl-delete"
+            onClick={() => void onDeleteTemplate(t.id, t.name)}
+          >
+            מחק
+          </button>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="design-studio">
       <section className="card wide tpl-gallery">
         <div className="tpl-gallery-head">
           <div>
-            <h2>התבניות שלי ({saved.length})</h2>
-            <p className="hint">תבניות ששמרתם — נשמרות בענן וזמינות מכל מחשב</p>
+            <h2>תבניות ({SEED_DESIGN_TEMPLATES.length + saved.length})</h2>
+            <p className="hint">
+              {SEED_DESIGN_TEMPLATES.length} תבניות מוכנות עם תצוגה מקדימה — לחצו להחלה. התבניות שלכם
+              נשמרות בענן.
+            </p>
           </div>
           <input
             className="tpl-search"
@@ -297,60 +368,31 @@ export function DesignStudio({
           />
         </div>
 
-        {saved.length === 0 ? (
-          <p className="hint">
-            עדיין אין תבניות שמורות — כוונו עיצוב במסך הזה ושמרו אותו למטה כתבנית.
-          </p>
-        ) : filteredSaved.length === 0 ? (
+        {filteredGallery.length === 0 ? (
           <p className="hint">לא נמצאו תבניות לחיפוש הנוכחי.</p>
         ) : (
-          <div className="preset-grid tpl-grid">
-            {filteredSaved.map((t) => {
-                const active = d.presetId === t.design.presetId;
-                return (
-                  <div
-                    key={t.id}
-                    className={`preset-card saved-tpl tpl-card ${active ? 'active' : ''}`}
-                    style={{
-                      ['--p1' as string]: t.design.primaryColor,
-                      ['--p2' as string]: t.design.accentColor,
-                      ['--pb' as string]: t.design.backgroundColor,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="preset-card-main"
-                      onClick={() => void pickSaved(t)}
-                    >
-                      <TemplatePreview
-                        primary={t.design.primaryColor}
-                        accent={t.design.accentColor}
-                        bg={t.design.backgroundColor}
-                        bg2={t.design.backgroundColor2}
-                        panel={t.design.panelColor}
-                        dark={t.theme === 'dark'}
-                      />
-                      <div className="tpl-card-body">
-                        <strong>{t.name}</strong>
-                        <em>
-                          {t.description}
-                          {t.layout === 'canvas' ? ' · כולל בונה מסך' : ''}
-                        </em>
-                        <span className="tpl-meta">{layoutLabel(t.layout)}</span>
-                        <span className="tpl-apply">{active ? 'פעילה כעת' : 'החל תבנית'}</span>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      className="tpl-delete"
-                      onClick={() => void onDeleteTemplate(t.id, t.name)}
-                    >
-                      מחק
-                    </button>
-                  </div>
-                );
-              })}
-          </div>
+          <>
+            {filteredSeeds.length > 0 ? (
+              <div className="tpl-group">
+                <h3 className="tpl-group-title">תבניות מוכנות ({filteredSeeds.length})</h3>
+                <div className="preset-grid tpl-grid">
+                  {filteredSeeds.map((t) => renderTemplateCard(t, { seed: true }))}
+                </div>
+              </div>
+            ) : null}
+            <div className="tpl-group">
+              <h3 className="tpl-group-title">התבניות שלי ({filteredUser.length})</h3>
+              {filteredUser.length === 0 ? (
+                <p className="hint">
+                  עדיין אין תבניות שמורות — כוונו עיצוב ושמרו אותו למטה כתבנית.
+                </p>
+              ) : (
+                <div className="preset-grid tpl-grid">
+                  {filteredUser.map((t) => renderTemplateCard(t, { seed: false }))}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </section>
 

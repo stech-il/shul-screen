@@ -37,6 +37,14 @@ export function cloudApiPlugin(): Plugin {
             await notifications.handleNotifications(req, res, parsed);
             return;
           }
+          if (url.startsWith('/api/inquiries')) {
+            const inquiries = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/inquiries.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            await inquiries.handleInquiries(req, res, parsed);
+            return;
+          }
           if (url.startsWith('/api/cloud/backups/')) {
             const backups = await import(
               /* @vite-ignore */ pathToFileURL(resolve('server/backups.mjs')).href

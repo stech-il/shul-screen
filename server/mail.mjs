@@ -85,7 +85,7 @@ function getTransporter() {
 }
 
 /**
- * @param {{ to: string|string[], subject: string, text: string, html?: string, bcc?: string|string[] }} opts
+ * @param {{ to: string|string[], subject: string, text: string, html?: string, bcc?: string|string[], replyTo?: string }} opts
  */
 export async function sendMail(opts) {
   const tx = getTransporter();
@@ -97,6 +97,7 @@ export async function sendMail(opts) {
     return { ok: false, skipped: true, error: 'אין כתובת נמען' };
   }
   const from = resolveFromAddress();
+  const replyTo = (opts.replyTo || REPLY_TO || '').trim() || undefined;
   try {
     const info = await tx.sendMail({
       from,
@@ -113,7 +114,7 @@ export async function sendMail(opts) {
           ? opts.bcc.filter(Boolean).join(', ')
           : opts.bcc
         : undefined,
-      replyTo: REPLY_TO || undefined,
+      replyTo,
       subject: opts.subject,
       text: opts.text,
       html: opts.html || undefined,
