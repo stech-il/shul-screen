@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import type { LicenseInfo } from '../types';
 import {
   fetchBillingConfig,
   fetchSubscription,
@@ -12,8 +13,8 @@ import {
 
 interface Props {
   synagogueId: string;
-  /** Called after a successful payment so the parent can re-sync the license */
-  onRenewed?: () => void;
+  /** Called after a successful payment with the new 1-month license */
+  onRenewed?: (license: LicenseInfo | null) => void;
 }
 
 /** Synagogue-side recurring payment (הוראת קבע) via SUMIT. */
@@ -41,6 +42,8 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
         if (cancelled) return;
         setConfig(cfg);
         setSub(s);
+        if (s?.payerEmail) setPayerEmail(s.payerEmail);
+        if (s?.payerName) setPayerName(s.payerName);
       })
       .catch(() => {
         if (!cancelled) setConfig({ configured: false, companyId: null, publicKey: null });
@@ -66,7 +69,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
         cvv,
         citizenId,
       });
-      const next = await subscribeBilling(synagogueId, {
+      const { subscription: next, license } = await subscribeBilling(synagogueId, {
         singleUseToken: token,
         name: payerName,
         email: payerEmail,
@@ -75,10 +78,11 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
       setShowForm(false);
       setCardNumber('');
       setCvv('');
-      setMsg(
-        `התשלום בוצע — הרישיון חודש. הוראת הקבע פעילה, חיוב הבא סביב ${formatBillingDate(next.paidUntil)}.`,
-      );
-      onRenewed?.();
+      const until = license?.expiresAt
+        ? formatBillingDate(license.expiresAt)
+        : formatBillingDate(next.paidUntil);
+      setMsg(`התשלום בוצע — הרישיון חודש עד ${until}. הוראת הקבע פעילה.`);
+      onRenewed?.(license);
     } catch (err) {
       setMsg(err instanceof Error ? err.message : 'התשלום נכשל');
     } finally {
@@ -105,6 +109,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
   }
 
   const amountSet = (sub?.amount ?? 0) > 0;
+  const invoices = (sub?.history ?? []).filter((h) => h.ok);
 
   return (
     <section className="card">
@@ -133,7 +138,11 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
           ) : (
             <p className="hint">עדיין לא הוזן כרטיס אשראי.</p>
           )}
-          {sub?.lastError ? <p className="hint" style={{ color: '#a33' }}>שגיאה אחרונה: {sub.lastError}</p> : null}
+          {sub?.lastError ? (
+            <p className="hint" style={{ color: '#a33' }}>
+              שגיאה אחרונה: {sub.lastError}
+            </p>
+          ) : null}
 
           {!showForm ? (
             <button type="button" className="btn primary" onClick={() => setShowForm(true)}>
@@ -146,13 +155,15 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                 <input value={payerName} onChange={(e) => setPayerName(e.target.value)} required />
               </label>
               <label>
-                אימייל (לקבלה)
+                אימייל לקבלת חשבונית
                 <input
                   type="email"
                   value={payerEmail}
                   onChange={(e) => setPayerEmail(e.target.value)}
+                  required
                   dir="ltr"
                   style={{ textAlign: 'left' }}
+                  placeholder="name@example.com"
                 />
               </label>
               <label>
@@ -219,7 +230,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
               </label>
               <p className="hint">
                 פרטי הכרטיס מאובטחים ונשלחים ישירות ל־SUMIT — הם לא נשמרים בשרת המערכת.
-                החיוב הראשון ({formatIls(sub!.amount)}) יתבצע מיד.
+                החיוב הראשון ({formatIls(sub!.amount)}) יתבצע מיד ויחדש רישיון לחודש.
               </p>
               <div className="billing-row">
                 <button type="submit" className="btn primary" disabled={busy}>
@@ -236,6 +247,29 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
               </div>
             </form>
           )}
+
+          {invoices.length ? (
+            <div className="billing-invoices">
+              <h3>היסטוריית חשבוניות</h3>
+              <ul>
+                {invoices.map((h, i) => (
+                  <li key={`${h.at}-${i}`}>
+                    <span>
+                      {formatBillingDate(h.at)} · {formatIls(h.amount)}
+                      {h.documentNumber ? ` · מס׳ ${h.documentNumber}` : ''}
+                    </span>
+                    {h.documentUrl ? (
+                      <a href={h.documentUrl} target="_blank" rel="noreferrer" dir="ltr">
+                        הורדה
+                      </a>
+                    ) : (
+                      <span className="hint">נשמר ב־SUMIT</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </>
       )}
 

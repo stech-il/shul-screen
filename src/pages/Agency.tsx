@@ -38,10 +38,12 @@ import {
   cancelBilling,
   chargeBillingNow,
   fetchBillingConfig,
+  fetchPlatformBilling,
   fetchSubscription,
   formatBillingDate,
   formatIls,
   saveBillingSettings,
+  savePlatformBilling,
   type BillingSubscription,
 } from '../lib/billing';
 import type { LicenseInfo, SynagogueConfig } from '../types';
@@ -101,6 +103,8 @@ export function Agency() {
   const [billingAmount, setBillingAmount] = useState('99');
   const [billingActive, setBillingActive] = useState(true);
   const [billingMsg, setBillingMsg] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminEmailMsg, setAdminEmailMsg] = useState('');
 
   const heartbeats = useMemo(() => listHeartbeats(), [tick, msg]);
 
@@ -130,8 +134,26 @@ export function Agency() {
   useEffect(() => {
     if (!platformOk) return;
     void reloadFromCloud();
+    void fetchPlatformBilling()
+      .then((p) => setAdminEmail(p.adminEmail || ''))
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per login
   }, [platformOk]);
+
+  async function onSaveAdminEmail(e: FormEvent) {
+    e.preventDefault();
+    setAdminEmailMsg('');
+    setBusy(true);
+    try {
+      const r = await savePlatformBilling(adminEmail.trim());
+      setAdminEmail(r.adminEmail || '');
+      setAdminEmailMsg('מייל מנהל המערכת נשמר — חשבוניות יועתקו לשם כשזמין ב־SUMIT');
+    } catch (err) {
+      setAdminEmailMsg(err instanceof Error ? err.message : 'שמירת המייל נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useSessionKeepAlive(
     touchPlatformSession,
@@ -287,11 +309,12 @@ export function Agency() {
     setBusy(true);
     setBillingMsg('');
     try {
-      const sub = await chargeBillingNow(modal.config.id);
+      const { subscription: sub, license } = await chargeBillingNow(modal.config.id);
       setBillingSub(sub);
-      setBillingMsg(
-        `חויב ${formatIls(sub.amount)} — הרישיון חודש עד ${formatBillingDate(sub.paidUntil)}`,
-      );
+      const until = license?.expiresAt
+        ? formatBillingDate(license.expiresAt)
+        : formatBillingDate(sub.paidUntil);
+      setBillingMsg(`חויב ${formatIls(sub.amount)} — הרישיון חודש עד ${until}`);
       void reloadFromCloud();
     } catch (err) {
       setBillingMsg(err instanceof Error ? err.message : 'החיוב נכשל');
@@ -784,6 +807,26 @@ export function Agency() {
             </button>
           </form>
 
+          <form className="side-card" onSubmit={(e) => void onSaveAdminEmail(e)}>
+            <h2>מייל מנהל מערכת</h2>
+            <p className="hint">לקבלת עותקי חשבוניות מתשלומי בתי הכנסת (SUMIT).</p>
+            <label>
+              אימייל
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+                placeholder="admin@example.com"
+              />
+            </label>
+            {adminEmailMsg ? <p className="hint">{adminEmailMsg}</p> : null}
+            <button type="submit" className="btn ghost" disabled={busy}>
+              שמור מייל
+            </button>
+          </form>
+
           <form className="side-card" onSubmit={onChangePassword}>
             <h2>סיסמת מנהל מערכת</h2>
             <label>
@@ -1042,17 +1085,34 @@ export function Agency() {
                       </p>
                     ) : null}
                     {billingSub?.history?.length ? (
-                      <ul className="hint" style={{ margin: 0, paddingInlineStart: '1.1rem' }}>
-                        {billingSub.history
-                          .slice(-4)
-                          .reverse()
-                          .map((h, i) => (
+                      <div>
+                        <p className="hint" style={{ marginBottom: '0.35rem' }}>
+                          היסטוריית חשבוניות / חיובים
+                        </p>
+                        <ul className="hint" style={{ margin: 0, paddingInlineStart: '1.1rem' }}>
+                          {billingSub.history.map((h, i) => (
                             <li key={i}>
                               {formatBillingDate(h.at)} · {formatIls(h.amount)} ·{' '}
-                              {h.ok ? 'הצליח' : `נכשל${h.error ? ` (${h.error})` : ''}`}
+                              {h.ok ? (
+                                <>
+                                  הצליח
+                                  {h.documentNumber ? ` · מס׳ ${h.documentNumber}` : ''}
+                                  {h.documentUrl ? (
+                                    <>
+                                      {' · '}
+                                      <a href={h.documentUrl} target="_blank" rel="noreferrer">
+                                        הורדת חשבונית
+                                      </a>
+                                    </>
+                                  ) : null}
+                                </>
+                              ) : (
+                                `נכשל${h.error ? ` (${h.error})` : ''}`
+                              )}
                             </li>
                           ))}
-                      </ul>
+                        </ul>
+                      </div>
                     ) : null}
                   </>
                 )}

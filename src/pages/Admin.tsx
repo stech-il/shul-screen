@@ -38,6 +38,7 @@ import { useUndoHistory } from '../lib/undoHistory';
 import { saveDesignTemplate } from '../lib/designTemplates';
 import {
   isSupabaseConfigured,
+  loadLocal,
   saveConfig,
   startAutoSync,
   syncConfig,
@@ -775,13 +776,40 @@ export function Admin({ synagogueId }: Props) {
               <div id="billing-card">
                 <BillingCard
                   synagogueId={synagogueId}
-                  onRenewed={() => {
-                    void createDefaultConfig(synagogueId, 'בית כנסת חדש').then((fallback) =>
-                      syncConfig(synagogueId, fallback).then((r) => {
-                        setConfigRaw(r.bundle.config);
-                        setStatus('הרישיון חודש — תודה על התשלום');
-                      }),
-                    );
+                  onRenewed={(license) => {
+                    if (!license) {
+                      setStatus('התשלום בוצע אך לא התקבל רישיון — פנה לתמיכה');
+                      return;
+                    }
+                    void (async () => {
+                      const current = loadLocal(synagogueId)?.config;
+                      if (!current) {
+                        setStatus('התשלום עבר — רענן את הדף כדי לראות את הרישיון');
+                        return;
+                      }
+                      const toSave = { ...current, license };
+                      setConfigRaw(toSave);
+                      const result = await saveConfig(toSave, undefined, {
+                        by: session?.memberName ?? 'billing',
+                        summary: 'חידוש רישיון לאחר תשלום חודשי',
+                      });
+                      if (result.ok) {
+                        const refreshed = loadLocal(synagogueId)?.config ?? toSave;
+                        setConfigRaw(refreshed);
+                        const until = license.expiresAt
+                          ? new Date(license.expiresAt).toLocaleDateString('he-IL')
+                          : '';
+                        setStatus(
+                          until
+                            ? `הרישיון חודש עד ${until} — תודה על התשלום`
+                            : 'הרישיון חודש — תודה על התשלום',
+                        );
+                      } else {
+                        setStatus(
+                          result.error ?? 'התשלום עבר אך שמירת הרישיון נכשלה — לחץ שמור',
+                        );
+                      }
+                    })();
                   }}
                 />
               </div>

@@ -4,6 +4,8 @@
  * only a SingleUseToken reaches our server.
  */
 
+import type { LicenseInfo } from '../types';
+
 export interface BillingHistoryItem {
   at: string;
   amount: number;
@@ -11,6 +13,8 @@ export interface BillingHistoryItem {
   error?: string;
   paymentId?: number | string | null;
   documentId?: number | string | null;
+  documentUrl?: string | null;
+  documentNumber?: string | number | null;
 }
 
 export interface BillingSubscription {
@@ -32,6 +36,12 @@ export interface BillingConfig {
   configured: boolean;
   companyId: number | null;
   publicKey: string | null;
+  adminEmail?: string;
+}
+
+export interface SubscribeResult {
+  subscription: BillingSubscription;
+  license: LicenseInfo | null;
 }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -48,6 +58,17 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchBillingConfig(): Promise<BillingConfig> {
   return api<BillingConfig>('/api/billing/config');
+}
+
+export function fetchPlatformBilling(): Promise<{ adminEmail: string; configured: boolean }> {
+  return api('/api/billing/platform');
+}
+
+export function savePlatformBilling(adminEmail: string): Promise<{ adminEmail: string }> {
+  return api('/api/billing/platform', {
+    method: 'PUT',
+    body: JSON.stringify({ adminEmail }),
+  });
 }
 
 export function fetchSubscription(id: string): Promise<BillingSubscription> {
@@ -73,18 +94,18 @@ export function saveBillingSettings(
 export function subscribeBilling(
   id: string,
   payload: { singleUseToken: string; name?: string; email?: string; phone?: string },
-): Promise<BillingSubscription> {
-  return api<{ ok: boolean; subscription: BillingSubscription }>(
+): Promise<SubscribeResult> {
+  return api<{ ok: boolean; subscription: BillingSubscription; license?: LicenseInfo }>(
     `/api/billing/subscriptions/${encodeURIComponent(id)}/subscribe`,
     { method: 'POST', body: JSON.stringify(payload) },
-  ).then((r) => r.subscription);
+  ).then((r) => ({ subscription: r.subscription, license: r.license ?? null }));
 }
 
-export function chargeBillingNow(id: string): Promise<BillingSubscription> {
-  return api<{ ok: boolean; subscription: BillingSubscription }>(
+export function chargeBillingNow(id: string): Promise<SubscribeResult> {
+  return api<{ ok: boolean; subscription: BillingSubscription; license?: LicenseInfo }>(
     `/api/billing/subscriptions/${encodeURIComponent(id)}/charge`,
     { method: 'POST', body: '{}' },
-  ).then((r) => r.subscription);
+  ).then((r) => ({ subscription: r.subscription, license: r.license ?? null }));
 }
 
 export function cancelBilling(id: string): Promise<BillingSubscription> {

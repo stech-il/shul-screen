@@ -2,14 +2,13 @@
  * SUMIT recurring billing (הוראת קבע) for screen licenses.
  *
  * Flow:
- * 1. Platform admin sets a monthly amount per synagogue (Agency panel).
- * 2. Synagogue enters card details → browser tokenizes directly against SUMIT
- *    (SingleUseToken, card never touches this server).
- * 3. First charge here saves the payment method on the SUMIT customer.
- * 4. A daily cycle charges due subscriptions with the saved method; every
- *    successful charge extends the screen license by one month.
+ * 1. Platform admin sets monthly amount + admin email (for invoice copies).
+ * 2. Synagogue enters card → browser tokenizes (SingleUseToken).
+ * 3. First charge via /billing/recurring/charge/ (1 month) + save method.
+ * 4. Server returns a fresh 1-month license; client must persist it if cloud
+ *    bundle is missing. Cron re-charges due subscriptions every 6h.
  *
- * Env: SUMIT_COMPANY_ID, SUMIT_API_KEY (secret), SUMIT_API_PUBLIC_KEY (browser).
+ * Env: SUMIT_COMPANY_ID, SUMIT_API_KEY, SUMIT_API_PUBLIC_KEY
  */
 import { getBundle, getRecord, listRecords, putBundle, putRecord } from './cloudStore.mjs';
 
@@ -18,8 +17,9 @@ const COMPANY_ID = Number(process.env.SUMIT_COMPANY_ID || 0);
 const API_KEY = (process.env.SUMIT_API_KEY || '').trim();
 const PUBLIC_KEY = (process.env.SUMIT_API_PUBLIC_KEY || '').trim();
 const PREFIX = 'billing';
-const HISTORY_MAX = 24;
-const RETRY_COOLDOWN_MS = 5 * 60 * 60 * 1000; // don't hammer a failing card
+const PLATFORM_ID = '_platform';
+const HISTORY_MAX = 36;
+const RETRY_COOLDOWN_MS = 5 * 60 * 60 * 1000;
 
 export function billingConfigured() {
   return Boolean(COMPANY_ID && API_KEY && PUBLIC_KEY);
@@ -40,8 +40,9 @@ function defaultSubscription(id) {
     synagogueId: id,
     amount: 0,
     active: false,
-    status: 'none', // none | active | failed | canceled
+    status: 'none',
     customerId: null,
+    recurringItemId: null,
     payerName: '',
     payerEmail: '',
     payerPhone: '',
@@ -51,6 +52,14 @@ function defaultSubscription(id) {
     lastError: null,
     updatedAt: nowIso(),
     history: [],
+  };
+}
+
+function defaultPlatform() {
+  return {
+    synagogueId: PLATFORM_ID,
+    adminEmail: '',
+    updatedAt: nowIso(),
   };
 }
 
@@ -64,6 +73,23 @@ async function saveSubscription(rec) {
   rec.history = (rec.history || []).slice(-HISTORY_MAX);
   await putRecord(PREFIX, rec.synagogueId, rec);
   return rec;
+}
+
+export async function getPlatformSettings() {
+  const rec = await getRecord(PREFIX, PLATFORM_ID);
+  return rec ? { ...defaultPlatform(), ...rec } : defaultPlatform();
+}
+
+async function savePlatformSettings(patch) {
+  const cur = await getPlatformSettings();
+  const next = {
+    ...cur,
+    ...patch,
+    synagogueId: PLATFORM_ID,
+    updatedAt: nowIso(),
+  };
+  await putRecord(PREFIX, PLATFORM_ID, next);
+  return next;
 }
 
 // —— SUMIT API ——
@@ -100,96 +126,149 @@ function sumitError(resp) {
   );
 }
 
-function paymentOk(payment) {
-  if (!payment) return false;
-  if (payment.ValidPayment === true) return true;
-  const st = String(payment.Status ?? '');
-  return st === '000' || st === '0';
+function paymentOk(payment, data) {
+  if (payment) {
+    if (payment.ValidPayment === true) return true;
+    const st = String(payment.Status ?? '');
+    if (st === '000' || st === '0') return true;
+  }
+  // Some successful envelopes expose IDs without a nested Payment object
+  if (data?.CustomerID || data?.PaymentID || data?.DocumentID) return true;
+  return false;
 }
 
-function extractCardMask(payment) {
-  const pm = payment?.PaymentMethod || {};
+function extractCardMask(payment, data) {
+  const pm = payment?.PaymentMethod || data?.PaymentMethod || {};
   const digits =
-    pm.CreditCard_LastDigits || pm.LastDigits || pm.CardMask || pm.CreditCard_CardMask;
+    pm.CreditCard_LastDigits ||
+    pm.LastDigits ||
+    pm.CardMask ||
+    pm.CreditCard_CardMask ||
+    payment?.CreditCard_LastDigits;
   return digits ? String(digits).slice(-4) : '';
 }
 
+function extractDocumentUrl(data, payment) {
+  return (
+    data?.DocumentDownloadURL ||
+    data?.DocumentUrl ||
+    payment?.DocumentDownloadURL ||
+    null
+  );
+}
+
 /**
- * Charge a subscription. When singleUseToken is given the payment method is
- * saved on the SUMIT customer for future recurring charges.
+ * Charge. First time: SingleUseToken via recurring/charge (1 month HOK).
+ * Renewals: payments/charge against saved customer.
  */
-async function sumitCharge(rec, shulName, singleUseToken) {
-  const customer = singleUseToken
-    ? {
+async function sumitCharge(rec, shulName, singleUseToken, adminEmail) {
+  const customerBase = {
+    Name: rec.payerName || shulName || rec.synagogueId,
+    EmailAddress: rec.payerEmail || adminEmail || undefined,
+    Phone: rec.payerPhone || undefined,
+  };
+
+  const itemName = `רישיון מסך — ${shulName || rec.synagogueId}`;
+  const itemDesc = 'מנוי חודשי (הוראת קבע)';
+
+  let resp;
+  if (singleUseToken) {
+    // Create / renew recurring item for 1 month and charge now
+    resp = await sumitPost('/billing/recurring/charge/', {
+      Customer: {
+        ...customerBase,
         ExternalIdentifier: rec.synagogueId,
         SearchMode: 2,
-        Name: rec.payerName || shulName || rec.synagogueId,
-        EmailAddress: rec.payerEmail || undefined,
-        Phone: rec.payerPhone || undefined,
-      }
-    : rec.customerId
-      ? { ID: rec.customerId, SearchMode: 0 }
-      : { ExternalIdentifier: rec.synagogueId, SearchMode: 2, Name: shulName || rec.synagogueId };
-
-  const body = {
-    Customer: customer,
-    Items: [
-      {
-        Item: {
-          Name: `רישיון מסך — ${shulName || rec.synagogueId}`,
-          Description: 'מנוי חודשי (הוראת קבע)',
-        },
-        Quantity: 1,
-        UnitPrice: rec.amount,
-        Currency: 0, // ILS
       },
-    ],
-    VATIncluded: true,
-  };
-  if (singleUseToken) {
-    body.SingleUseToken = singleUseToken;
-    body.SavePaymentMethod = true;
-    body.UpdateCustomerOnSuccess = true;
+      SingleUseToken: singleUseToken,
+      Items: [
+        {
+          Item: { Name: itemName, Description: itemDesc, Duration_Months: 1 },
+          Quantity: 1,
+          UnitPrice: rec.amount,
+          Currency: 0,
+          Duration_Months: 1,
+          Recurrence: 0,
+        },
+      ],
+      VATIncluded: true,
+      OnlyDocument: false,
+    });
+  } else {
+    const customer = rec.customerId
+      ? { ID: rec.customerId, SearchMode: 0, ...customerBase }
+      : { ExternalIdentifier: rec.synagogueId, SearchMode: 2, ...customerBase };
+    resp = await sumitPost('/billing/payments/charge/', {
+      Customer: customer,
+      Items: [
+        {
+          Item: { Name: itemName, Description: itemDesc },
+          Quantity: 1,
+          UnitPrice: rec.amount,
+          Currency: 0,
+        },
+      ],
+      VATIncluded: true,
+      OnlyDocument: false,
+    });
   }
 
-  const resp = await sumitPost('/billing/payments/charge/', body);
   const data = resp?.Data || {};
   const payment = data.Payment || data.payment || null;
 
-  if (!sumitEnvelopeOk(resp) || !paymentOk(payment)) {
-    const msg = paymentOk(payment) ? sumitError(resp) : sumitError(resp);
-    throw new Error(msg);
+  if (!sumitEnvelopeOk(resp) || !paymentOk(payment, data)) {
+    console.error('SUMIT charge failed', JSON.stringify({
+      Status: resp?.Status,
+      UserErrorMessage: resp?.UserErrorMessage,
+      TechnicalErrorDetails: resp?.TechnicalErrorDetails,
+      PaymentStatus: payment?.Status,
+      ValidPayment: payment?.ValidPayment,
+    }));
+    throw new Error(sumitError(resp));
   }
 
+  const recurringIds = data.RecurringCustomerItemIDs || [];
   return {
     paymentId: payment?.ID ?? data.PaymentID ?? null,
     customerId: data.CustomerID ?? payment?.CustomerID ?? rec.customerId ?? null,
-    documentId: data.DocumentID ?? null,
-    cardMask: extractCardMask(payment) || rec.cardMask,
+    recurringItemId: recurringIds[0] ?? rec.recurringItemId ?? null,
+    documentId: data.DocumentID ?? payment?.DocumentID ?? null,
+    documentUrl: extractDocumentUrl(data, payment),
+    documentNumber: data.DocumentNumber ?? null,
+    cardMask: extractCardMask(payment, data) || rec.cardMask,
   };
 }
 
-/** Extend the synagogue's screen license by one month (server-authoritative). */
+/** Build / extend a 1-month screen license. Always returns the license object. */
 async function extendLicense(id, months = 1) {
   const bundle = await getBundle(id);
-  if (!bundle?.config) return false;
-  const config = bundle.config;
-  const prev = config.license || null;
+  const prev = bundle?.config?.license || null;
   const expiresAt = addMonths(prev?.expiresAt, months);
-  config.license = {
-    key: prev?.key || `SHUL-SCREEN-SUMIT-${id.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'AUTO'}`,
+  const license = {
+    key:
+      prev?.key ||
+      `SHUL-SCREEN-SUMIT-${id.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'AUTO'}`,
     plan: prev?.plan && prev.plan !== 'trial' ? prev.plan : 'basic',
     activatedAt: prev?.activatedAt || nowIso(),
     expiresAt,
-    holderName: prev?.holderName || config.name,
+    holderName: prev?.holderName || bundle?.config?.name || id,
     synagogueId: id,
-    locked: prev?.locked ?? false,
+    locked: false, // successful payment unlocks
     serverValidated: true,
   };
-  config.revision = (Number(config.revision) || 0) + 1;
-  config.updatedAt = nowIso();
-  await putBundle(id, { ...bundle, config, syncedAt: nowIso(), pendingSync: false });
-  return true;
+
+  if (bundle?.config) {
+    const config = {
+      ...bundle.config,
+      license,
+      revision: (Number(bundle.config.revision) || 0) + 1,
+      updatedAt: nowIso(),
+    };
+    await putBundle(id, { ...bundle, config, syncedAt: nowIso(), pendingSync: false });
+  } else {
+    console.warn(`billing: no cloud bundle for ${id} — license returned for client to save`);
+  }
+  return license;
 }
 
 async function chargeAndRenew(id, options = {}) {
@@ -200,6 +279,7 @@ async function chargeAndRenew(id, options = {}) {
 
   const bundle = await getBundle(id);
   const shulName = bundle?.config?.name || id;
+  const platform = await getPlatformSettings();
 
   if (options.payer) {
     rec.payerName = options.payer.name || rec.payerName;
@@ -208,8 +288,14 @@ async function chargeAndRenew(id, options = {}) {
   }
 
   try {
-    const result = await sumitCharge(rec, shulName, options.singleUseToken);
+    const result = await sumitCharge(
+      rec,
+      shulName,
+      options.singleUseToken,
+      platform.adminEmail || undefined,
+    );
     rec.customerId = result.customerId;
+    rec.recurringItemId = result.recurringItemId || rec.recurringItemId;
     rec.cardMask = result.cardMask || rec.cardMask;
     rec.status = 'active';
     rec.active = true;
@@ -218,11 +304,19 @@ async function chargeAndRenew(id, options = {}) {
     rec.paidUntil = addMonths(rec.paidUntil, 1);
     rec.history = [
       ...(rec.history || []),
-      { at: nowIso(), amount: rec.amount, ok: true, paymentId: result.paymentId, documentId: result.documentId },
+      {
+        at: nowIso(),
+        amount: rec.amount,
+        ok: true,
+        paymentId: result.paymentId,
+        documentId: result.documentId,
+        documentUrl: result.documentUrl,
+        documentNumber: result.documentNumber,
+      },
     ];
     await saveSubscription(rec);
-    await extendLicense(id, 1);
-    return rec;
+    const license = await extendLicense(id, 1);
+    return { subscription: rec, license };
   } catch (err) {
     const message = String(err?.message || err);
     rec.status = rec.customerId ? 'failed' : rec.status === 'none' ? 'none' : 'failed';
@@ -236,7 +330,6 @@ async function chargeAndRenew(id, options = {}) {
   }
 }
 
-/** Charge every active, due subscription. Returns summary for logs. */
 export async function runBillingCycle() {
   if (!billingConfigured()) return { skipped: true };
   const all = await listRecords(PREFIX);
@@ -244,8 +337,9 @@ export async function runBillingCycle() {
   let charged = 0;
   let failed = 0;
   for (const raw of all) {
-    const rec = { ...defaultSubscription(raw.synagogueId || ''), ...raw };
-    if (!rec.synagogueId || !rec.active || !(rec.amount > 0) || !rec.customerId) continue;
+    if (!raw?.synagogueId || raw.synagogueId === PLATFORM_ID) continue;
+    const rec = { ...defaultSubscription(raw.synagogueId), ...raw };
+    if (!rec.active || !(rec.amount > 0) || !rec.customerId) continue;
     const due = !rec.paidUntil || Date.parse(rec.paidUntil) <= now;
     if (!due) continue;
     const lastAttempt = rec.history?.length ? Date.parse(rec.history[rec.history.length - 1].at) : 0;
@@ -266,12 +360,11 @@ let cronTimer = null;
 
 export function startBillingCron() {
   if (cronTimer || !billingConfigured()) return;
-  // First pass shortly after boot, then every 6 hours
   setTimeout(() => void runBillingCycle().catch(() => {}), 30_000);
   cronTimer = setInterval(() => void runBillingCycle().catch(() => {}), 6 * 60 * 60 * 1000);
 }
 
-// —— HTTP handler (shared by server.mjs and vite dev plugin) ——
+// —— HTTP ——
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -306,7 +399,7 @@ function publicRecord(rec) {
     paidUntil: rec.paidUntil,
     lastChargeAt: rec.lastChargeAt,
     lastError: rec.lastError,
-    history: (rec.history || []).slice(-8),
+    history: (rec.history || []).slice(-12).reverse(),
   };
 }
 
@@ -317,16 +410,46 @@ export async function handleBilling(req, res, url) {
   }
 
   if (url.pathname === '/api/billing/config') {
+    const platform = billingConfigured() ? await getPlatformSettings().catch(() => defaultPlatform()) : defaultPlatform();
     sendJson(res, 200, {
       configured: billingConfigured(),
       companyId: billingConfigured() ? COMPANY_ID : null,
       publicKey: billingConfigured() ? PUBLIC_KEY : null,
+      adminEmail: platform.adminEmail || '',
     });
     return;
   }
 
+  if (url.pathname === '/api/billing/platform' && req.method === 'GET') {
+    if (!billingConfigured()) {
+      sendJson(res, 200, { adminEmail: '', configured: false });
+      return;
+    }
+    const platform = await getPlatformSettings();
+    sendJson(res, 200, { adminEmail: platform.adminEmail || '', configured: true });
+    return;
+  }
+
+  if (url.pathname === '/api/billing/platform' && req.method === 'PUT') {
+    if (!billingConfigured()) {
+      sendJson(res, 503, { error: 'סליקה לא מוגדרת בשרת' });
+      return;
+    }
+    const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
+    const email = String(body.adminEmail || '').trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      sendJson(res, 400, { error: 'כתובת מייל לא תקינה' });
+      return;
+    }
+    const platform = await savePlatformSettings({ adminEmail: email });
+    sendJson(res, 200, { adminEmail: platform.adminEmail || '', configured: true });
+    return;
+  }
+
   if (!billingConfigured()) {
-    sendJson(res, 503, { error: 'סליקה לא מוגדרת בשרת (SUMIT_COMPANY_ID / SUMIT_API_KEY / SUMIT_API_PUBLIC_KEY)' });
+    sendJson(res, 503, {
+      error: 'סליקה לא מוגדרת בשרת (SUMIT_COMPANY_ID / SUMIT_API_KEY / SUMIT_API_PUBLIC_KEY)',
+    });
     return;
   }
 
@@ -335,7 +458,7 @@ export async function handleBilling(req, res, url) {
       const all = await listRecords(PREFIX);
       sendJson(res, 200, {
         items: all
-          .filter((r) => r?.synagogueId)
+          .filter((r) => r?.synagogueId && r.synagogueId !== PLATFORM_ID)
           .map((r) => publicRecord({ ...defaultSubscription(r.synagogueId), ...r })),
       });
       return;
@@ -347,6 +470,10 @@ export async function handleBilling(req, res, url) {
       return;
     }
     const id = decodeURIComponent(m[1]);
+    if (id === PLATFORM_ID) {
+      sendJson(res, 404, { error: 'not found' });
+      return;
+    }
     const action = m[2] || '';
 
     if (req.method === 'GET' && !action) {
@@ -376,17 +503,25 @@ export async function handleBilling(req, res, url) {
         sendJson(res, 400, { error: 'missing singleUseToken' });
         return;
       }
-      const rec = await chargeAndRenew(id, {
+      const { subscription, license } = await chargeAndRenew(id, {
         singleUseToken: String(body.singleUseToken),
         payer: { name: body.name, email: body.email, phone: body.phone },
       });
-      sendJson(res, 200, { ok: true, subscription: publicRecord(rec) });
+      sendJson(res, 200, {
+        ok: true,
+        subscription: publicRecord(subscription),
+        license,
+      });
       return;
     }
 
     if (req.method === 'POST' && action === 'charge') {
-      const rec = await chargeAndRenew(id);
-      sendJson(res, 200, { ok: true, subscription: publicRecord(rec) });
+      const { subscription, license } = await chargeAndRenew(id);
+      sendJson(res, 200, {
+        ok: true,
+        subscription: publicRecord(subscription),
+        license,
+      });
       return;
     }
 
