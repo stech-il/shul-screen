@@ -153,6 +153,107 @@
   opacity: 0.9;
 }
 
+.cb-float-bar {
+  position: absolute;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: min(96%, 520px);
+  padding: 0.35rem 0.45rem;
+  border-radius: 10px;
+  background: rgba(20, 28, 34, 0.92);
+  color: #f4f6f5;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  transform: translate(-50%, calc(-100% - 10px));
+  pointer-events: auto;
+  direction: rtl;
+}
+.cb-float-bar.below {
+  transform: translate(-50%, 10px);
+}
+.cb-float-label {
+  font-size: 0.72rem;
+  opacity: 0.75;
+  padding-inline: 0.25rem;
+  white-space: nowrap;
+}
+.cb-float-group {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.cb-float-group button {
+  border: 0;
+  background: transparent;
+  color: #f4f6f5;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.28rem 0.45rem;
+  cursor: pointer;
+  line-height: 1.2;
+}
+.cb-float-group button + button {
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.14);
+}
+.cb-float-group button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.cb-float-group button.on {
+  background: var(--accent, #a8893d);
+  color: #fff;
+}
+.cb-float-color {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+.cb-float-color input[type='color'] {
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+.cb-float-select {
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.22rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f6f5;
+  max-width: 5.8rem;
+}
+.cb-float-select option {
+  color: #1c3140;
+  background: #fff;
+}
+.cb-float-action {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f6f5;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.28rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cb-float-action:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.cb-float-action.danger {
+  border-color: rgba(255, 140, 130, 0.45);
+  color: #ffb4ab;
+}
+.cb-float-action.danger:hover {
+  background: rgba(179, 38, 30, 0.35);
+}
+
 .cb-context-menu {
   position: absolute;
   z-index: 999;

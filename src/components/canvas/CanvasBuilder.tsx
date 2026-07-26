@@ -72,6 +72,69 @@ const PALETTE_GROUPS: { id: string; label: string; types: CanvasWidgetType[] }[]
   },
 ];
 
+const SIZE_PRESETS = [
+  { id: 'S', fontScale: 0.75, boxMult: 0.72 },
+  { id: 'M', fontScale: 1, boxMult: 1 },
+  { id: 'L', fontScale: 1.35, boxMult: 1.28 },
+  { id: 'XL', fontScale: 1.8, boxMult: 1.55 },
+] as const;
+
+type SizePresetId = (typeof SIZE_PRESETS)[number]['id'];
+
+const BOX_SIZE_TYPES: CanvasWidgetType[] = ['image', 'logo'];
+
+function detectSizePreset(w: CanvasWidget): SizePresetId | null {
+  if (BOX_SIZE_TYPES.includes(w.type)) {
+    const m = detectNearestBoxMult(w);
+    let best: SizePresetId = 'M';
+    let bestDiff = Infinity;
+    for (const p of SIZE_PRESETS) {
+      const d = Math.abs(p.boxMult - m);
+      if (d < bestDiff) {
+        bestDiff = d;
+        best = p.id;
+      }
+    }
+    return bestDiff <= 0.15 ? best : null;
+  }
+  if (w.fontSizePx != null) return null;
+  let best: SizePresetId = 'M';
+  let bestDiff = Infinity;
+  for (const p of SIZE_PRESETS) {
+    const d = Math.abs(p.fontScale - w.fontScale);
+    if (d < bestDiff) {
+      bestDiff = d;
+      best = p.id;
+    }
+  }
+  return bestDiff <= 0.12 ? best : null;
+}
+
+function sizePresetPatch(w: CanvasWidget, presetId: SizePresetId): Partial<CanvasWidget> {
+  const preset = SIZE_PRESETS.find((p) => p.id === presetId)!;
+  if (BOX_SIZE_TYPES.includes(w.type)) {
+    const baseW = w.w / (detectNearestBoxMult(w) || 1);
+    const baseH = w.h / (detectNearestBoxMult(w) || 1);
+    return {
+      w: clamp(baseW * preset.boxMult, 5, 110),
+      h: clamp(baseH * preset.boxMult, 4, 110),
+    };
+  }
+  return { fontScale: preset.fontScale, fontSizePx: undefined };
+}
+
+function detectNearestBoxMult(w: CanvasWidget): number {
+  // Approximate current multiplier from typical defaults; fall back to 1.
+  const defaults: Partial<Record<CanvasWidgetType, { w: number; h: number }>> = {
+    image: { w: 24, h: 24 },
+    logo: { w: 12, h: 16 },
+  };
+  const base = defaults[w.type];
+  if (!base) return 1;
+  const m = ((w.w / base.w) + (w.h / base.h)) / 2;
+  return Number.isFinite(m) && m > 0.2 ? m : 1;
+}
+
 function InspectSection({
   title,
   defaultOpen = false,
@@ -535,6 +598,92 @@ export function CanvasBuilder({
               />
             </div>
           ))}
+
+          {selected && !dragging ? (
+            <div
+              className={`cb-float-bar ${selected.y < 14 ? 'below' : 'above'}`}
+              style={{
+                left: `${clamp(selected.x + selected.w / 2, 8, 92)}%`,
+                top: selected.y < 14 ? `${selected.y + selected.h}%` : `${selected.y}%`,
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <span className="cb-float-label">{WIDGET_LABELS[selected.type]}</span>
+              <div className="cb-float-group" title="גודל">
+                {SIZE_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={detectSizePreset(selected) === p.id ? 'on' : ''}
+                    onClick={() => patchWidget(selected.id, sizePresetPatch(selected, p.id))}
+                  >
+                    {p.id}
+                  </button>
+                ))}
+              </div>
+              <div className="cb-float-group" title="יישור טקסט">
+                {(
+                  [
+                    ['right', 'ימין'],
+                    ['center', 'מרכז'],
+                    ['left', 'שמאל'],
+                  ] as const
+                ).map(([align, label]) => (
+                  <button
+                    key={align}
+                    type="button"
+                    className={selected.align === align ? 'on' : ''}
+                    onClick={() => patchWidget(selected.id, { align })}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <label className="cb-float-color" title="צבע תוכן">
+                <input
+                  type="color"
+                  value={selected.color ?? '#1c3140'}
+                  onChange={(e) => patchWidget(selected.id, { color: e.target.value })}
+                />
+              </label>
+              <select
+                className="cb-float-select"
+                value={selected.bg}
+                title="רקע"
+                onChange={(e) => {
+                  const bg = e.target.value as CanvasWidget['bg'];
+                  patchWidget(selected.id, {
+                    bg,
+                    showBorder: bg === 'none' || bg === 'ghost' ? false : selected.showBorder,
+                    textShadow: bg === 'ghost' ? true : selected.textShadow,
+                  });
+                }}
+              >
+                <option value="none">שקוף</option>
+                <option value="ghost">צל טקסט</option>
+                <option value="panel">זכוכית</option>
+                <option value="solid">לבן</option>
+                <option value="dark">כהה</option>
+              </select>
+              <button
+                type="button"
+                className="cb-float-action"
+                title="שכפל"
+                onClick={() => duplicateWidget(selected)}
+              >
+                שכפל
+              </button>
+              <button
+                type="button"
+                className="cb-float-action danger"
+                title="מחק"
+                onClick={() => removeWidget(selected.id)}
+              >
+                מחק
+              </button>
+            </div>
+          ) : null}
 
           {menu && menuWidget ? (
             <div
