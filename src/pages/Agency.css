@@ -236,6 +236,25 @@
   gap: 0.35rem;
 }
 
+.shul-billing {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(26, 47, 56, 0.05);
+}
+
+.shul-billing.ok {
+  color: #1f5c3f;
+  background: color-mix(in srgb, #2f6b4f 10%, transparent);
+}
+
+.shul-billing.warn {
+  color: #8a3a1c;
+  background: color-mix(in srgb, #c45a28 12%, transparent);
+}
+
 .tag {
   font-size: 0.75rem;
   padding: 0.22rem 0.5rem;

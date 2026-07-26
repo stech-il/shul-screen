@@ -37,6 +37,7 @@ import {
 import {
   cancelBilling,
   chargeBillingNow,
+  fetchAllSubscriptions,
   fetchBillingConfig,
   fetchPlatformBilling,
   fetchSubscription,
@@ -105,6 +106,7 @@ export function Agency() {
   const [billingMsg, setBillingMsg] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminEmailMsg, setAdminEmailMsg] = useState('');
+  const [subsById, setSubsById] = useState<Record<string, BillingSubscription>>({});
 
   const heartbeats = useMemo(() => listHeartbeats(), [tick, msg]);
 
@@ -136,6 +138,13 @@ export function Agency() {
     void reloadFromCloud();
     void fetchPlatformBilling()
       .then((p) => setAdminEmail(p.adminEmail || ''))
+      .catch(() => {});
+    void fetchAllSubscriptions()
+      .then((items) => {
+        const map: Record<string, BillingSubscription> = {};
+        for (const s of items) map[s.synagogueId] = s;
+        setSubsById(map);
+      })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per login
   }, [platformOk]);
@@ -262,6 +271,16 @@ export function Agency() {
     navigate(`/admin/${config.id}`);
   }
 
+  function refreshSubs() {
+    void fetchAllSubscriptions()
+      .then((items) => {
+        const map: Record<string, BillingSubscription> = {};
+        for (const s of items) map[s.synagogueId] = s;
+        setSubsById(map);
+      })
+      .catch(() => {});
+  }
+
   async function openBilling(config: SynagogueConfig) {
     setBillingMsg('');
     setBillingSub(null);
@@ -296,6 +315,7 @@ export function Agency() {
         active: billingActive,
       });
       setBillingSub(sub);
+      refreshSubs();
       setBillingMsg('הגדרות החיוב נשמרו — בית הכנסת יכול להזין כרטיס בניהול שלו');
     } catch (err) {
       setBillingMsg(err instanceof Error ? err.message : 'שמירה נכשלה');
@@ -311,6 +331,7 @@ export function Agency() {
     try {
       const { subscription: sub, license } = await chargeBillingNow(modal.config.id);
       setBillingSub(sub);
+      refreshSubs();
       const until = license?.expiresAt
         ? formatBillingDate(license.expiresAt)
         : formatBillingDate(sub.paidUntil);
@@ -331,6 +352,7 @@ export function Agency() {
     try {
       const sub = await cancelBilling(modal.config.id);
       setBillingSub(sub);
+      refreshSubs();
       setBillingActive(false);
       setBillingMsg('הוראת הקבע בוטלה — הרישיון יפוג בתום התקופה ששולמה');
     } catch (err) {
@@ -651,6 +673,10 @@ export function Agency() {
                 const online = isScreenOnline(hb);
                 const licensed = Boolean(c.license && isLicenseValid(c.license));
                 const locked = Boolean(c.license?.locked);
+                const sub = subsById[c.id];
+                const licenseUntil = c.license?.expiresAt
+                  ? formatBillingDate(c.license.expiresAt)
+                  : null;
                 return (
                   <li
                     key={c.id}
@@ -685,6 +711,26 @@ export function Agency() {
                       <span className="tag">{c.layout === 'canvas' ? 'בונה מסך' : c.layout}</span>
                       {hb ? <span className="tag">v{hb.version}</span> : null}
                     </div>
+
+                    <p className={`shul-billing ${sub?.lastChargeAt ? (sub.status === 'failed' ? 'warn' : 'ok') : ''}`}>
+                      {sub?.lastChargeAt ? (
+                        <>
+                          שילם {sub.payerName || 'לקוח'} · {formatBillingDate(sub.lastChargeAt)} ·{' '}
+                          {formatIls(sub.amount)}
+                          {licenseUntil ? ` · תוקף עד ${licenseUntil}` : ''}
+                          {sub.status === 'failed' ? ' · חיוב אחרון נכשל' : ''}
+                        </>
+                      ) : sub && sub.amount > 0 ? (
+                        <>
+                          טרם שילם · מנוי {formatIls(sub.amount)}/חודש
+                          {licenseUntil ? ` · תוקף עד ${licenseUntil}` : ''}
+                        </>
+                      ) : licenseUntil ? (
+                        <>ללא הו״ק · תוקף עד {licenseUntil}</>
+                      ) : (
+                        <>ללא תשלום וללא רישיון</>
+                      )}
+                    </p>
 
                     <div className="shul-actions">
                       <Link className="act primary" to={`/display/${c.id}`}>
