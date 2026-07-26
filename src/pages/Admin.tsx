@@ -323,6 +323,16 @@ export function Admin({ synagogueId }: Props) {
     };
   }, [tab, canvasCityId, canvasEnabledZmanim]);
 
+  useEffect(() => {
+    if (tab !== 'canvas' || !config) return;
+    if (!session || !canEditSettings(session.role)) return;
+    if (config.layout === 'canvas') return;
+    setConfig((c) => (c && c.layout !== 'canvas' ? { ...c, layout: 'canvas' } : c));
+    setStatus(
+      'מבנה המסך הוגדר לבונה חופשי — לחצו «פרסם למסך» כדי לעדכן את הטלוויזיה',
+    );
+  }, [tab, session?.role, config?.layout]);
+
   if (!session || session.synagogueId !== synagogueId || !canEditContent(session.role)) {
     return <Navigate to={`/login/${synagogueId}`} replace />;
   }
@@ -938,8 +948,10 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'design' && isOwner ? (
           <DesignStudio
             config={config}
+            synagogueId={synagogueId}
             onChange={update}
             onDesign={updateDesign}
+            onGalleryChange={updateGallery}
             onStatus={setStatus}
           />
         ) : null}
@@ -991,7 +1003,8 @@ export function Admin({ synagogueId }: Props) {
               </div>
             </div>
             <p className="hint">
-              העלה רקע משלך וגרור כל רכיב לכל מקום. השינויים נשמרים עם «שמור ועדכן מסך».
+              גררו רכיבים על המסך. בכניסה ללשונית מופעל אוטומטית מצב «בונה חופשי» — לחצו «פרסם למסך»
+              כדי לעדכן את הטלוויזיה.
             </p>
             <CanvasBuilder
               canvas={config.canvas}

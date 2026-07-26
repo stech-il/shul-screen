@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_DESIGN, layoutLabel } from '../data/designPresets';
 import {
   applyDesignTemplate,
@@ -13,9 +13,11 @@ import {
   inferFontFormat,
 } from '../lib/customFonts';
 import { uploadFont } from '../lib/media';
+import { MediaPickerField } from './MediaPicker';
 import type {
   CustomFont,
   DesignSettings,
+  GalleryItem,
   SavedDesignTemplate,
   ScreenLayout,
   SynagogueConfig,
@@ -23,8 +25,10 @@ import type {
 
 interface Props {
   config: SynagogueConfig;
+  synagogueId: string;
   onChange: (patch: Partial<SynagogueConfig>) => void;
   onDesign: (patch: Partial<DesignSettings>) => void;
+  onGalleryChange: (gallery: GalleryItem[]) => void;
   onStatus?: (msg: string) => void;
 }
 
@@ -41,6 +45,67 @@ const LAYOUTS: { id: ScreenLayout; label: string }[] = [
   { id: 'canvas', label: 'בונה חופשי (גרירה)' },
 ];
 
+function parsePanelColor(input: string): { hex: string; alpha: number } {
+  const rgba = input.match(
+    /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/i,
+  );
+  if (rgba) {
+    const r = Number(rgba[1]);
+    const g = Number(rgba[2]);
+    const b = Number(rgba[3]);
+    const a = rgba[4] != null ? Number(rgba[4]) : 1;
+    const hex =
+      '#' +
+      [r, g, b]
+        .map((x) => Math.max(0, Math.min(255, x)).toString(16).padStart(2, '0'))
+        .join('');
+    return { hex, alpha: Number.isFinite(a) ? Math.max(0, Math.min(1, a)) : 1 };
+  }
+  if (input.startsWith('#') && input.length >= 7) {
+    return { hex: input.slice(0, 7), alpha: 1 };
+  }
+  if (input.startsWith('#') && input.length === 4) {
+    const [, r, g, b] = input;
+    return { hex: `#${r}${r}${g}${g}${b}${b}`, alpha: 1 };
+  }
+  return { hex: '#ffffff', alpha: 0.8 };
+}
+
+function toRgba(hex: string, alpha: number): string {
+  const h = hex.startsWith('#') ? hex.slice(1, 7) : 'ffffff';
+  const r = parseInt(h.slice(0, 2), 16) || 0;
+  const g = parseInt(h.slice(2, 4), 16) || 0;
+  const b = parseInt(h.slice(4, 6), 16) || 0;
+  const a = Math.round(alpha * 100) / 100;
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+function StudioSection({
+  title,
+  hint,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <details
+      className="card studio-sec"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary>
+        <h2>{title}</h2>
+        {hint ? <p className="hint">{hint}</p> : null}
+      </summary>
+      <div className="studio-sec-body">{children}</div>
+    </details>
+  );
+}
 
 function TemplatePreview({
   primary,
@@ -88,9 +153,17 @@ function TemplatePreview({
   );
 }
 
-export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
+export function DesignStudio({
+  config,
+  synagogueId,
+  onChange,
+  onDesign,
+  onGalleryChange,
+  onStatus,
+}: Props) {
   const d = config.design;
   const customFonts = config.media?.customFonts ?? [];
+  const gallery = config.media?.gallery ?? [];
   const fontOptions = useMemo(() => fontSelectOptions(customFonts), [customFonts]);
   const fontInputRef = useRef<HTMLInputElement>(null);
   const [fontBusy, setFontBusy] = useState(false);
@@ -99,6 +172,7 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
   const [tplName, setTplName] = useState('');
   const [tplDesc, setTplDesc] = useState('');
   const [query, setQuery] = useState('');
+  const panel = useMemo(() => parsePanelColor(d.panelColor), [d.panelColor]);
 
   useEffect(() => {
     void loadDesignTemplates().then(setSaved);
@@ -308,8 +382,7 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
         </div>
       </section>
 
-      <section className="card">
-        <h2>פריסה</h2>
+      <StudioSection title="פריסה">
         <label>
           מבנה מסך
           <select
@@ -363,10 +436,9 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
             <option value="soft">רך ללא מסגרת</option>
           </select>
         </label>
-      </section>
+      </StudioSection>
 
-      <section className="card">
-        <h2>צבעים</h2>
+      <StudioSection title="צבעים">
         <div className="color-grid">
           {(
             [
@@ -387,16 +459,29 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
             </label>
           ))}
         </div>
-        <label>
-          צבע פאנל (כולל שקיפות אפשרית כטקסט)
-          <input
-            value={d.panelColor}
-            onChange={(e) => onDesign({ panelColor: e.target.value })}
-            placeholder="rgba(255,255,255,0.8)"
-            dir="ltr"
-            style={{ textAlign: 'left' }}
-          />
-        </label>
+        <div className="panel-color-row">
+          <label>
+            צבע פאנל
+            <input
+              type="color"
+              value={panel.hex}
+              onChange={(e) => onDesign({ panelColor: toRgba(e.target.value, panel.alpha) })}
+            />
+          </label>
+          <label>
+            שקיפות פאנל ({panel.alpha.toFixed(2)})
+            <input
+              type="range"
+              min={0.05}
+              max={1}
+              step={0.05}
+              value={panel.alpha}
+              onChange={(e) =>
+                onDesign({ panelColor: toRgba(panel.hex, Number(e.target.value)) })
+              }
+            />
+          </label>
+        </div>
         <label>
           ערכת נושא כללית
           <select
@@ -407,10 +492,9 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
             <option value="dark">כהה</option>
           </select>
         </label>
-      </section>
+      </StudioSection>
 
-      <section className="card">
-        <h2>טיפוגרפיה וגודל</h2>
+      <StudioSection title="טיפוגרפיה וגודל">
         <label>
           גופן כותרות
           <select
@@ -515,30 +599,29 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
             onChange={(e) => onDesign({ bodyScale: Number(e.target.value) })}
           />
         </label>
-      </section>
+      </StudioSection>
 
-      <section className="card">
-        <h2>לוגו ורקע</h2>
-        <label>
-          לוגו (URL)
-          <input
-            value={d.logoUrl}
-            onChange={(e) => onDesign({ logoUrl: e.target.value })}
-            placeholder="https://..."
-            dir="ltr"
-            style={{ textAlign: 'left' }}
-          />
-        </label>
-        <label>
-          תמונת רקע (URL)
-          <input
-            value={d.backgroundImageUrl}
-            onChange={(e) => onDesign({ backgroundImageUrl: e.target.value })}
-            placeholder="https://..."
-            dir="ltr"
-            style={{ textAlign: 'left' }}
-          />
-        </label>
+      <StudioSection title="לוגו ורקע">
+        <MediaPickerField
+          label="לוגו"
+          value={d.logoUrl}
+          synagogueId={synagogueId}
+          gallery={gallery}
+          kind="image"
+          onChange={(url) => onDesign({ logoUrl: url })}
+          onGalleryChange={onGalleryChange}
+          onStatus={onStatus}
+        />
+        <MediaPickerField
+          label="תמונת רקע"
+          value={d.backgroundImageUrl}
+          synagogueId={synagogueId}
+          gallery={gallery}
+          kind="image"
+          onChange={(url) => onDesign({ backgroundImageUrl: url })}
+          onGalleryChange={onGalleryChange}
+          onStatus={onStatus}
+        />
         <label>
           כהות שכבת רקע ({d.overlayOpacity.toFixed(2)})
           <input
@@ -550,10 +633,9 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
             onChange={(e) => onDesign({ overlayOpacity: Number(e.target.value) })}
           />
         </label>
-      </section>
+      </StudioSection>
 
-      <section className="card">
-        <h2>אווירה ופרטים</h2>
+      <StudioSection title="אווירה ופרטים" defaultOpen={false}>
         <label>
           צפיפות
           <select
@@ -622,7 +704,7 @@ export function DesignStudio({ config, onChange, onDesign, onStatus }: Props) {
           />
           ניגודיות גבוהה
         </label>
-      </section>
+      </StudioSection>
     </div>
   );
 }
