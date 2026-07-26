@@ -2167,7 +2167,7 @@ export function Admin({ synagogueId }: Props) {
         </div>
       ) : null}
 
-      <SiteFooter />
+      {tab !== 'canvas' ? <SiteFooter /> : null}
     </div>
   );
 }

@@ -43,10 +43,11 @@
   background: #fff;
   color: inherit;
   font: inherit;
-  font-size: 0.82rem;
-  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+  padding: 0.22rem 0.5rem;
   border-radius: 999px;
   cursor: pointer;
+  text-decoration: none;
 }
 .cb-chip:hover {
   border-color: var(--accent, #a8893d);
@@ -76,13 +77,14 @@
 
 .cb-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
-  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   align-items: stretch;
-  direction: ltr; /* canvas left, editor panel on the visual right */
+  direction: ltr;
   flex: 1;
   min-height: 0;
   height: 100%;
+  position: relative;
 }
 
 .cb-stage-col {
@@ -106,9 +108,9 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: #1a1f24;
-  border-radius: 8px;
-  padding: 0.5rem;
+  background: #12161a;
+  border-radius: 6px;
+  padding: 0.2rem;
   box-sizing: border-box;
 }
 
@@ -119,7 +121,22 @@
   max-width: none;
   max-height: none;
   margin: 0;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Elementor-style: panel floats over the canvas, does not shrink it */
+.cb-inspector-el {
+  position: absolute !important;
+  top: 0.35rem;
+  inset-inline-end: 0.35rem;
+  bottom: 0.35rem;
+  width: min(300px, 34vw);
+  z-index: 30;
+  max-height: none !important;
+  height: auto !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .cb-fit-meta {
@@ -663,10 +680,8 @@
 }
 
 @media (max-width: 1000px) {
-  .cb-workspace {
-    grid-template-columns: 1fr;
-  }
-  .cb-inspector {
-    max-height: none;
+  .cb-inspector-el {
+    width: min(300px, 92vw);
+    inset-inline-end: 0.2rem;
   }
 }

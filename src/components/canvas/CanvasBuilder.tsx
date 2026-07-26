@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type {
   CanvasLayoutConfig,
   CanvasWidget,
@@ -183,7 +184,7 @@ export function CanvasBuilder({
     function fit() {
       const el = frameRef.current;
       if (!el) return;
-      const pad = 12;
+      const pad = 4;
       const fw = el.clientWidth - pad;
       const fh = el.clientHeight - pad;
       if (fw < 40 || fh < 40) return;
@@ -433,6 +434,14 @@ export function CanvasBuilder({
             <button type="button" className="cb-chip accent" onClick={explodeZmanim}>
               פצל זמנים לבלוקים
             </button>
+            <Link
+              className="cb-chip ghost"
+              to={`/display/${synagogueId}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              מסך חי ↗
+            </Link>
             <span className="cb-fit-meta" title="גדלים ב־px יחסית למסך 1920 — נשמרים מדויק בטלוויזיה">
               {fitLabel || `${refWidth}×${refHeight}`}
             </span>
@@ -711,8 +720,8 @@ export function CanvasBuilder({
         </div>
         </div>
 
-        <aside className="cb-inspector cb-inspector-el" dir="rtl">
-          {selected ? (
+        {selected ? (
+          <aside className="cb-inspector cb-inspector-el" dir="rtl">
             <ElementorWidgetPanel
               selected={selected}
               tab={editTab}
@@ -736,19 +745,8 @@ export function CanvasBuilder({
               onClose={() => setSelectedId(null)}
               label={WIDGET_LABELS[selected.type]}
             />
-          ) : (
-            <div className="cb-empty-inspector">
-              <h3>בחרו רכיב לעריכה</h3>
-              <p>
-                לחצו על רכיב במסך — ייפתח כאן פאנל עם לשוניות תוכן, עיצוב ומתקדם.
-              </p>
-              <ul>
-                <li>גררו להזזה · ידית בפינה לשינוי גודל</li>
-                <li>חיצים / Delete · קליק ימני לאפשרויות</li>
-              </ul>
-            </div>
-          )}
-        </aside>
+          </aside>
+        ) : null}
       </div>
 
       <MediaGalleryModal
