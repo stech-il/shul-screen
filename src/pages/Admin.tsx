@@ -2029,7 +2029,13 @@ export function Admin({ synagogueId }: Props) {
             mode="admin"
             synagogueId={synagogueId}
             synagogueName={config.name}
-            defaultName={session?.memberName || ''}
+            defaultName={
+              session?.viaPlatform
+                ? config.name
+                : session?.memberName ||
+                  config.members.find((m) => m.role === 'owner')?.name ||
+                  config.name
+            }
             defaultEmail={config.contactEmail || ''}
             canManage={false}
             initialTopic={inquiryTopicPrefill}
