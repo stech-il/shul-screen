@@ -563,10 +563,30 @@ export async function saveConfig(
   weather?: CachedBundle['weather'],
   meta?: { by?: string; summary?: string },
 ): Promise<{ ok: boolean; online: boolean; pending: boolean; error?: string }> {
+  // Pull cloud first so we never overwrite a newer license with a stale local copy
+  let base = config;
+  if (navigator.onLine) {
+    try {
+      const cloud = await pullFromCloud(config.id);
+      if (cloud?.config?.license && !config.license) {
+        base = { ...config, license: cloud.config.license };
+      } else if (
+        cloud?.config?.license?.expiresAt &&
+        config.license?.expiresAt &&
+        Date.parse(cloud.config.license.expiresAt) > Date.parse(config.license.expiresAt) &&
+        !config.license.locked
+      ) {
+        base = { ...config, license: cloud.config.license };
+      }
+    } catch {
+      /* continue with local */
+    }
+  }
+
   const nextConfig: SynagogueConfig = {
-    ...normalizeConfig(config),
+    ...normalizeConfig(base),
     updatedAt: new Date().toISOString(),
-    revision: (config.revision ?? 0) + 1,
+    revision: (base.revision ?? 0) + 1,
   };
 
   let compactConfig: SynagogueConfig;
@@ -579,6 +599,21 @@ export async function saveConfig(
       pending: true,
       error: err instanceof Error ? err.message : 'שמירת מדיה נכשלה',
     };
+  }
+
+  // Detect media that stayed local-only (won't show on other screens)
+  if (navigator.onLine) {
+    const stillLocal = collectIdbMediaRefs(compactConfig);
+    if (stillLocal.length) {
+      return {
+        ok: false,
+        online: true,
+        pending: true,
+        error:
+          'התמונה לא עלתה לדיסק הענן. נסה שוב (תמונה קטנה יותר / רשת יציבה) ואז שמור. ' +
+          `קבצים מקומיים: ${stillLocal.length}`,
+      };
+    }
   }
 
   const bundle: CachedBundle = {
@@ -616,6 +651,25 @@ export async function saveConfig(
   }
   enqueueSync(config.id);
   return { ok: true, online: false, pending: true };
+}
+
+function collectIdbMediaRefs(config: SynagogueConfig): string[] {
+  const out: string[] = [];
+  const check = (url?: string) => {
+    if (url && url.startsWith('idb-media:')) out.push(url);
+  };
+  check(config.media?.logoDataUrl);
+  check(config.media?.backgroundDataUrl);
+  check(config.media?.eventImageUrl);
+  check(config.media?.loopVideoUrl);
+  check(config.design?.logoUrl);
+  check(config.design?.backgroundImageUrl);
+  check(config.canvas?.backgroundUrl);
+  check(config.branding?.logoUrl);
+  for (const g of config.media?.gallery ?? []) check(g.url);
+  for (const f of config.media?.customFonts ?? []) check(f.url);
+  for (const w of config.canvas?.widgets ?? []) check(w.imageUrl);
+  return out;
 }
 
 /** Flush pending local→cloud when back online */

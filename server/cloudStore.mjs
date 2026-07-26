@@ -1,14 +1,17 @@
 /**
  * Persistent synagogue cloud store for the Node server.
- * Prefer GitHub Contents API (survives Render redeploys).
- * Fallback: local ./data directory (dev / ephemeral).
+ *
+ * - Synagogue JSON: GitHub when CLOUD_GITHUB_TOKEN is set, else local disk.
+ * - Billing records + media files: always on DATA_DIR (Render persistent disk).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data', 'synagogues');
+/** Root for durable local files — on Render set DATA_DIR=/var/data (disk mount). */
+const ROOT_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const DATA_DIR = path.join(ROOT_DIR, 'synagogues');
 const GH_TOKEN = (process.env.CLOUD_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '').trim();
 const GH_REPO = (process.env.CLOUD_GITHUB_REPO || 'stech-il/shul-screen-data').trim();
 const GH_BRANCH = (process.env.CLOUD_GITHUB_BRANCH || 'main').trim();
@@ -23,10 +26,10 @@ function localPath(id) {
   return path.join(DATA_DIR, `${safe}.json`);
 }
 
-// —— Generic prefixed JSON records (e.g. billing) ——
+// —— Generic prefixed JSON records (e.g. billing) — always under ROOT_DIR ——
 
 function recordDir(prefix) {
-  return path.join(__dirname, 'data', prefix);
+  return path.join(ROOT_DIR, prefix);
 }
 
 function recordPath(prefix, id) {
@@ -323,9 +326,7 @@ export async function deleteBundle(id) {
 // —— Binary media files on persistent disk (Render Disk / DATA_DIR) ——
 const MEDIA_PREFIX = 'media';
 const MAX_MEDIA_BYTES = 8 * 1024 * 1024;
-const MEDIA_ROOT = process.env.DATA_DIR
-  ? path.join(process.env.DATA_DIR, MEDIA_PREFIX)
-  : path.join(__dirname, 'data', MEDIA_PREFIX);
+const MEDIA_ROOT = path.join(ROOT_DIR, MEDIA_PREFIX);
 
 function safeMediaName(name) {
   return String(name || 'file')
@@ -397,9 +398,23 @@ export async function getMediaFile(synagogueId, fileName) {
 
 export function statusPayload() {
   let diskOk = false;
+  let mediaCount = 0;
+  let billingCount = 0;
   try {
     fs.mkdirSync(MEDIA_ROOT, { recursive: true });
+    fs.mkdirSync(recordDir('billing'), { recursive: true });
+    fs.mkdirSync(DATA_DIR, { recursive: true });
     diskOk = fs.existsSync(MEDIA_ROOT);
+    if (diskOk) {
+      for (const dir of fs.readdirSync(MEDIA_ROOT, { withFileTypes: true })) {
+        if (!dir.isDirectory()) continue;
+        const files = fs.readdirSync(path.join(MEDIA_ROOT, dir.name));
+        mediaCount += files.length;
+      }
+    }
+    billingCount = fs
+      .readdirSync(recordDir('billing'))
+      .filter((f) => f.endsWith('.json') && !f.startsWith('_')).length;
   } catch {
     diskOk = false;
   }
@@ -407,9 +422,13 @@ export function statusPayload() {
     ok: true,
     backend: cloudBackend(),
     repo: GH_TOKEN ? GH_REPO : null,
-    persistent: Boolean(GH_TOKEN),
+    persistent: Boolean(GH_TOKEN) || Boolean(process.env.DATA_DIR),
     media: true,
     mediaRoot: MEDIA_ROOT,
+    rootDir: ROOT_DIR,
     diskOk,
+    mediaFileCount: mediaCount,
+    billingRecordCount: billingCount,
+    dataDirSet: Boolean(process.env.DATA_DIR),
   };
 }

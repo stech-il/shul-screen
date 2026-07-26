@@ -228,6 +228,27 @@ async function handleCloud(req, res, url) {
         sendJson(res, 400, { error: 'id mismatch' });
         return;
       }
+      // Never wipe a valid cloud license with an empty/missing one from a stale client
+      const existing = await getBundle(id);
+      if (existing?.config?.license && !config.license) {
+        config.license = existing.config.license;
+      } else if (
+        existing?.config?.license &&
+        config.license &&
+        existing.config.license.expiresAt &&
+        (!config.license.expiresAt ||
+          Date.parse(config.license.expiresAt) < Date.parse(existing.config.license.expiresAt))
+      ) {
+        // Keep the longer-lived license unless explicitly locked by platform
+        if (!config.license.locked) {
+          config.license = {
+            ...existing.config.license,
+            ...config.license,
+            expiresAt: existing.config.license.expiresAt,
+            activatedAt: existing.config.license.activatedAt || config.license.activatedAt,
+          };
+        }
+      }
       const bundle = {
         config,
         syncedAt: new Date().toISOString(),

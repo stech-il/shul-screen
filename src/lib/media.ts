@@ -324,10 +324,36 @@ export async function uploadDataUrlToCloud(
 ): Promise<string | null> {
   if (!dataUrl.startsWith('data:') || !navigator.onLine) return null;
   try {
-    const comma = dataUrl.indexOf(',');
+    let payload = dataUrl;
+    // Re-compress large images so the POST fits Render body limits
+    if (payload.startsWith('data:image/') && payload.length > 400_000) {
+      try {
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const el = new Image();
+          el.onload = () => resolve(el);
+          el.onerror = () => reject(new Error('image load failed'));
+          el.src = payload;
+        });
+        const scale = Math.min(1, LOCAL_IMAGE_MAX_EDGE / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          payload = canvas.toDataURL('image/jpeg', LOCAL_IMAGE_QUALITY);
+        }
+      } catch {
+        /* keep original */
+      }
+    }
+
+    const comma = payload.indexOf(',');
     if (comma < 0) return null;
-    const meta = dataUrl.slice(0, comma);
-    const b64 = dataUrl.slice(comma + 1);
+    const meta = payload.slice(0, comma);
+    const b64 = payload.slice(comma + 1);
     const contentType = /data:([^;]+)/.exec(meta)?.[1] || 'application/octet-stream';
     const ext =
       contentType === 'image/png'
@@ -345,9 +371,14 @@ export async function uploadDataUrlToCloud(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileName, contentType, dataBase64: b64 }),
     });
-    const body = (await res.json().catch(() => ({}))) as { url?: string };
-    return body.url || null;
-  } catch {
+    const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+    if (!res.ok || !body.url) {
+      console.warn('uploadDataUrlToCloud failed', res.status, body.error);
+      return null;
+    }
+    return body.url;
+  } catch (err) {
+    console.warn('uploadDataUrlToCloud error', err);
     return null;
   }
 }

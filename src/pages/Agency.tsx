@@ -108,6 +108,12 @@ export function Agency() {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminEmailMsg, setAdminEmailMsg] = useState('');
   const [subsById, setSubsById] = useState<Record<string, BillingSubscription>>({});
+  const [diskStatus, setDiskStatus] = useState<{
+    diskOk: boolean;
+    mediaFileCount: number;
+    billingRecordCount: number;
+    dataDirSet: boolean;
+  } | null>(null);
 
   const heartbeats = useMemo(() => listHeartbeats(), [tick, msg]);
 
@@ -147,6 +153,17 @@ export function Agency() {
         setSubsById(map);
       })
       .catch(() => {});
+    void fetch('/api/cloud/status', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((s) =>
+        setDiskStatus({
+          diskOk: Boolean(s.diskOk),
+          mediaFileCount: Number(s.mediaFileCount) || 0,
+          billingRecordCount: Number(s.billingRecordCount) || 0,
+          dataDirSet: Boolean(s.dataDirSet),
+        }),
+      )
+      .catch(() => setDiskStatus(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per login
   }, [platformOk]);
 
@@ -861,6 +878,19 @@ export function Agency() {
               הפעל רישיון
             </button>
           </form>
+
+          <div className="side-card">
+            <h2>דיסק ענן (Render)</h2>
+            {diskStatus ? (
+              <p className={`hint ${diskStatus.diskOk && diskStatus.dataDirSet ? '' : 'warn'}`}>
+                {diskStatus.diskOk && diskStatus.dataDirSet
+                  ? `פעיל · ${diskStatus.mediaFileCount} קבצי מדיה · ${diskStatus.billingRecordCount} רשומות הו״ק`
+                  : 'דיסק לא מוגדר כראוי — מדיה/הו״ק עלולים להימחק בפריסה'}
+              </p>
+            ) : (
+              <p className="hint">טוען סטטוס דיסק…</p>
+            )}
+          </div>
 
           <form className="side-card" onSubmit={(e) => void onSaveAdminEmail(e)}>
             <h2>מייל חשבונית ברירת מחדל</h2>
