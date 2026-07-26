@@ -23,11 +23,16 @@
 .admin-header {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1rem 1.5rem;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   margin-bottom: 1.5rem;
   direction: rtl;
+}
+
+.admin-title {
+  min-width: 0;
+  flex: 1 1 22rem;
 }
 
 .eyebrow {
@@ -39,19 +44,26 @@
 }
 
 .admin-header h1 {
-  margin: 0.2rem 0;
+  margin: 0.15rem 0 0.5rem;
   font-family: 'Frank Ruhl Libre', serif;
   font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.admin-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
 }
 
 .license-banner {
-  margin: 0.35rem 0 0;
-  font-size: 0.92rem;
+  margin: 0;
+  font-size: 0.88rem;
   font-weight: 600;
-  width: fit-content;
   max-width: 100%;
-  padding: 0.35rem 0.7rem;
-  border-radius: 8px;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
   border: 1px solid var(--line);
 }
 
@@ -85,16 +97,23 @@
 }
 
 .status {
-  margin: 0.35rem 0 0;
+  margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 8%, #fff);
+  border: 1px solid var(--line);
 }
 
 .admin-actions {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
   flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 0 1 auto;
 }
 
 .btn {

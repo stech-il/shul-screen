@@ -729,19 +729,23 @@ export function Admin({ synagogueId }: Props) {
   return (
     <div className="admin" dir="rtl" lang="he">
       <header className="admin-header sticky-bar">
-        <div>
+        <div className="admin-title">
           <p className="eyebrow">
             ניהול מסך · {memberName} ({memberRole === 'owner' ? 'מנהל' : 'עורך'})
           </p>
           <h1>{config.name}</h1>
-          <p className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>{licenseBanner}</p>
-          {session.viaPlatform ? (
-            <p className="license-banner ok">
-              נכנסת כמנהל מערכת — בלי סיסמת בית הכנסת ·{' '}
-              <Link to="/agency">חזרה לפאנל העל</Link>
-            </p>
-          ) : null}
-          <p className="status">{status}</p>
+          <div className="admin-meta">
+            <span className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>
+              {licenseBanner}
+            </span>
+            {session.viaPlatform ? (
+              <span className="license-banner ok">
+                נכנסת כמנהל מערכת ·{' '}
+                <Link to="/agency">חזרה לפאנל העל</Link>
+              </span>
+            ) : null}
+            {status ? <span className="status">{status}</span> : null}
+          </div>
         </div>
         <div className="admin-actions">
           <button
