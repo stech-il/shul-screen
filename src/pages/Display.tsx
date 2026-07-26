@@ -232,7 +232,7 @@ export function Display({ synagogueId }: Props) {
     return (
       <div className="display license-lock" dir="rtl" lang="he">
         <div className="license-lock-card">
-          <p className="license-lock-eyebrow">smartscreen</p>
+          <p className="license-lock-eyebrow">screensmart</p>
           <h1>{config.name}</h1>
           <p className="license-lock-reason">
             אין רישיון פעיל למסך זה — פנה לספק המערכת

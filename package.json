@@ -1,9 +1,9 @@
 {
-  "name": "smartscreen",
+  "name": "screensmart",
   "private": true,
   "version": "0.3.1",
-  "description": "smartscreen — מסך תצוגה לבתי כנסת: זמנים, הודעות, פיקוד העורף וקיוסק",
-  "author": "smartscreen",
+  "description": "screensmart — מסך תצוגה לבתי כנסת: זמנים, הודעות, פיקוד העורף וקיוסק",
+  "author": "screensmart",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -42,8 +42,8 @@
     "vitest": "^3.2.4"
   },
   "build": {
-    "appId": "il.smartscreen.app",
-    "productName": "smartscreen Kiosk",
+    "appId": "il.screensmart.app",
+    "productName": "screensmart Kiosk",
     "directories": {
       "output": "release"
     },
@@ -56,13 +56,13 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "smartscreen-Setup-${version}.${ext}"
+      "artifactName": "screensmart-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": true,
       "allowToChangeInstallationDirectory": false,
-      "shortcutName": "smartscreen"
+      "shortcutName": "screensmart"
     },
     "publish": null
   },

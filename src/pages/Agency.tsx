@@ -640,7 +640,7 @@ export function Agency() {
     <div className="agency" dir="rtl" lang="he">
       <header className="agency-top">
         <div>
-          <p className="agency-brand">smartscreen</p>
+          <p className="agency-brand">screensmart</p>
           <h1>ניהול בתי כנסת</h1>
           <p className="agency-sub">{loadPlatformSession()?.username}</p>
         </div>

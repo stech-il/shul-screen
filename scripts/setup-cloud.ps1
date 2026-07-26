@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Sets up durable cloud DB for smartscreen (GitHub-backed).
+  Sets up durable cloud DB for screensmart (GitHub-backed).
 
   1) Ensures private repo stech-il/shul-screen-data exists
   2) Copies a GitHub token to the clipboard for Render Environment
@@ -10,12 +10,12 @@
 $ErrorActionPreference = 'Stop'
 $repo = 'stech-il/shul-screen-data'
 
-Write-Host '=== smartscreen cloud setup ===' -ForegroundColor Cyan
+Write-Host '=== screensmart cloud setup ===' -ForegroundColor Cyan
 
 gh repo view $repo --json name 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
   Write-Host "Creating private repo $repo ..."
-  gh repo create $repo --private --description 'smartscreen cloud data store'
+  gh repo create $repo --private --description 'screensmart cloud data store'
 }
 
 $token = (gh auth token).Trim()

@@ -24,9 +24,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'smartscreen',
-        short_name: 'smartscreen',
-        description: 'smartscreen — מסך תצוגה לבתי כנסת: זמנים, תפילות והודעות',
+        name: 'screensmart',
+        short_name: 'screensmart',
+        description: 'screensmart — מסך תצוגה לבתי כנסת: זמנים, תפילות והודעות',
         theme_color: '#1a3a4a',
         background_color: '#f7f5f0',
         display: 'fullscreen',

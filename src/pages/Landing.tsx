@@ -11,7 +11,7 @@ export function Landing() {
   return (
     <div className="landing" dir="rtl" lang="he">
       <header className="landing-nav">
-        <p className="landing-nav-brand">smartscreen</p>
+        <p className="landing-nav-brand">screensmart</p>
         <a className="landing-nav-cta" href={WHATSAPP} target="_blank" rel="noreferrer">
           דברו איתנו
         </a>
@@ -19,7 +19,7 @@ export function Landing() {
 
       <section className="landing-hero" aria-label="פתיחה">
         <div className="landing-hero-copy">
-          <p className="landing-brand">smartscreen</p>
+          <p className="landing-brand">screensmart</p>
           <h1>המסך שבית הכנסת שלכם צריך</h1>
           <p className="landing-lead">
             זמני תפילה, הודעות ופיקוד העורף — על מסך אחד, מנוהל מהטלפון.
@@ -141,7 +141,7 @@ export function Landing() {
       <section className="landing-section landing-contact" id="contact">
         <h2>מוכנים להתחיל?</h2>
         <p className="landing-section-lead">
-          smartscreen · נחזור אליכם מהר, בעברית, בלי לחץ.
+          screensmart · נחזור אליכם מהר, בעברית, בלי לחץ.
         </p>
         <div className="landing-cta-row">
           <a className="landing-btn primary" href={WHATSAPP} target="_blank" rel="noreferrer">

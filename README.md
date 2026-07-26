@@ -1,4 +1,4 @@
-# smartscreen — מסך בית כנסת
+# screensmart — מסך בית כנסת
 
 תוכנה להצגת מסך דיגיטלי בבתי כנסת — גרסה 0.3.
 
@@ -75,10 +75,10 @@ npm run dist
 cd screen
 git init
 git add .
-git commit -m "Initial commit: smartscreen app"
+git commit -m "Initial commit: screensmart app"
 # צור ריפו ריק ב-GitHub ואז:
 git branch -M main
-git remote add origin https://github.com/USER/smartscreen.git
+git remote add origin https://github.com/USER/screensmart.git
 git push -u origin main
 ```
 

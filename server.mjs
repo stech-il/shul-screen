@@ -76,7 +76,7 @@ function proxyOref(res) {
         Referer: 'https://www.oref.org.il/',
         'X-Requested-With': 'XMLHttpRequest',
         Accept: 'application/json',
-        'User-Agent': 'smartscreen/0.3',
+        'User-Agent': 'screensmart/0.3',
       },
     },
     (upstream) => {
@@ -354,7 +354,7 @@ if (!fs.existsSync(DIST)) {
 
 server.listen(PORT, () => {
   const st = statusPayload();
-  console.log(`smartscreen listening on :${PORT}`);
+  console.log(`screensmart listening on :${PORT}`);
   console.log(
     `Cloud DB: ${st.backend}${st.persistent ? ` (${st.repo})` : ' — set CLOUD_GITHUB_TOKEN for durable storage'}`,
   );
