@@ -4,14 +4,9 @@ import { CITIES, getCity } from '../data/cities';
 import { createDefaultConfig } from '../data/defaults';
 import { enterAsPlatformAdmin, hashPassword } from '../lib/auth';
 import {
-  DEMO_LICENSE_KEYS,
   daysLeft,
   isLicenseValid,
-  licenseLabel,
-  loadGlobalLicense,
-  parseLicenseKey,
   renewScreenLicense,
-  saveGlobalLicense,
   setScreenLicenseLocked,
 } from '../lib/license';
 import {
@@ -55,7 +50,7 @@ import {
   restoreBackup,
   type BackupItem,
 } from '../lib/backups';
-import type { LicenseInfo, ScreenHeartbeat, SynagogueConfig } from '../types';
+import type { ScreenHeartbeat, SynagogueConfig } from '../types';
 import './Agency.css';
 
 function slugify(name: string) {
@@ -84,8 +79,6 @@ type Modal =
 export function Agency() {
   const navigate = useNavigate();
   const [platformOk, setPlatformOk] = useState(() => isPlatformAdminLoggedIn());
-  const [license, setLicense] = useState(() => loadGlobalLicense());
-  const [licenseKey, setLicenseKey] = useState('');
   const [tick, setTick] = useState(0);
   const [msg, setMsg] = useState('');
   const [query, setQuery] = useState('');
@@ -102,7 +95,6 @@ export function Agency() {
   const [name, setName] = useState('');
   const [cityId, setCityId] = useState('petah-tikva');
   const [editName, setEditName] = useState('');
-  const [licPlan, setLicPlan] = useState<LicenseInfo['plan']>('basic');
   const [licMonths, setLicMonths] = useState(12);
   const [resetMemberId, setResetMemberId] = useState('');
   const [resetPassword, setResetPassword] = useState('admin123');
@@ -253,23 +245,6 @@ export function Agency() {
   function refresh(note?: string) {
     setTick((t) => t + 1);
     if (note) setMsg(note);
-  }
-
-  function activateLicense(e: FormEvent) {
-    e.preventDefault();
-    if (!isPlatformAdminLoggedIn()) {
-      setMsg('יש להתחבר כמנהל מערכת לפני הפעלת רישיון');
-      setPlatformOk(false);
-      return;
-    }
-    const parsed = parseLicenseKey(licenseKey);
-    if (!parsed) {
-      setMsg('מפתח רישיון לא תקין');
-      return;
-    }
-    saveGlobalLicense(parsed);
-    setLicense(parsed);
-    setMsg(`הופעל רישיון ${licenseLabel(parsed.plan)}`);
   }
 
   async function onChangePassword(e: FormEvent) {
@@ -537,9 +512,6 @@ export function Agency() {
       setMsg('בית הכנסת לא נמצא');
       return;
     }
-    setLicPlan(
-      license?.plan === 'pro' || license?.plan === 'agency' ? 'pro' : 'basic',
-    );
     setLicMonths(12);
     setModal({ kind: 'license', config: local.config });
   }
@@ -550,20 +522,20 @@ export function Agency() {
     setBusy(true);
     const issued = renewScreenLicense(
       modal.config.id,
-      licPlan,
+      'basic',
       licMonths,
       modal.config.name,
     );
     const next = { ...modal.config, license: issued };
     await saveConfig(next, undefined, {
       by: `platform:${loadPlatformSession()?.username ?? 'admin'}`,
-      summary: `הנפקת רישיון ${licenseLabel(licPlan)} ל־${licMonths} חודשים`,
+      summary: `הנפקת רישיון ל־${licMonths} חודשים`,
     });
     setBusy(false);
     setModal(null);
     const left = daysLeft(issued);
     refresh(
-      `הופעל «${modal.config.name}» · ${licenseLabel(licPlan)} · ${left ?? licMonths * 30} ימים`,
+      `הופעל «${modal.config.name}» · ${left ?? licMonths * 30} ימים`,
     );
   }
 
@@ -670,13 +642,7 @@ export function Agency() {
         <div>
           <p className="agency-brand">Shul Screen</p>
           <h1>ניהול בתי כנסת</h1>
-          <p className="agency-sub">
-            {loadPlatformSession()?.username}
-            {' · '}
-            {license && isLicenseValid(license)
-              ? `רישיון ${licenseLabel(license.plan)}`
-              : 'אין רישיון סוכנות פעיל'}
-          </p>
+          <p className="agency-sub">{loadPlatformSession()?.username}</p>
         </div>
         <div className="agency-top-actions">
           <button
@@ -804,11 +770,9 @@ export function Agency() {
                         {locked
                           ? 'מושבת'
                           : licensed
-                            ? `${licenseLabel(c.license!.plan)}${
-                                daysLeft(c.license) != null
-                                  ? ` · ${daysLeft(c.license)} ימים`
-                                  : ''
-                              }`
+                            ? daysLeft(c.license) != null
+                              ? `פעיל · ${daysLeft(c.license)} ימים`
+                              : 'פעיל'
                             : 'לא הופעל'}
                       </span>
                       <span className="tag">{c.layout === 'canvas' ? 'בונה מסך' : c.layout}</span>
@@ -935,35 +899,6 @@ export function Agency() {
         </section>
 
         <aside className="agency-side">
-          <form className="side-card" onSubmit={activateLicense}>
-            <h2>רישיון סוכנות</h2>
-            <p className="hint">
-              {license && isLicenseValid(license)
-                ? `פעיל: ${licenseLabel(license.plan)}`
-                : 'הפעל מפתח כדי לנהל סוכנות'}
-            </p>
-            <label>
-              מפתח
-              <input
-                value={licenseKey}
-                onChange={(e) => setLicenseKey(e.target.value)}
-                placeholder="SHUL-..."
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-              />
-            </label>
-            <div className="demo-keys">
-              {DEMO_LICENSE_KEYS.map((k) => (
-                <button key={k} type="button" onClick={() => setLicenseKey(k)}>
-                  {k}
-                </button>
-              ))}
-            </div>
-            <button type="submit" className="btn primary">
-              הפעל רישיון
-            </button>
-          </form>
-
           <div className="side-card">
             <h2>דיסק ענן (Render)</h2>
             {diskStatus ? (
@@ -1156,27 +1091,19 @@ export function Agency() {
               <form onSubmit={(e) => void confirmLicense(e)}>
                 <h2>הפעלה לפי תשלום</h2>
                 <p className="hint">
-                  «{modal.config.name}» — בחר מסלול ותקופה ששולמו. הלקוח לא רואה מפתח רישיון.
+                  «{modal.config.name}» — בחר תקופה ששולמה. הלקוח לא רואה מפתח רישיון.
                 </p>
                 {modal.config.license ? (
                   <p className="hint">
-                    נוכחי: {licenseLabel(modal.config.license.plan)}
+                    נוכחי:
                     {daysLeft(modal.config.license) != null
-                      ? ` · נותרו ${daysLeft(modal.config.license)} ימים`
+                      ? ` נותרו ${daysLeft(modal.config.license)} ימים`
+                      : ' פעיל'}
+                    {modal.config.license.expiresAt
+                      ? ` · עד ${formatBillingDate(modal.config.license.expiresAt)}`
                       : ''}
                   </p>
                 ) : null}
-                <label>
-                  מסלול
-                  <select
-                    value={licPlan}
-                    onChange={(e) => setLicPlan(e.target.value as LicenseInfo['plan'])}
-                  >
-                    <option value="trial">ניסיון</option>
-                    <option value="basic">בסיסי</option>
-                    <option value="pro">מקצועי</option>
-                  </select>
-                </label>
                 <label>
                   תוקף לפי תשלום
                   <select
