@@ -8,7 +8,7 @@ import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { MediaPickerField, GalleryManager } from '../components/MediaPicker';
 import { CITIES } from '../data/cities';
 import { NUSACH_TEMPLATES, applyNusachTemplate } from '../data/nusach';
-import { ZMAN_DEFS, getZmanLabel, type ZmanKey } from '../data/zmanim';
+import { ZMAN_DEFS, type ZmanKey } from '../data/zmanim';
 import { createDefaultConfig } from '../data/defaults';
 import {
   canEditContent,
@@ -133,7 +133,6 @@ export function Admin({ synagogueId }: Props) {
   const [previewZmanimMap, setPreviewZmanimMap] = useState<HebcalZmanimResult['times']>({});
   const [previewShabbatZmanimMap, setPreviewShabbatZmanimMap] =
     useState<HebcalZmanimResult['times']>({});
-  const [zmanDragIndex, setZmanDragIndex] = useState<number | null>(null);
   const [itemDrag, setItemDrag] = useState<{ blockId: string; index: number } | null>(null);
 
   const setConfig = (
@@ -427,23 +426,6 @@ export function Admin({ synagogueId }: Props) {
           : [...c.enabledZmanim, key],
       };
     });
-  }
-
-  function reorderZmanim(from: number, to: number) {
-    if (from === to || from < 0 || to < 0) return;
-    setConfig((c) => {
-      if (!c) return c;
-      const list = [...c.enabledZmanim];
-      if (from >= list.length || to >= list.length) return c;
-      const [moved] = list.splice(from, 1);
-      if (!moved) return c;
-      list.splice(to, 0, moved);
-      return { ...c, enabledZmanim: list };
-    });
-  }
-
-  function moveZman(index: number, dir: -1 | 1) {
-    reorderZmanim(index, index + dir);
   }
 
   function updateAnnouncement(id: string, patch: Partial<Announcement>) {
@@ -1460,67 +1442,6 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'zmanim' ? (
           <section className="card wide">
             <h2>זמני היום</h2>
-
-            {config.enabledZmanim.length ? (
-              <ol className="zman-order-list" aria-label="סדר זמנים">
-                {config.enabledZmanim.map((key, index) => (
-                  <li
-                    key={key}
-                    className={`zman-order-item ${zmanDragIndex === index ? 'dragging' : ''}`}
-                    draggable
-                    onDragStart={() => setZmanDragIndex(index)}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'move';
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (zmanDragIndex == null) return;
-                      reorderZmanim(zmanDragIndex, index);
-                      setZmanDragIndex(null);
-                    }}
-                    onDragEnd={() => setZmanDragIndex(null)}
-                  >
-                    <span className="zman-drag-handle" title="גרור לשינוי סדר" aria-hidden>
-                      ⋮⋮
-                    </span>
-                    <span className="zman-order-num">{index + 1}</span>
-                    <strong>{getZmanLabel(key)}</strong>
-                    <div className="zman-order-actions">
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        disabled={index === 0}
-                        onClick={() => moveZman(index, -1)}
-                        aria-label="העלה למעלה"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        disabled={index >= config.enabledZmanim.length - 1}
-                        onClick={() => moveZman(index, 1)}
-                        aria-label="הורד למטה"
-                      >
-                        ↓
-                      </button>
-                      <button
-                        type="button"
-                        className="btn danger"
-                        onClick={() => toggleZman(key)}
-                      >
-                        הסר
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="hint">עדיין לא נבחרו זמנים — סמן למטה</p>
-            )}
-
-            <h3 className="zman-pick-title">בחירת זמנים</h3>
             <div className="chips">
               {ZMAN_DEFS.map((z) => (
                 <label
