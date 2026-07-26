@@ -7,7 +7,13 @@ import { PlatformLogin } from './pages/PlatformLogin';
 
 function DisplayRoute() {
   const { id = 'amishav' } = useParams();
-  return <Display synagogueId={id} />;
+  let synagogueId = id;
+  try {
+    synagogueId = decodeURIComponent(id);
+  } catch {
+    /* keep raw id */
+  }
+  return <Display synagogueId={synagogueId} />;
 }
 
 function AdminRoute() {

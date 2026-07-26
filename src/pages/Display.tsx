@@ -126,11 +126,14 @@ export function Display({ synagogueId }: Props) {
     }, 3000);
   }, [config?.cityId, config?.showOrefAlerts, config?.orefAreaExtra, config?.modes.orefSound, config?.modes.muteOrefOnShabbat, config?.id]);
 
+  // Heartbeat as soon as the route id is known (don't wait for cloud config),
+  // so Agency can see "online" even while the screen is still loading.
   useEffect(() => {
-    if (!config) return;
-    trackEvent(config.id, 'display_open', config.layout);
-    return startHeartbeat(config.id, () => config.layout);
-  }, [config?.id, config?.layout]);
+    if (!synagogueId) return;
+    const id = decodeURIComponent(synagogueId);
+    trackEvent(id, 'display_open', config?.layout || 'loading');
+    return startHeartbeat(id, () => config?.layout || 'loading');
+  }, [synagogueId, config?.layout]);
 
   useEffect(() => {
     if (!config) return;

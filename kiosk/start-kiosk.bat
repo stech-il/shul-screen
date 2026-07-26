@@ -17,4 +17,9 @@ if not exist "%CHROME%" set "CHROME=%ProgramFiles(x86)%\Microsoft\Edge\Applicati
 rem השהיה קצרה כדי לאפשר לרשת לעלות אחרי הדלקת המחשב
 timeout /t 15 /nobreak >nul
 
+rem נקה מטמון PWA/Service Worker כדי שהמסך תמיד יטען את הגרסה החדשה מ-Render
+if exist "%PROFILE%\Default\Service Worker" rmdir /s /q "%PROFILE%\Default\Service Worker" 2>nul
+if exist "%PROFILE%\Default\Cache" rmdir /s /q "%PROFILE%\Default\Cache" 2>nul
+if exist "%PROFILE%\Default\Code Cache" rmdir /s /q "%PROFILE%\Default\Code Cache" 2>nul
+
 start "" "%CHROME%" --kiosk --start-fullscreen --user-data-dir="%PROFILE%" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --autoplay-policy=no-user-gesture-required "%URL%"
