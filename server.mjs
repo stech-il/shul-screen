@@ -9,12 +9,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   cloudConfigured,
-  deleteBundle,
   getBundle,
   getDesignTemplates,
   getMediaFile,
   listBundles,
   listHeartbeats,
+  purgeSynagogueData,
   putBundle,
   putDesignTemplates,
   putHeartbeat,
@@ -331,8 +331,8 @@ async function handleCloud(req, res, url) {
     }
 
     if (req.method === 'DELETE') {
-      await deleteBundle(id);
-      sendJson(res, 200, { ok: true });
+      const summary = await purgeSynagogueData(id);
+      sendJson(res, 200, { ok: true, purged: summary });
       return;
     }
 

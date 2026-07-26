@@ -731,33 +731,61 @@ function removeFromIndex(id: string) {
   );
 }
 
-/** Delete a synagogue locally (and from Supabase when configured). */
+/** Delete a synagogue locally + purge all server disk data (media, backups, billing…). */
 export async function deleteSynagogue(
   id: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; purged?: Record<string, unknown> }> {
   localStorage.removeItem(key(id));
   localStorage.removeItem(CLOUD_PREFIX + id);
   localStorage.removeItem(`shul-screen:history:${id}`);
   localStorage.removeItem(`shul-screen:heartbeat:${id}`);
   localStorage.removeItem(`shul-screen:live-bump:${id}`);
+  try {
+    localStorage.removeItem(`screensmart:admin-tab:${id}`);
+  } catch {
+    /* ignore */
+  }
   setQueue(getQueue().filter((x) => x !== id));
   removeFromIndex(id);
+
+  const notes: string[] = [];
+  let purged: Record<string, unknown> | undefined;
 
   if (isSupabaseConfigured && navigator.onLine) {
     const sb = getSupabase();
     if (sb) {
       const { error } = await sb.from('synagogues').delete().eq('id', id);
-      if (error) {
-        return { ok: true, error: `נמחק מקומית · ענן: ${error.message}` };
-      }
-      // Best-effort cleanup of related rows; ignore failures
+      if (error) notes.push(`Supabase: ${error.message}`);
       await sb.from('screen_heartbeats').delete().eq('synagogue_id', id);
       await sb.from('analytics_events').delete().eq('synagogue_id', id);
     }
-  } else if (await isServerCloudAvailable()) {
-    await deleteServerCloud(id);
   }
-  return { ok: true };
+
+  // Always purge Render/disk cloud when available (media, backups, HOK, inquiries…)
+  if (await isServerCloudAvailable()) {
+    try {
+      const res = await fetch(`/api/cloud/synagogues/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        purged?: Record<string, unknown>;
+      };
+      if (!res.ok) {
+        notes.push(body.error || `מחיקת דיסק נכשלה (${res.status})`);
+      } else {
+        purged = body.purged;
+      }
+    } catch (err) {
+      notes.push(err instanceof Error ? err.message : 'מחיקת דיסק נכשלה');
+    }
+  }
+
+  return {
+    ok: true,
+    error: notes.length ? notes.join(' · ') : undefined,
+    purged,
+  };
 }
 
 export async function renameSynagogue(

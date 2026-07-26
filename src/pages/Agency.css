@@ -618,6 +618,14 @@ a.stat.has-unread strong {
   color: var(--warn);
 }
 
+.delete-purge-list {
+  margin: 0.35rem 0 0.75rem;
+  padding-inline-start: 1.2rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
 .demo-keys {
   display: flex;
   flex-direction: column;

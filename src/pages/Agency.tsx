@@ -87,7 +87,7 @@ type Modal =
     }
   | { kind: 'rename'; config: SynagogueConfig }
   | { kind: 'duplicate'; config: SynagogueConfig }
-  | { kind: 'delete'; config: SynagogueConfig }
+  | { kind: 'delete'; config: SynagogueConfig; step: 1 | 2 }
   | { kind: 'license'; config: SynagogueConfig }
   | { kind: 'resetPassword'; config: SynagogueConfig }
   | { kind: 'billing'; config: SynagogueConfig }
@@ -109,6 +109,7 @@ export function Agency() {
   const [newPass, setNewPass] = useState('');
   const [pwdMsg, setPwdMsg] = useState('');
 
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [name, setName] = useState('');
   const [cityId, setCityId] = useState('petah-tikva');
   const [contactEmail, setContactEmail] = useState('');
@@ -757,14 +758,31 @@ export function Agency() {
 
   async function confirmDelete() {
     if (!modal || modal.kind !== 'delete') return;
+    if (modal.step === 1) {
+      setDeleteConfirmText('');
+      setModal({ ...modal, step: 2 });
+      return;
+    }
+    const expected = modal.config.name.trim();
+    if (deleteConfirmText.trim() !== expected) {
+      setMsg('יש להקליד את שם בית הכנסת בדיוק כפי שמופיע לאישור המחיקה');
+      return;
+    }
     setBusy(true);
     const result = await deleteSynagogue(modal.config.id);
     setBusy(false);
     setModal(null);
+    setDeleteConfirmText('');
+    const purged = result.purged as
+      | { mediaFiles?: number; backupFiles?: number; inquiries?: number }
+      | undefined;
+    const extra = purged
+      ? ` · ${purged.mediaFiles || 0} מדיה · ${purged.backupFiles || 0} גיבויים · ${purged.inquiries || 0} פניות`
+      : '';
     refresh(
       result.error
-        ? `נמחק «${modal.config.name}» · ${result.error}`
-        : `נמחק «${modal.config.name}»`,
+        ? `נמחק «${modal.config.name}»${extra} · ${result.error}`
+        : `נמחק לצמיתות «${modal.config.name}»${extra}`,
     );
   }
 
@@ -1212,7 +1230,8 @@ export function Agency() {
                               role="menuitem"
                               className="danger"
                               onClick={() => {
-                                setModal({ kind: 'delete', config: c });
+                                setDeleteConfirmText('');
+                                setModal({ kind: 'delete', config: c, step: 1 });
                                 setMoreOpenId(null);
                               }}
                             >
@@ -1404,23 +1423,77 @@ export function Agency() {
             {modal.kind === 'delete' ? (
               <div>
                 <h2>מחיקת בית כנסת</h2>
-                <p className="hint warn">
-                  למחוק לצמיתות את «{modal.config.name}»? הפעולה מסירה הגדרות, היסטוריה ומטמון
-                  מקומי.
-                </p>
-                <div className="modal-actions">
-                  <button type="button" className="btn ghost" onClick={() => setModal(null)}>
-                    ביטול
-                  </button>
-                  <button
-                    type="button"
-                    className="btn danger"
-                    disabled={busy}
-                    onClick={() => void confirmDelete()}
-                  >
-                    {busy ? 'מוחק…' : 'מחק לצמיתות'}
-                  </button>
-                </div>
+                {modal.step === 1 ? (
+                  <>
+                    <p className="hint warn">
+                      אזהרה 1 מתוך 2 — פעולה בלתי הפיכה.
+                    </p>
+                    <p className="hint">
+                      מחיקת «<strong>{modal.config.name}</strong>» תמחק{' '}
+                      <strong>הכל</strong> שקשור למסך זה:
+                    </p>
+                    <ul className="delete-purge-list">
+                      <li>הגדרות המסך והעיצוב</li>
+                      <li>כל קבצי המדיה בדיסק (תמונות, וידאו, פונטים)</li>
+                      <li>גיבויים</li>
+                      <li>הוראת קבע / רשומות חיוב</li>
+                      <li>פניות ותשובות של בית הכנסת</li>
+                      <li>תבניות אישיות וסטטוס מסך</li>
+                    </ul>
+                    <div className="modal-actions">
+                      <button type="button" className="btn ghost" onClick={() => setModal(null)}>
+                        ביטול
+                      </button>
+                      <button
+                        type="button"
+                        className="btn danger"
+                        onClick={() => void confirmDelete()}
+                      >
+                        המשך לאזהרה השנייה
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="hint warn">
+                      אזהרה 2 מתוך 2 — הקלידו את שם בית הכנסת לאישור סופי.
+                    </p>
+                    <p className="hint">
+                      הקלידו בדיוק: <strong>{modal.config.name}</strong>
+                    </p>
+                    <label>
+                      שם לאישור מחיקה
+                      <input
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        autoFocus
+                        placeholder={modal.config.name}
+                      />
+                    </label>
+                    <div className="modal-actions">
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() => {
+                          setDeleteConfirmText('');
+                          setModal({ ...modal, step: 1 });
+                        }}
+                      >
+                        חזרה
+                      </button>
+                      <button
+                        type="button"
+                        className="btn danger"
+                        disabled={
+                          busy || deleteConfirmText.trim() !== modal.config.name.trim()
+                        }
+                        onClick={() => void confirmDelete()}
+                      >
+                        {busy ? 'מוחק הכל…' : 'מחק הכל לצמיתות'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : null}
 

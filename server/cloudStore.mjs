@@ -93,6 +93,40 @@ export async function putRecord(prefix, id, record) {
   }
 }
 
+export async function deleteRecord(prefix, id) {
+  const p = recordPath(prefix, id);
+  if (fs.existsSync(p)) {
+    try {
+      fs.unlinkSync(p);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!GH_TOKEN) return;
+  try {
+    const existing = await ghGetRecord(prefix, id).catch(() => null);
+    if (!existing?.sha) return;
+    const res = await ghFetch(
+      `/repos/${GH_REPO}/contents/${prefix}/${encodeURIComponent(id)}.json`,
+      {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `delete ${prefix}/${id}`,
+          sha: existing.sha,
+          branch: GH_BRANCH,
+        }),
+      },
+    );
+    if (!res.ok && res.status !== 404) {
+      const text = await res.text();
+      console.warn(`GitHub delete ${prefix}/${id}:`, text.slice(0, 160));
+    }
+  } catch (err) {
+    console.warn(`deleteRecord ${prefix}/${id}`, err);
+  }
+}
+
 export async function listRecords(prefix) {
   if (GH_TOKEN) {
     try {
@@ -328,6 +362,141 @@ export async function deleteBundle(id) {
   if (GH_TOKEN) {
     await ghDelete(id);
   }
+}
+
+function safeOwnerId(synagogueId) {
+  return String(synagogueId || '')
+    .replace(/[^a-zA-Z0-9_\u0590-\u05FF-]/g, '_')
+    .slice(0, 80);
+}
+
+function rmTree(dir) {
+  if (!dir || !fs.existsSync(dir)) return { files: 0, bytes: 0 };
+  let files = 0;
+  let bytes = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const nested = rmTree(full);
+      files += nested.files;
+      bytes += nested.bytes;
+    } else {
+      try {
+        bytes += fs.statSync(full).size;
+        fs.unlinkSync(full);
+        files += 1;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  try {
+    fs.rmdirSync(dir);
+  } catch {
+    /* ignore */
+  }
+  return { files, bytes };
+}
+
+/**
+ * Full wipe of a synagogue: config bundle + media + backups + billing +
+ * heartbeats + inquiries + notify-log + per-screen templates.
+ */
+export async function purgeSynagogueData(synagogueId) {
+  const id = String(synagogueId || '').trim();
+  if (!id) throw new Error('חסר מזהה בית כנסת');
+  const safe = safeOwnerId(id);
+  const summary = {
+    synagogueId: id,
+    mediaFiles: 0,
+    mediaBytes: 0,
+    backupFiles: 0,
+    inquiries: 0,
+    records: [],
+  };
+
+  // Cancel SUMIT standing order best-effort
+  try {
+    const billing = await getRecord('billing', id);
+    if (billing?.recurringItemId && process.env.SUMIT_API_KEY) {
+      await fetch('https://api.sumit.co.il/billing/recurring/cancel/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Language': 'he' },
+        body: JSON.stringify({
+          Credentials: {
+            CompanyID: Number(process.env.SUMIT_COMPANY_ID || 0),
+            APIKey: String(process.env.SUMIT_API_KEY || '').trim(),
+          },
+          RecurringCustomerItemID: billing.recurringItemId,
+        }),
+      }).catch(() => null);
+    }
+  } catch {
+    /* ignore */
+  }
+
+  const media = rmTree(path.join(ROOT_DIR, 'media', safe));
+  summary.mediaFiles = media.files;
+  summary.mediaBytes = media.bytes;
+
+  const backups = rmTree(path.join(ROOT_DIR, 'backups', safe));
+  summary.backupFiles = backups.files;
+
+  for (const prefix of ['billing', 'heartbeats', 'notify-log', 'templates']) {
+    try {
+      const before = await getRecord(prefix, id);
+      if (before || fs.existsSync(recordPath(prefix, id)) || fs.existsSync(recordPath(prefix, safe))) {
+        await deleteRecord(prefix, id);
+        if (safe !== id) await deleteRecord(prefix, safe);
+        summary.records.push(prefix);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Inquiries belonging to this synagogue
+  try {
+    const all = await listRecords('inquiries');
+    for (const rec of all) {
+      const sid = String(rec?.synagogueId || '');
+      if (sid === id || safeOwnerId(sid) === safe) {
+        const inqId = rec.id || rec.synagogueId;
+        if (inqId) {
+          await deleteRecord('inquiries', inqId);
+          summary.inquiries += 1;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('purge inquiries', err);
+  }
+
+  // Legacy shared template list — drop items tagged to this synagogue
+  try {
+    const shared = await getRecord('templates', 'list');
+    if (Array.isArray(shared?.items) && shared.items.length) {
+      const next = shared.items.filter((t) => {
+        const tid = String(t?.synagogueId || '');
+        return tid && tid !== id && safeOwnerId(tid) !== safe;
+      });
+      // If items have no synagogueId they were global — leave them unless empty filter kept all
+      const untagged = shared.items.filter((t) => !t?.synagogueId);
+      const merged = [...next, ...untagged];
+      if (merged.length !== shared.items.length) {
+        await putRecord('templates', 'list', {
+          ...shared,
+          items: merged,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  await deleteBundle(id);
+  return summary;
 }
 
 // —— Binary media files on persistent disk (Render Disk / DATA_DIR) ——

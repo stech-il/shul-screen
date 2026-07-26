@@ -215,8 +215,8 @@ export function cloudApiPlugin(): Plugin {
           }
 
           if (req.method === 'DELETE') {
-            await store.deleteBundle(id);
-            send(200, { ok: true });
+            const summary = await store.purgeSynagogueData(id);
+            send(200, { ok: true, purged: summary });
             return;
           }
 
