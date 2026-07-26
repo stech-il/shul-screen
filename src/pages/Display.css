@@ -133,6 +133,13 @@
   animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* After first paint — never replay opacity-0 entrance (blinks on live updates). */
+.display.is-settled.motion-subtle .panel,
+.display.is-settled.motion-rich .panel,
+.display.is-settled.motion-rich .brand h1 {
+  animation: none;
+}
+
 @keyframes rise {
   from {
     opacity: 0;

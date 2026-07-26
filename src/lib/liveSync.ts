@@ -140,7 +140,8 @@ export function subscribeLiveUpdates(
   };
 
   pollOnce();
-  const poll = window.setInterval(pollOnce, 2000);
+  // 10s is plenty for admin→screen updates and avoids constant cloud chatter.
+  const poll = window.setInterval(pollOnce, 10_000);
 
   const onVisible = () => {
     if (document.visibilityState === 'visible') pollOnce();

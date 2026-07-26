@@ -114,18 +114,27 @@ export function subscribeWeather(
   let stopped = false;
   let currentCity = cityId;
 
+  let lastKey = '';
+
+  function emit(w: WeatherData) {
+    const key = `${w.tempC}|${w.description}|${w.source}`;
+    if (key === lastKey) return;
+    lastKey = key;
+    onUpdate(w);
+  }
+
   async function refresh(force = false) {
     if (stopped) return;
     const cached = loadCache(currentCity);
     if (!force && cached && isFresh(cached) && navigator.onLine === false) {
-      onUpdate({ ...cached, source: 'cache' });
+      emit({ ...cached, source: 'cache' });
       return;
     }
     // Show cache immediately while fetching
-    if (cached && !force) onUpdate({ ...cached, source: 'cache' });
+    if (cached && !force) emit({ ...cached, source: 'cache' });
 
     const fresh = await fetchWeatherForCity(currentCity);
-    if (!stopped && fresh) onUpdate(fresh);
+    if (!stopped && fresh) emit(fresh);
   }
 
   void refresh(true);

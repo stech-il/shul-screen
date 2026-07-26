@@ -21,7 +21,9 @@ export default defineConfig({
     react(),
     cloudApiPlugin(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' avoids the plugin's automatic full-page reload (that flashes kiosks).
+      // We claim updates ourselves in main.tsx — skip reload on live display routes.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'screensmart',

@@ -62,6 +62,8 @@ export function Display({ synagogueId }: Props) {
   const [exitPin, setExitPin] = useState('');
   const [showExit, setShowExit] = useState(false);
   const [orefMatch, setOrefMatch] = useState<MatchedOrefAlert | null>(null);
+  /** After first entrance animations finish — prevents re-blink on config/weather updates */
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +84,16 @@ export function Display({ synagogueId }: Props) {
 
     live = subscribeLiveUpdates(synagogueId, (next) => {
       if (cancelled) return;
-      setConfig(next);
+      setConfig((prev) => {
+        if (
+          prev &&
+          (prev.revision ?? 0) === (next.revision ?? 0) &&
+          (prev.updatedAt || '') === (next.updatedAt || '')
+        ) {
+          return prev;
+        }
+        return next;
+      });
     });
 
     void load();
@@ -95,6 +106,13 @@ export function Display({ synagogueId }: Props) {
       window.removeEventListener('online', onOnline);
     };
   }, [synagogueId]);
+
+  useEffect(() => {
+    setSettled(false);
+    if (!config) return;
+    const t = window.setTimeout(() => setSettled(true), 900);
+    return () => window.clearTimeout(t);
+  }, [synagogueId, Boolean(config)]);
 
   useEffect(() => {
     ensureCustomFontsLoaded(config?.media?.customFonts);
@@ -278,6 +296,7 @@ export function Display({ synagogueId }: Props) {
     special !== 'normal' ? `special-${special}` : '',
     bgSrc ? 'has-bg-image' : '',
     d.highContrast ? 'high-contrast' : '',
+    settled ? 'is-settled' : '',
   ]
     .filter(Boolean)
     .join(' ');
