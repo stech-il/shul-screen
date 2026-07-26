@@ -1460,9 +1460,6 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'zmanim' ? (
           <section className="card wide">
             <h2>זמני היום</h2>
-            <p className="hint">
-              רשימה שאפשר לבטל — סמנו או בטלו זמנים, וגררו לשנות סדר במסך
-            </p>
 
             {config.enabledZmanim.length ? (
               <ol className="zman-order-list" aria-label="סדר זמנים">
