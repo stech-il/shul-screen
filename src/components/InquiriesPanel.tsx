@@ -160,10 +160,6 @@ export function InquiriesPanel({
       {mode === 'admin' ? (
         <section className="inq-compose card">
           <h2>פתיחת פנייה</h2>
-          <p className="hint">
-            תקלות ותמיכה — השיחה מתנהלת כאן במערכת
-            {synagogueName ? ` · ${synagogueName}` : ''}. מייל הוא רק התראה.
-          </p>
           <form className="inq-form" onSubmit={(e) => void onSubmit(e)}>
             <div className="inq-form-grid">
               <label>
