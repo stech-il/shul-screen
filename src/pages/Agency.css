@@ -342,9 +342,21 @@ a.stat.has-unread strong {
 
 .agency-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.1rem;
   align-items: start;
+}
+
+.agency-body.is-full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.agency-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  align-items: start;
+  animation: agency-rise 0.55s ease both;
 }
 
 .shul-cards {

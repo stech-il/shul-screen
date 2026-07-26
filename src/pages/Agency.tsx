@@ -131,7 +131,7 @@ export function Agency() {
     dataDirSet: boolean;
   } | null>(null);
   const [inquiryUnread, setInquiryUnread] = useState(0);
-  const [agencyView, setAgencyView] = useState<'shuls' | 'inquiries'>('shuls');
+  const [agencyView, setAgencyView] = useState<'shuls' | 'inquiries' | 'settings'>('shuls');
 
   const [heartbeats, setHeartbeats] = useState<ScreenHeartbeat[]>([]);
 
@@ -735,6 +735,15 @@ export function Agency() {
               פניות
               {inquiryUnread > 0 ? <span className="inq-badge">{inquiryUnread}</span> : null}
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={agencyView === 'settings'}
+              className={agencyView === 'settings' ? 'on' : ''}
+              onClick={() => setAgencyView('settings')}
+            >
+              הגדרות מערכת
+            </button>
           </div>
           <button
             type="button"
@@ -794,6 +803,106 @@ export function Agency() {
 
       {agencyView === 'inquiries' ? (
         <InquiriesPanel mode="agency" canManage />
+      ) : agencyView === 'settings' ? (
+        <section className="agency-settings" aria-label="הגדרות מערכת">
+          <div className="side-card">
+            <h2>דיסק ענן (Render)</h2>
+            {diskStatus ? (
+              <p className={`hint ${diskStatus.diskOk && diskStatus.dataDirSet ? '' : 'warn'}`}>
+                {diskStatus.diskOk && diskStatus.dataDirSet
+                  ? `פעיל · ${diskStatus.mediaFileCount} קבצי מדיה · ${diskStatus.billingRecordCount} רשומות הו״ק`
+                  : 'דיסק לא מוגדר כראוי — מדיה/הו״ק עלולים להימחק בפריסה'}
+              </p>
+            ) : (
+              <p className="hint">טוען סטטוס דיסק…</p>
+            )}
+          </div>
+
+          <form className="side-card" onSubmit={(e) => void onSaveAdminEmail(e)}>
+            <h2>מייל חשבונית ברירת מחדל</h2>
+            <p className="hint">
+              משמש כגיבוי בלבד. את מייל החשבונית לכל בית כנסת קובעים בכפתור «הו״ק»
+              של אותו בית כנסת.
+            </p>
+            <label>
+              אימייל
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+                placeholder="admin@example.com"
+              />
+            </label>
+            {adminEmailMsg ? <p className="hint">{adminEmailMsg}</p> : null}
+            <button type="submit" className="btn ghost" disabled={busy}>
+              שמור מייל
+            </button>
+          </form>
+
+          <div className="side-card">
+            <h2>SMTP — התראות מייל</h2>
+            {mailStatus == null ? (
+              <p className="hint">טוען…</p>
+            ) : mailStatus.configured ? (
+              <p className="hint">
+                מחובר · {mailStatus.host || 'שרת'} · מ־{' '}
+                <span dir="ltr">{mailStatus.from}</span>
+              </p>
+            ) : (
+              <p className="hint warn">
+                לא מוגדר — הוסף ב־Render משתני SMTP של תיבת המייל מהדומיין
+                שלך (מייל + סיסמה, בלי מפתח API): SMTP_HOST, SMTP_PORT,
+                SMTP_USER, SMTP_PASS, MAIL_FROM
+              </p>
+            )}
+            <p className="hint">
+              נשלחות התראות על תחילת ניסיון, סיום ניסיון, כשל תשלום, חידוש מוצלח — וגם על
+              פניות חדשות מניהול המסך.
+            </p>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={!mailStatus?.configured || busy}
+              onClick={() => void onTestSmtp()}
+            >
+              שלח מייל בדיקה למנהל
+            </button>
+            {mailTestMsg ? <p className="hint">{mailTestMsg}</p> : null}
+          </div>
+
+          <form className="side-card" onSubmit={onChangePassword}>
+            <h2>סיסמת מנהל מערכת</h2>
+            <label>
+              סיסמה נוכחית
+              <input
+                type="password"
+                value={curPass}
+                onChange={(e) => setCurPass(e.target.value)}
+                required
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              />
+            </label>
+            <label>
+              סיסמה חדשה
+              <input
+                type="password"
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+                required
+                minLength={8}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              />
+            </label>
+            {pwdMsg ? <p className="hint">{pwdMsg}</p> : null}
+            <button type="submit" className="btn ghost">
+              עדכן סיסמה
+            </button>
+          </form>
+        </section>
       ) : (
       <>
       <div className="agency-toolbar">
@@ -825,7 +934,7 @@ export function Agency() {
         </div>
       </div>
 
-      <div className="agency-body">
+      <div className="agency-body is-full">
         <section className="shul-board" aria-label="רשימת בתי כנסת">
           {loadingList && filtered.length === 0 ? (
             <div className="empty-board">
@@ -1035,106 +1144,6 @@ export function Agency() {
             </ul>
           )}
         </section>
-
-        <aside className="agency-side">
-          <div className="side-card">
-            <h2>דיסק ענן (Render)</h2>
-            {diskStatus ? (
-              <p className={`hint ${diskStatus.diskOk && diskStatus.dataDirSet ? '' : 'warn'}`}>
-                {diskStatus.diskOk && diskStatus.dataDirSet
-                  ? `פעיל · ${diskStatus.mediaFileCount} קבצי מדיה · ${diskStatus.billingRecordCount} רשומות הו״ק`
-                  : 'דיסק לא מוגדר כראוי — מדיה/הו״ק עלולים להימחק בפריסה'}
-              </p>
-            ) : (
-              <p className="hint">טוען סטטוס דיסק…</p>
-            )}
-          </div>
-
-          <form className="side-card" onSubmit={(e) => void onSaveAdminEmail(e)}>
-            <h2>מייל חשבונית ברירת מחדל</h2>
-            <p className="hint">
-              משמש כגיבוי בלבד. את מייל החשבונית לכל בית כנסת קובעים בכפתור «הו״ק»
-              של אותו בית כנסת.
-            </p>
-            <label>
-              אימייל
-              <input
-                type="email"
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-                placeholder="admin@example.com"
-              />
-            </label>
-            {adminEmailMsg ? <p className="hint">{adminEmailMsg}</p> : null}
-            <button type="submit" className="btn ghost" disabled={busy}>
-              שמור מייל
-            </button>
-          </form>
-
-          <div className="side-card">
-            <h2>SMTP — התראות מייל</h2>
-            {mailStatus == null ? (
-              <p className="hint">טוען…</p>
-            ) : mailStatus.configured ? (
-              <p className="hint">
-                מחובר · {mailStatus.host || 'שרת'} · מ־{' '}
-                <span dir="ltr">{mailStatus.from}</span>
-              </p>
-            ) : (
-              <p className="hint warn">
-                לא מוגדר — הוסף ב־Render משתני SMTP של תיבת המייל מהדומיין
-                שלך (מייל + סיסמה, בלי מפתח API): SMTP_HOST, SMTP_PORT,
-                SMTP_USER, SMTP_PASS, MAIL_FROM
-              </p>
-            )}
-            <p className="hint">
-              נשלחות התראות על תחילת ניסיון, סיום ניסיון, כשל תשלום, חידוש מוצלח — וגם על
-              פניות חדשות מניהול המסך (למנהל, לפונה, ולמייל בית הכנסת).
-            </p>
-            <button
-              type="button"
-              className="btn ghost"
-              disabled={!mailStatus?.configured || busy}
-              onClick={() => void onTestSmtp()}
-            >
-              שלח מייל בדיקה למנהל
-            </button>
-            {mailTestMsg ? <p className="hint">{mailTestMsg}</p> : null}
-          </div>
-
-          <form className="side-card" onSubmit={onChangePassword}>
-            <h2>סיסמת מנהל מערכת</h2>
-            <label>
-              סיסמה נוכחית
-              <input
-                type="password"
-                value={curPass}
-                onChange={(e) => setCurPass(e.target.value)}
-                required
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-              />
-            </label>
-            <label>
-              סיסמה חדשה
-              <input
-                type="password"
-                value={newPass}
-                onChange={(e) => setNewPass(e.target.value)}
-                required
-                minLength={8}
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-              />
-            </label>
-            {pwdMsg ? <p className="hint">{pwdMsg}</p> : null}
-            <button type="submit" className="btn ghost">
-              עדכן סיסמה
-            </button>
-          </form>
-        </aside>
       </div>
       </>
       )}
