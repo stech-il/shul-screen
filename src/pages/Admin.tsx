@@ -37,7 +37,6 @@ import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
 import { saveDesignTemplate } from '../lib/designTemplates';
 import {
-  isSupabaseConfigured,
   loadLocal,
   pullFromCloud,
   saveConfig,
@@ -76,20 +75,28 @@ type TabId =
   | 'settings'
   | 'users';
 
-const TABS: { id: TabId; label: string; ownerOnly?: boolean }[] = [
-  { id: 'design', label: 'עיצוב', ownerOnly: true },
-  { id: 'canvas', label: 'בונה מסך', ownerOnly: true },
-  { id: 'content', label: 'תוכן' },
-  { id: 'zmanim', label: 'זמנים' },
-  { id: 'announce', label: 'הודעות' },
-  { id: 'yahrzeit', label: 'יארצייט' },
-  { id: 'media', label: 'מדיה', ownerOnly: true },
-  { id: 'nusach', label: 'נוסח', ownerOnly: true },
-  { id: 'modes', label: 'מצבים' },
-  { id: 'live', label: 'תצוגה חיה' },
-  { id: 'history', label: 'היסטוריה', ownerOnly: true },
-  { id: 'settings', label: 'הגדרות' },
-  { id: 'users', label: 'משתמשים', ownerOnly: true },
+type TabGroup = 'daily' | 'studio' | 'system';
+
+const TAB_GROUPS: { id: TabGroup; label: string }[] = [
+  { id: 'daily', label: 'יומי' },
+  { id: 'studio', label: 'עיצוב' },
+  { id: 'system', label: 'מערכת' },
+];
+
+const TABS: { id: TabId; label: string; ownerOnly?: boolean; group: TabGroup }[] = [
+  { id: 'content', label: 'תפילות', group: 'daily' },
+  { id: 'announce', label: 'הודעות', group: 'daily' },
+  { id: 'zmanim', label: 'זמנים', group: 'daily' },
+  { id: 'yahrzeit', label: 'יארצייט', group: 'daily' },
+  { id: 'modes', label: 'שבת ואירוע', group: 'daily' },
+  { id: 'live', label: 'תצוגה מקדימה', group: 'daily' },
+  { id: 'design', label: 'עיצוב', ownerOnly: true, group: 'studio' },
+  { id: 'canvas', label: 'בונה מסך', ownerOnly: true, group: 'studio' },
+  { id: 'media', label: 'מדיה', ownerOnly: true, group: 'studio' },
+  { id: 'nusach', label: 'נוסח', ownerOnly: true, group: 'studio' },
+  { id: 'settings', label: 'הגדרות', group: 'system' },
+  { id: 'users', label: 'משתמשים', ownerOnly: true, group: 'system' },
+  { id: 'history', label: 'היסטוריה', ownerOnly: true, group: 'system' },
 ];
 
 interface Props {
@@ -107,6 +114,14 @@ export function Admin({ synagogueId }: Props) {
   const undo = useUndoHistory<SynagogueConfig>();
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const [passwordReset, setPasswordReset] = useState<{
+    memberId: string;
+    label: string;
+    pass: string;
+    pass2: string;
+  } | null>(null);
   const [newMember, setNewMember] = useState({
     name: '',
     username: '',
@@ -124,7 +139,8 @@ export function Admin({ synagogueId }: Props) {
     if (searchParams.get('billing') === '1' && canEditSettings(loadSession()?.role ?? 'editor')) {
       return 'settings';
     }
-    return canEditSettings(loadSession()?.role ?? 'editor') ? 'design' : 'content';
+    // Always land on daily content — design is for setup, not everyday use
+    return 'content';
   });
   const [kioskPin, setKioskPin] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -142,6 +158,7 @@ export function Admin({ synagogueId }: Props) {
       const next = typeof updater === 'function' ? updater(c) : updater;
       if (c && next && next !== c && !undo.isApplying()) {
         undo.recordBeforeChange(c);
+        queueMicrotask(() => setDirty(true));
       }
       return next;
     });
@@ -177,6 +194,7 @@ export function Admin({ synagogueId }: Props) {
       syncConfig(synagogueId, fallback).then((r) => {
         setConfigRaw(r.bundle.config);
         undo.reset();
+        setDirty(false);
         const mode =
           r.cloudMode === 'supabase'
             ? 'Supabase'
@@ -193,6 +211,16 @@ export function Admin({ synagogueId }: Props) {
     );
     return stop;
   }, [synagogueId]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [dirty]);
 
   useEffect(() => {
     ensureCustomFontsLoaded(config?.media?.customFonts);
@@ -499,29 +527,43 @@ export function Admin({ synagogueId }: Props) {
     if (!isOwner || !config) return;
     const member = config.members.find((m) => m.id === memberId);
     if (!member) return;
-    const nextPass = window.prompt(
-      `סיסמה חדשה עבור ${member.username || member.name}:`,
-      'admin123',
-    );
-    if (nextPass == null) return;
-    if (nextPass.trim().length < 4) {
+    setPasswordReset({
+      memberId,
+      label: member.username || member.name,
+      pass: '',
+      pass2: '',
+    });
+  }
+
+  async function confirmPasswordReset(e: FormEvent) {
+    e.preventDefault();
+    if (!isOwner || !config || !passwordReset) return;
+    if (passwordReset.pass.trim().length < 4) {
       setStatus('סיסמה קצרה מדי (לפחות 4 תווים)');
       return;
     }
-    const passwordHash = await hashPassword(nextPass.trim());
+    if (passwordReset.pass !== passwordReset.pass2) {
+      setStatus('הסיסמאות אינן תואמות');
+      return;
+    }
+    const passwordHash = await hashPassword(passwordReset.pass.trim());
     const nextConfig = {
       ...config,
-      members: config.members.map((m) => (m.id === memberId ? { ...m, passwordHash } : m)),
+      members: config.members.map((m) =>
+        m.id === passwordReset.memberId ? { ...m, passwordHash } : m,
+      ),
     };
     setConfig(nextConfig);
-    setStatus(`שומר סיסמה חדשה ל־${member.username || member.name}…`);
+    setPasswordReset(null);
+    setStatus(`שומר סיסמה חדשה ל־${passwordReset.label}…`);
     const result = await saveConfig(nextConfig, undefined, {
       by: memberName,
-      summary: `איפוס סיסמה ל־${member.username || member.name}`,
+      summary: `איפוס סיסמה ל־${passwordReset.label}`,
     });
+    if (result.ok) setDirty(false);
     setStatus(
       result.ok
-        ? `סיסמה עודכנה ל־${member.username || member.name}`
+        ? `סיסמה עודכנה ל־${passwordReset.label}`
         : result.error ?? 'הסיסמה עודכנה מקומית — לחץ שמור',
     );
     refreshHistory();
@@ -649,15 +691,18 @@ export function Admin({ synagogueId }: Props) {
     if (!result.ok) {
       setStatus(result.error ?? 'השמירה נכשלה — אחסון מלא או שגיאת מדיה');
     } else if (!result.online) {
+      setDirty(false);
       setStatus('נשמר מקומית — יסונכרן אוטומטית כשיהיה אינטרנט');
     } else if (result.pending) {
+      setDirty(false);
       setStatus(
         result.error
           ? `שמירה מקומית — סנכרון נכשל: ${result.error}`
           : 'שמירה מקומית — המתנה לסנכרון ענן',
       );
     } else {
-      setStatus(isSupabaseConfigured ? 'נשמר ב־Supabase ✓' : 'נשמר וסונכרן ✓');
+      setDirty(false);
+      setStatus('נשמר ופורסם למסך ✓');
     }
   }
 
@@ -683,6 +728,7 @@ export function Admin({ synagogueId }: Props) {
   }
 
   function logout() {
+    if (dirty && !confirm('יש שינויים שלא נשמרו. לצאת בכל זאת?')) return;
     clearSession();
     navigate(`/login/${synagogueId}`);
   }
@@ -755,7 +801,7 @@ export function Admin({ synagogueId }: Props) {
             title="בטל (Ctrl+Z)"
             aria-label="בטל שינוי אחרון"
           >
-            חזור אחורה
+            חזור
           </button>
           <button
             className="btn ghost"
@@ -767,36 +813,62 @@ export function Admin({ synagogueId }: Props) {
           >
             קדימה
           </button>
-          <Link className="btn ghost" to={`/display/${synagogueId}`} target="_blank">
-            תצוגה חיה
-          </Link>
           <button className="btn ghost" type="button" onClick={logout}>
             יציאה
           </button>
           <button
-            className="btn primary"
+            className={`btn primary ${dirty ? 'dirty' : ''}`}
             type="button"
             onClick={() => void onSave()}
             disabled={saving}
           >
-            {saving ? 'שומר...' : 'שמור ועדכן מסך'}
+            {saving ? 'שומר...' : dirty ? 'שמור ועדכן מסך · יש שינויים' : 'שמור ועדכן מסך'}
           </button>
         </div>
       </header>
 
       <div className="admin-body">
         <nav className="admin-tabs" aria-label="ניווט ניהול">
-          {TABS.filter((t) => !t.ownerOnly || isOwner).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`tab ${tab === t.id ? 'active' : ''}`}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
+          {TAB_GROUPS.map((group) => {
+            const items = TABS.filter(
+              (t) => t.group === group.id && (!t.ownerOnly || isOwner),
+            );
+            if (!items.length) return null;
+            return (
+              <div key={group.id} className="tab-group">
+                <p className="tab-group-label">{group.label}</p>
+                {items.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`tab ${tab === t.id ? 'active' : ''}`}
+                    onClick={() => setTab(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
+
+        <div className="admin-main">
+        {tab === 'content' || tab === 'announce' || tab === 'live' ? (
+          <div className="admin-quick" role="navigation" aria-label="פעולות מהירות">
+            <button type="button" className={tab === 'content' ? 'on' : ''} onClick={() => setTab('content')}>
+              עדכן תפילות
+            </button>
+            <button type="button" className={tab === 'announce' ? 'on' : ''} onClick={() => setTab('announce')}>
+              פרסם הודעה
+            </button>
+            <button type="button" className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>
+              בדוק מסך
+            </button>
+            <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
+              פתח תצוגה חיה ↗
+            </Link>
+          </div>
+        ) : null}
 
         <div className="admin-grid">
         {tab === 'design' && isOwner ? (
@@ -1072,7 +1144,8 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'modes' ? (
           <>
             <section className="card">
-              <h2>מצבי שבת וחג</h2>
+              <h2>שבת וחג</h2>
+              <p className="hint">הגדרות אוטומטיות לסוף השבוע וחגים</p>
               <label className="check">
                 <input
                   type="checkbox"
@@ -1143,7 +1216,8 @@ export function Admin({ synagogueId }: Props) {
               </label>
             </section>
             <section className="card wide">
-              <h2>מצב מיוחד</h2>
+              <h2>אירוע מיוחד / אבל</h2>
+              <p className="hint">מחליף זמנית את תצוגת המסך הרגילה</p>
               <label>
                 תצוגה
                 <select
@@ -1460,14 +1534,13 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'content' ? (
           <section className="card wide">
             <div className="section-head">
-              <h2>בלוקי תוכן</h2>
+              <h2>תפילות וזמנים במסך</h2>
               <button type="button" className="btn ghost" onClick={addBlock}>
                 + בלוק
               </button>
             </div>
             <p className="hint">
-              שעה קבועה או לפי זמן הלכתי + היסט בדקות. גרור פריטים או השתמש בחצים לשינוי סדר
-              ההצגה במסך
+              הזן כותרת ושעה לכל פריט. לחיצה על «עוד» פותחת הערה, זמן הלכתי וסידור.
             </p>
             {config.blocks.map((block) => (
               <div className="block" key={block.id}>
@@ -1476,6 +1549,7 @@ export function Admin({ synagogueId }: Props) {
                     className="block-title"
                     value={block.title}
                     onChange={(e) => updateBlock(block.id, { title: e.target.value })}
+                    placeholder="שם הבלוק (למשל שחרית)"
                   />
                   <label className="check">
                     <input
@@ -1486,118 +1560,149 @@ export function Admin({ synagogueId }: Props) {
                     פעיל
                   </label>
                 </div>
-                {block.items.map((item, index) => (
-                  <div
-                    className={`item-row ${item.noTime ? 'no-time' : ''} ${
-                      itemDrag?.blockId === block.id && itemDrag.index === index ? 'dragging' : ''
-                    }`}
-                    key={item.id}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => {
-                      if (!itemDrag || itemDrag.blockId !== block.id) return;
-                      reorderItem(block.id, itemDrag.index, index);
-                      setItemDrag(null);
-                    }}
-                  >
-                    <span
-                      className="item-drag-handle"
-                      title="גרור לשינוי סדר"
-                      aria-label="גרור לשינוי סדר"
-                      draggable
-                      onDragStart={() => setItemDrag({ blockId: block.id, index })}
-                      onDragEnd={() => setItemDrag(null)}
+                {block.items.map((item, index) => {
+                  const open = expandedItemId === item.id;
+                  return (
+                    <div
+                      className={`item-row compact ${item.noTime ? 'no-time' : ''} ${
+                        itemDrag?.blockId === block.id && itemDrag.index === index
+                          ? 'dragging'
+                          : ''
+                      } ${open ? 'is-open' : ''}`}
+                      key={item.id}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (!itemDrag || itemDrag.blockId !== block.id) return;
+                        reorderItem(block.id, itemDrag.index, index);
+                        setItemDrag(null);
+                      }}
                     >
-                      ⋮⋮
-                    </span>
-                    <div className="item-order-actions">
-                      <button
-                        type="button"
-                        className="btn ghost item-move"
-                        aria-label="העבר למעלה"
-                        disabled={index === 0}
-                        onClick={() => moveItem(block.id, index, -1)}
+                      <span
+                        className="item-drag-handle"
+                        title="גרור לשינוי סדר"
+                        aria-label="גרור לשינוי סדר"
+                        draggable
+                        onDragStart={() => setItemDrag({ blockId: block.id, index })}
+                        onDragEnd={() => setItemDrag(null)}
                       >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="btn ghost item-move"
-                        aria-label="העבר למטה"
-                        disabled={index >= block.items.length - 1}
-                        onClick={() => moveItem(block.id, index, 1)}
-                      >
-                        ↓
-                      </button>
-                    </div>
-                    <input
-                      value={item.title}
-                      onChange={(e) => updateItem(block.id, item.id, { title: e.target.value })}
-                      placeholder={item.noTime ? 'כותרת / הערה (בלי שעה)' : 'כותרת'}
-                    />
-                    <input
-                      value={item.note ?? ''}
-                      onChange={(e) => updateItem(block.id, item.id, { note: e.target.value })}
-                      placeholder="הערה"
-                    />
-                    {item.noTime ? (
-                      <span className="item-hint">שורה ממורכזת בלי שעה</span>
-                    ) : (
-                      <>
-                        <select
-                          value={item.fromZman ?? ''}
-                          onChange={(e) =>
-                            updateItem(block.id, item.id, {
-                              fromZman: (e.target.value || undefined) as ZmanKey | undefined,
-                            })
-                          }
-                        >
-                          <option value="">שעה קבועה</option>
-                          {ZMAN_DEFS.map((z) => (
-                            <option key={z.key} value={z.key}>
-                              לפי {z.label}
-                            </option>
-                          ))}
-                        </select>
-                        {item.fromZman ? (
-                          <input
-                            type="number"
-                            value={item.offsetMinutes ?? 0}
-                            onChange={(e) =>
-                              updateItem(block.id, item.id, {
-                                offsetMinutes: Number(e.target.value),
-                              })
-                            }
-                          />
-                        ) : (
-                          <input
-                            type="time"
-                            value={item.time}
-                            onChange={(e) =>
-                              updateItem(block.id, item.id, { time: e.target.value })
-                            }
-                          />
-                        )}
-                      </>
-                    )}
-                    <label className="check item-notime-toggle">
+                        ⋮⋮
+                      </span>
                       <input
-                        type="checkbox"
-                        checked={Boolean(item.noTime)}
+                        value={item.title}
                         onChange={(e) =>
-                          updateItem(block.id, item.id, { noTime: e.target.checked })
+                          updateItem(block.id, item.id, { title: e.target.value })
                         }
+                        placeholder={item.noTime ? 'כותרת / הערה' : 'כותרת'}
                       />
-                      בלי שעה
-                    </label>
-                    <button
-                      type="button"
-                      className="btn danger"
-                      onClick={() => removeItem(block.id, item.id)}
-                    >
-                      מחק
-                    </button>
-                  </div>
-                ))}
+                      {item.noTime ? (
+                        <span className="item-hint">בלי שעה</span>
+                      ) : item.fromZman ? (
+                        <span className="item-hint" dir="ltr">
+                          {ZMAN_DEFS.find((z) => z.key === item.fromZman)?.label ?? item.fromZman}
+                          {(item.offsetMinutes ?? 0) !== 0
+                            ? ` ${item.offsetMinutes! > 0 ? '+' : ''}${item.offsetMinutes}`
+                            : ''}
+                        </span>
+                      ) : (
+                        <input
+                          type="time"
+                          value={item.time}
+                          onChange={(e) =>
+                            updateItem(block.id, item.id, { time: e.target.value })
+                          }
+                        />
+                      )}
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() => setExpandedItemId(open ? null : item.id)}
+                      >
+                        {open ? 'סגור' : 'עוד'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn danger"
+                        onClick={() => removeItem(block.id, item.id)}
+                      >
+                        מחק
+                      </button>
+                      {open ? (
+                        <div className="item-more">
+                          <div className="item-order-actions">
+                            <button
+                              type="button"
+                              className="btn ghost item-move"
+                              aria-label="העבר למעלה"
+                              disabled={index === 0}
+                              onClick={() => moveItem(block.id, index, -1)}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              className="btn ghost item-move"
+                              aria-label="העבר למטה"
+                              disabled={index >= block.items.length - 1}
+                              onClick={() => moveItem(block.id, index, 1)}
+                            >
+                              ↓
+                            </button>
+                          </div>
+                          <input
+                            value={item.note ?? ''}
+                            onChange={(e) =>
+                              updateItem(block.id, item.id, { note: e.target.value })
+                            }
+                            placeholder="הערה (אופציונלי)"
+                          />
+                          {!item.noTime ? (
+                            <>
+                              <select
+                                value={item.fromZman ?? ''}
+                                onChange={(e) =>
+                                  updateItem(block.id, item.id, {
+                                    fromZman: (e.target.value || undefined) as
+                                      | ZmanKey
+                                      | undefined,
+                                  })
+                                }
+                              >
+                                <option value="">שעה קבועה</option>
+                                {ZMAN_DEFS.map((z) => (
+                                  <option key={z.key} value={z.key}>
+                                    לפי {z.label}
+                                  </option>
+                                ))}
+                              </select>
+                              {item.fromZman ? (
+                                <input
+                                  type="number"
+                                  value={item.offsetMinutes ?? 0}
+                                  onChange={(e) =>
+                                    updateItem(block.id, item.id, {
+                                      offsetMinutes: Number(e.target.value),
+                                    })
+                                  }
+                                  placeholder="היסט בדקות"
+                                />
+                              ) : null}
+                            </>
+                          ) : null}
+                          <label className="check item-notime-toggle">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(item.noTime)}
+                              onChange={(e) =>
+                                updateItem(block.id, item.id, { noTime: e.target.checked })
+                              }
+                            />
+                            שורה בלי שעה
+                          </label>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
                 <div className="row-actions">
                   <button type="button" className="btn ghost" onClick={() => addItem(block.id)}>
                     + פריט
@@ -1807,7 +1912,77 @@ export function Admin({ synagogueId }: Props) {
           </section>
         ) : null}
         </div>
+        </div>
       </div>
+
+      <div className={`admin-save-bar ${dirty ? 'show' : ''}`}>
+        <span>{dirty ? 'יש שינויים שלא פורסמו למסך' : 'הכל מעודכן'}</span>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={saving || !dirty}
+          onClick={() => void onSave()}
+        >
+          {saving ? 'שומר…' : 'שמור ועדכן מסך'}
+        </button>
+      </div>
+
+      {passwordReset ? (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onClick={() => setPasswordReset(null)}
+        >
+          <form
+            className="admin-modal"
+            role="dialog"
+            aria-modal
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => void confirmPasswordReset(e)}
+          >
+            <h2>איפוס סיסמה</h2>
+            <p className="hint">משתמש: {passwordReset.label}</p>
+            <label>
+              סיסמה חדשה
+              <input
+                type="password"
+                value={passwordReset.pass}
+                onChange={(e) =>
+                  setPasswordReset((p) => (p ? { ...p, pass: e.target.value } : p))
+                }
+                required
+                minLength={4}
+                autoFocus
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              />
+            </label>
+            <label>
+              אימות סיסמה
+              <input
+                type="password"
+                value={passwordReset.pass2}
+                onChange={(e) =>
+                  setPasswordReset((p) => (p ? { ...p, pass2: e.target.value } : p))
+                }
+                required
+                minLength={4}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              />
+            </label>
+            <div className="modal-actions">
+              <button type="button" className="btn ghost" onClick={() => setPasswordReset(null)}>
+                ביטול
+              </button>
+              <button type="submit" className="btn primary">
+                עדכן סיסמה
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
       <SiteFooter />
     </div>
   );

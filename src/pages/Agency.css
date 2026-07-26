@@ -279,6 +279,52 @@
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-top: auto;
+  align-items: center;
+}
+
+.shul-more {
+  position: relative;
+}
+
+.shul-more-menu {
+  position: absolute;
+  inset-inline-end: 0;
+  bottom: calc(100% + 0.35rem);
+  z-index: 5;
+  min-width: 11rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(20, 30, 36, 0.14);
+}
+
+.shul-more-menu button {
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: right;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 0.45rem 0.55rem;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.shul-more-menu button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 10%, #fff);
+}
+
+.shul-more-menu button.danger {
+  color: #a33;
+}
+
+.shul-more-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .act {

@@ -120,6 +120,7 @@ export function Agency() {
     from: string | null;
   } | null>(null);
   const [mailTestMsg, setMailTestMsg] = useState('');
+  const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
   const [subsById, setSubsById] = useState<Record<string, BillingSubscription>>({});
   const [diskStatus, setDiskStatus] = useState<{
     diskOk: boolean;
@@ -856,26 +857,6 @@ export function Agency() {
                       <button
                         type="button"
                         className="act"
-                        onClick={() => {
-                          setEditName(c.name);
-                          setModal({ kind: 'rename', config: c });
-                        }}
-                      >
-                        שנה שם
-                      </button>
-                      <button
-                        type="button"
-                        className="act"
-                        onClick={() => {
-                          setEditName(`${c.name} (העתק)`);
-                          setModal({ kind: 'duplicate', config: c });
-                        }}
-                      >
-                        שכפל
-                      </button>
-                      <button
-                        type="button"
-                        className="act"
                         onClick={() => void issueForShul(c.id)}
                       >
                         {licensed || locked ? 'חדש תוקף' : 'הפעל לפי תשלום'}
@@ -884,51 +865,104 @@ export function Agency() {
                         type="button"
                         className="act"
                         onClick={() => void openBilling(c)}
-                        title="הוראת קבע חודשית דרך SUMIT"
+                        title="הוראת קבע חודשית"
                       >
                         הו״ק
                       </button>
-                      <button
-                        type="button"
-                        className="act"
-                        onClick={() => void openBackups(c)}
-                        title="גיבויים ושחזור מהדיסק"
-                      >
-                        גיבוי
-                      </button>
-                      <button
-                        type="button"
-                        className="act"
-                        onClick={() => openResetPassword(c)}
-                      >
-                        אפס סיסמה
-                      </button>
-                      <button
-                        type="button"
-                        className={`act ${locked ? '' : 'danger'}`}
-                        disabled={busy || !c.license}
-                        onClick={() => void toggleLicenseLock(c)}
-                      >
-                        {locked ? 'בטל השבתה' : 'השבת רישיון'}
-                      </button>
-                      {c.license ? (
+                      <div className={`shul-more ${moreOpenId === c.id ? 'open' : ''}`}>
                         <button
                           type="button"
-                          className="act danger"
-                          disabled={busy}
-                          onClick={() => void removeLicense(c)}
-                          title="החזרת המסך למצב ללא רישיון"
+                          className="act"
+                          aria-expanded={moreOpenId === c.id}
+                          onClick={() =>
+                            setMoreOpenId((id) => (id === c.id ? null : c.id))
+                          }
                         >
-                          הסר רישיון
+                          עוד…
                         </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="act danger"
-                        onClick={() => setModal({ kind: 'delete', config: c })}
-                      >
-                        מחק
-                      </button>
+                        {moreOpenId === c.id ? (
+                          <div className="shul-more-menu" role="menu">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setEditName(c.name);
+                                setModal({ kind: 'rename', config: c });
+                                setMoreOpenId(null);
+                              }}
+                            >
+                              שנה שם
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setEditName(`${c.name} (העתק)`);
+                                setModal({ kind: 'duplicate', config: c });
+                                setMoreOpenId(null);
+                              }}
+                            >
+                              שכפל
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                void openBackups(c);
+                                setMoreOpenId(null);
+                              }}
+                            >
+                              גיבוי
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                openResetPassword(c);
+                                setMoreOpenId(null);
+                              }}
+                            >
+                              אפס סיסמה
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              disabled={busy || !c.license}
+                              onClick={() => {
+                                void toggleLicenseLock(c);
+                                setMoreOpenId(null);
+                              }}
+                            >
+                              {locked ? 'בטל השבתה' : 'השבת רישיון'}
+                            </button>
+                            {c.license ? (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="danger"
+                                disabled={busy}
+                                onClick={() => {
+                                  void removeLicense(c);
+                                  setMoreOpenId(null);
+                                }}
+                              >
+                                הסר רישיון
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="danger"
+                              onClick={() => {
+                                setModal({ kind: 'delete', config: c });
+                                setMoreOpenId(null);
+                              }}
+                            >
+                              מחק בית כנסת
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                   </li>
                 );
