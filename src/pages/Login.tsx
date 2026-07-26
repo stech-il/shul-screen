@@ -4,13 +4,11 @@ import {
   authenticateMember,
   canEditContent,
   clearSession,
-  enterAsPlatformAdmin,
   loadSession,
   saveSession,
 } from '../lib/auth';
 import { createDefaultConfig } from '../data/defaults';
 import { isLicenseValid } from '../lib/license';
-import { isPlatformAdminLoggedIn, loadPlatformSession } from '../lib/platformAuth';
 import { syncConfig } from '../lib/storage';
 import type { SynagogueConfig } from '../types';
 import { SiteFooter } from '../components/SiteFooter';
@@ -32,14 +30,6 @@ export function Login() {
 
   useEffect(() => {
     const billingQs = params.get('billing') === '1' ? '?billing=1' : '';
-    // Platform super-admin deep link: /login/:id?platform=1
-    if (params.get('platform') === '1' && isPlatformAdminLoggedIn()) {
-      enterAsPlatformAdmin(id, {
-        platformUsername: loadPlatformSession()?.username,
-      });
-      navigate(`/admin/${id}${billingQs}`, { replace: true });
-      return;
-    }
 
     const existing = loadSession();
     if (existing && existing.synagogueId === id && canEditContent(existing.role)) {
@@ -169,20 +159,6 @@ export function Login() {
             כניסה
           </button>
         </form>
-        {isPlatformAdminLoggedIn() ? (
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={() => {
-              enterAsPlatformAdmin(id, {
-                platformUsername: loadPlatformSession()?.username,
-              });
-              navigate(`/admin/${id}`);
-            }}
-          >
-            כניסת מנהל מערכת (בלי סיסמה)
-          </button>
-        ) : null}
         <p className="hint session-hint">
           בלי סימון — הסשן נשמר עד סגירת הדפדפן / חוסר פעילות. עם סימון — נשמר גם אחרי רענון
           וסגירה.
