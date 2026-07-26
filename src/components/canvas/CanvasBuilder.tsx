@@ -158,6 +158,7 @@ export function CanvasBuilder({
   const [showExtraPalette, setShowExtraPalette] = useState(false);
   const [editTab, setEditTab] = useState<ElementorTab>('content');
   const [fitLabel, setFitLabel] = useState('');
+  const [stageBox, setStageBox] = useState({ w: 0, h: 0 });
   const fontOptions = fontSelectOptions(customFonts);
 
   const selected = canvas.widgets.find((w) => w.id === selectedId) ?? null;
@@ -167,8 +168,9 @@ export function CanvasBuilder({
   }, [selectedId]);
 
   // Reference canvas for px fields in the inspector (TV scales via cqw from this).
+  const ratio = ASPECT_RATIOS[canvas.aspect] ?? 16 / 9;
   const refWidth = CANVAS_REF_WIDTH;
-  const refHeight = Math.round(CANVAS_REF_WIDTH / (ASPECT_RATIOS[canvas.aspect] ?? 16 / 9));
+  const refHeight = Math.round(CANVAS_REF_WIDTH / ratio);
   const pctToPx = (pct: number, axis: 'x' | 'y') =>
     Math.round((pct / 100) * (axis === 'x' ? refWidth : refHeight));
   const pxToPct = (px: number, axis: 'x' | 'y') =>
@@ -178,20 +180,35 @@ export function CanvasBuilder({
     const frame = frameRef.current;
     if (!frame) return;
 
-    function measure() {
-      const stage = stageRef.current;
-      if (!stage) return;
-      const w = Math.round(stage.getBoundingClientRect().width);
-      if (w < 2) return;
-      const pct = Math.round((w / refWidth) * 100);
-      setFitLabel(`${refWidth}×${refHeight} · תצוגה ${w}px (${pct}%)`);
+    function fit() {
+      const el = frameRef.current;
+      if (!el) return;
+      const pad = 12;
+      const fw = el.clientWidth - pad;
+      const fh = el.clientHeight - pad;
+      if (fw < 40 || fh < 40) return;
+      // Largest 16:9 (etc.) rectangle that fits the frame — fill the editor like WordPress.
+      let w = fw;
+      let h = w / ratio;
+      if (h > fh) {
+        h = fh;
+        w = h * ratio;
+      }
+      const next = { w: Math.max(1, Math.floor(w)), h: Math.max(1, Math.floor(h)) };
+      setStageBox((prev) => (prev.w === next.w && prev.h === next.h ? prev : next));
+      const pct = Math.round((next.w / refWidth) * 100);
+      setFitLabel(`${refWidth}×${refHeight} · תצוגה ${next.w}×${next.h} (${pct}%)`);
     }
 
-    measure();
-    const ro = new ResizeObserver(() => measure());
+    fit();
+    const ro = new ResizeObserver(() => fit());
     ro.observe(frame);
-    return () => ro.disconnect();
-  }, [refWidth, refHeight]);
+    window.addEventListener('resize', fit);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', fit);
+    };
+  }, [ratio, refWidth, refHeight]);
 
   const patchWidget = useCallback(
     (id: string, patch: Partial<CanvasWidget>) => {
@@ -386,8 +403,6 @@ export function CanvasBuilder({
     setPicker(null);
   }
 
-  const ratio = ASPECT_RATIOS[canvas.aspect] ?? 16 / 9;
-
   return (
     <div className="canvas-builder">
       <div className="cb-toolbar">
@@ -523,7 +538,9 @@ export function CanvasBuilder({
           ref={stageRef}
           className={`canvas-stage cb-stage ${dragging ? 'is-dragging' : ''}`}
           style={{
-            aspectRatio: String(ratio),
+            width: stageBox.w || undefined,
+            height: stageBox.h || undefined,
+            aspectRatio: stageBox.w ? undefined : String(ratio),
             ['--cb-aspect' as string]: String(ratio),
             ['--stage-ratio' as string]: String(ratio),
             ['--cv-overlay' as string]: String(canvas.overlayOpacity),
