@@ -84,10 +84,6 @@ export function PlatformLogin() {
           <button type="submit" className="btn primary">
             כניסה לניהול
           </button>
-          <p className="hint">
-            ברירת מחדל: <code dir="ltr">superadmin</code> /{' '}
-            <code dir="ltr">ShulAdmin2026!</code>
-          </p>
         </form>
       </div>
       <SiteFooter />
