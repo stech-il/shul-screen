@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { CanvasLayoutConfig, CanvasWidget } from '../../types';
+import { CANVAS_REF_WIDTH } from '../../types';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ASPECT_RATIOS } from './widgets';
 import './canvas.css';
@@ -7,12 +8,18 @@ import './canvas.css';
 const num = (v: unknown): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 
+/** Map reference-canvas px (1920-wide) to live stage size via container queries. */
+function refPx(px: number): string {
+  return `calc(${px} * 100cqw / ${CANVAS_REF_WIDTH})`;
+}
+
 export function widgetStyle(widget: CanvasWidget): CSSProperties {
   const fontSizePx = num(widget.fontSizePx);
   const letterSpacingPx = num(widget.letterSpacingPx);
   const titleSizePx = num(widget.titleSizePx);
   const lineHeightPx = num(widget.lineHeightPx);
   const paddingPx = num(widget.paddingPx);
+  const radius = num(widget.radius);
 
   return {
     left: `${widget.x}%`,
@@ -21,7 +28,7 @@ export function widgetStyle(widget: CanvasWidget): CSSProperties {
     height: `${widget.h}%`,
     zIndex: widget.z,
     opacity: widget.opacity,
-    borderRadius: `${widget.radius}px`,
+    borderRadius: radius != null ? refPx(radius) : undefined,
     textAlign: widget.align,
     fontFamily: widget.fontFamily
       ? `'${widget.fontFamily}', var(--font-body, sans-serif)`
@@ -30,20 +37,18 @@ export function widgetStyle(widget: CanvasWidget): CSSProperties {
       widget.fontWeight === 'bold' ? 700 : widget.fontWeight === 'medium' ? 500 : 400,
     ['--cw-fs' as string]: String(widget.fontScale ?? 1),
     ['--cw-title-fs' as string]: String(widget.titleScale ?? 0.55),
-    ...(fontSizePx != null && fontSizePx > 0 ? { fontSize: `${fontSizePx}px` } : {}),
+    ...(fontSizePx != null && fontSizePx > 0 ? { fontSize: refPx(fontSizePx) } : {}),
     ...(letterSpacingPx != null
       ? {
-          letterSpacing: `${letterSpacingPx}px`,
-          ['--cw-ls' as string]: `${letterSpacingPx}px`,
+          letterSpacing: refPx(letterSpacingPx),
+          ['--cw-ls' as string]: refPx(letterSpacingPx),
         }
       : {}),
     ...(titleSizePx != null && titleSizePx > 0
-      ? { ['--cw-title-size' as string]: `${titleSizePx}px` }
+      ? { ['--cw-title-size' as string]: refPx(titleSizePx) }
       : {}),
-    ...(lineHeightPx != null && lineHeightPx > 0
-      ? { lineHeight: `${lineHeightPx}px` }
-      : {}),
-    ...(paddingPx != null && paddingPx >= 0 ? { padding: `${paddingPx}px` } : {}),
+    ...(lineHeightPx != null && lineHeightPx > 0 ? { lineHeight: refPx(lineHeightPx) } : {}),
+    ...(paddingPx != null && paddingPx >= 0 ? { padding: refPx(paddingPx) } : {}),
     ...(widget.color ? { color: widget.color } : {}),
     ...(widget.titleColor ? { ['--cw-title-color' as string]: widget.titleColor } : {}),
   };

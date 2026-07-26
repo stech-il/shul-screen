@@ -149,7 +149,6 @@ export function CanvasBuilder({
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
-  const scaleRef = useRef(1);
   const dragRef = useRef<DragState | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -158,7 +157,7 @@ export function CanvasBuilder({
   const [boxUnit, setBoxUnit] = useState<'percent' | 'px'>('px');
   const [showExtraPalette, setShowExtraPalette] = useState(false);
   const [editTab, setEditTab] = useState<ElementorTab>('content');
-  const [fitScale, setFitScale] = useState(1);
+  const [fitLabel, setFitLabel] = useState('');
   const fontOptions = fontSelectOptions(customFonts);
 
   const selected = canvas.widgets.find((w) => w.id === selectedId) ?? null;
@@ -167,7 +166,7 @@ export function CanvasBuilder({
     setEditTab('content');
   }, [selectedId]);
 
-  // Fixed reference canvas (same as TV at 1080p). Scaled to fit the editor frame.
+  // Reference canvas for px fields in the inspector (TV scales via cqw from this).
   const refWidth = CANVAS_REF_WIDTH;
   const refHeight = Math.round(CANVAS_REF_WIDTH / (ASPECT_RATIOS[canvas.aspect] ?? 16 / 9));
   const pctToPx = (pct: number, axis: 'x' | 'y') =>
@@ -179,20 +178,17 @@ export function CanvasBuilder({
     const frame = frameRef.current;
     if (!frame) return;
 
-    function measure(width: number, height: number) {
-      if (width < 2 || height < 2) return;
-      const next = Math.min(width / refWidth, height / refHeight);
-      const clamped = Number.isFinite(next) && next > 0 ? next : 1;
-      scaleRef.current = clamped;
-      setFitScale((prev) => (Math.abs(prev - clamped) < 0.0005 ? prev : clamped));
+    function measure() {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const w = Math.round(stage.getBoundingClientRect().width);
+      if (w < 2) return;
+      const pct = Math.round((w / refWidth) * 100);
+      setFitLabel(`${refWidth}×${refHeight} · תצוגה ${w}px (${pct}%)`);
     }
 
-    measure(frame.clientWidth, frame.clientHeight);
-    const ro = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      measure(entry.contentRect.width, entry.contentRect.height);
-    });
+    measure();
+    const ro = new ResizeObserver(() => measure());
     ro.observe(frame);
     return () => ro.disconnect();
   }, [refWidth, refHeight]);
@@ -344,13 +340,11 @@ export function CanvasBuilder({
     e.preventDefault();
     e.stopPropagation();
     const stage = stageRef.current?.getBoundingClientRect();
-    const s = scaleRef.current || 1;
     setSelectedId(widget.id);
     setMenu({
       id: widget.id,
-      // Convert screen offset → local stage px (pre-transform)
-      x: (e.clientX - (stage?.left ?? 0)) / s,
-      y: (e.clientY - (stage?.top ?? 0)) / s,
+      x: e.clientX - (stage?.left ?? 0),
+      y: e.clientY - (stage?.top ?? 0),
     });
   }
 
@@ -424,8 +418,8 @@ export function CanvasBuilder({
             <button type="button" className="cb-chip accent" onClick={explodeZmanim}>
               פצל זמנים לבלוקים
             </button>
-            <span className="cb-fit-meta" title="גודל הבמה ביחס למסך ייחוס 1920px">
-              {refWidth}×{refHeight} · {Math.round(fitScale * 100)}%
+            <span className="cb-fit-meta" title="גדלים ב־px יחסית למסך 1920 — נשמרים מדויק בטלוויזיה">
+              {fitLabel || `${refWidth}×${refHeight}`}
             </span>
           </div>
         </div>
@@ -526,18 +520,12 @@ export function CanvasBuilder({
         <div className="cb-stage-col">
         <div className="cb-stage-frame" ref={frameRef}>
         <div
-          className="cb-stage-scaler"
-          style={{ width: refWidth * fitScale, height: refHeight * fitScale }}
-        >
-        <div
           ref={stageRef}
           className={`canvas-stage cb-stage ${dragging ? 'is-dragging' : ''}`}
           style={{
-            width: refWidth,
-            height: refHeight,
-            transform: `scale(${fitScale})`,
-            transformOrigin: 'top left',
+            aspectRatio: String(ratio),
             ['--cb-aspect' as string]: String(ratio),
+            ['--stage-ratio' as string]: String(ratio),
             ['--cv-overlay' as string]: String(canvas.overlayOpacity),
             ...(canvas.backgroundUrl
               ? {
@@ -702,7 +690,6 @@ export function CanvasBuilder({
               </button>
             </div>
           ) : null}
-        </div>
         </div>
         </div>
         </div>
