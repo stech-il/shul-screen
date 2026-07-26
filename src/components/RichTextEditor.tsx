@@ -67,9 +67,30 @@ export function RichTextEditor({
     emit();
   }
 
-  function setSize(size: string) {
-    ref.current?.focus();
-    document.execCommand('fontSize', false, size);
+  /**
+   * Apply an absolute font-size in px to the current selection.
+   * Uses the classic fontSize=7 trick, then rewrites those <font> tags
+   * to <span style="font-size:Npx"> so the value survives sanitize + display.
+   */
+  function setSizePx(raw: string) {
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n) || n < 8 || n > 400) return;
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+
+    // Mark selected text with a temporary size-7 font tag.
+    document.execCommand('styleWithCSS', false, 'false');
+    document.execCommand('fontSize', false, '7');
+
+    el.querySelectorAll('font[size="7"]').forEach((font) => {
+      const span = document.createElement('span');
+      span.style.fontSize = `${n}px`;
+      // Preserve nested markup from the selection.
+      while (font.firstChild) span.appendChild(font.firstChild);
+      font.replaceWith(span);
+    });
+
     emit();
   }
 
@@ -136,17 +157,27 @@ export function RichTextEditor({
           1. רשימה
         </button>
         <span className="rte-sep" />
-        <label className="rte-size" title="גודל">
-          <select
-            defaultValue="3"
-            onChange={(e) => setSize(e.target.value)}
+        <label className="rte-size" title="גודל פונט בפיקסלים — סמן טקסט והזן ערך">
+          <span className="rte-size-label">גודל</span>
+          <input
+            type="number"
+            min={8}
+            max={400}
+            step={1}
+            placeholder="px"
+            dir="ltr"
             onMouseDown={(e) => e.stopPropagation()}
-          >
-            <option value="2">קטן</option>
-            <option value="3">רגיל</option>
-            <option value="5">גדול</option>
-            <option value="7">ענק</option>
-          </select>
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                setSizePx((e.target as HTMLInputElement).value);
+              }
+            }}
+            onBlur={(e) => {
+              if (e.target.value.trim()) setSizePx(e.target.value);
+            }}
+          />
+          <span className="rte-size-unit">px</span>
         </label>
         <label className="rte-color" title="צבע טקסט">
           <input

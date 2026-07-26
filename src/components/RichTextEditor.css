@@ -48,13 +48,32 @@
   background: var(--line, rgba(28, 49, 64, 0.18));
 }
 
-.rte-size select {
+.rte-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  color: var(--muted, #5a6b73);
+}
+
+.rte-size-label {
+  white-space: nowrap;
+}
+
+.rte-size input[type='number'] {
+  width: 3.4rem;
   font: inherit;
   font-size: 0.78rem;
   padding: 0.2rem 0.3rem;
   border-radius: 6px;
   border: 1px solid var(--line, rgba(28, 49, 64, 0.18));
   background: #fff;
+  text-align: left;
+}
+
+.rte-size-unit {
+  font-size: 0.72rem;
+  color: var(--muted, #5a6b73);
 }
 
 .rte-color input[type='color'] {
