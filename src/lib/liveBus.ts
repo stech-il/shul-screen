@@ -10,12 +10,18 @@ export interface LivePayload {
   at: number;
 }
 
-function getChannel(): BroadcastChannel | null {
+/** Long-lived channel — creating a new one per publish can drop messages. */
+let sharedChannel: BroadcastChannel | null | undefined;
+
+function getSharedChannel(): BroadcastChannel | null {
+  if (sharedChannel !== undefined) return sharedChannel;
   try {
-    return typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL) : null;
+    sharedChannel =
+      typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL) : null;
   } catch {
-    return null;
+    sharedChannel = null;
   }
+  return sharedChannel;
 }
 
 /** Instant notify — same device / other tabs */
@@ -28,7 +34,7 @@ export function publishLiveUpdate(config: SynagogueConfig): void {
   };
 
   try {
-    getChannel()?.postMessage(payload);
+    getSharedChannel()?.postMessage(payload);
   } catch {
     /* ignore */
   }
@@ -46,5 +52,5 @@ export function publishLiveUpdate(config: SynagogueConfig): void {
 }
 
 export function openLiveChannel(): BroadcastChannel | null {
-  return getChannel();
+  return getSharedChannel();
 }

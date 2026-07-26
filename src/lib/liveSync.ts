@@ -4,42 +4,64 @@ import {
   openLiveChannel,
   type LivePayload,
 } from './liveBus';
-import { compactConfigMedia, expandConfigMedia } from './mediaPersist';
+import { expandConfigMedia } from './mediaPersist';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { loadLocal, normalizeConfig, pullFromCloud, saveLocal } from './storage';
 
 type LiveHandler = (config: SynagogueConfig, meta: { source: string }) => void;
 
+export interface LiveSubscription {
+  stop: () => void;
+  /** Call after Display finishes initial sync so poll doesn't replay the same rev */
+  noteBaseline: (config: SynagogueConfig) => void;
+}
+
 /**
  * Listen for config changes and apply them without page refresh.
- * Channels: BroadcastChannel, storage events, Supabase Realtime, polling (4s).
+ * Channels: BroadcastChannel, storage events, Supabase Realtime, polling (2s).
  */
 export function subscribeLiveUpdates(
   synagogueId: string,
   onUpdate: LiveHandler,
-): () => void {
+): LiveSubscription {
   let lastRevision = loadLocal(synagogueId)?.config.revision ?? 0;
+  let lastUpdatedAt = loadLocal(synagogueId)?.config.updatedAt ?? '';
   let stopped = false;
 
-  const apply = (config: SynagogueConfig, source: string) => {
+  const isNewer = (config: SynagogueConfig) => {
     const rev = config.revision ?? 0;
-    if (rev <= lastRevision) return;
-    lastRevision = rev;
+    if (rev > lastRevision) return true;
+    if (rev < lastRevision) return false;
+    const at = config.updatedAt || '';
+    return Boolean(at && at > lastUpdatedAt);
+  };
+
+  const noteBaseline = (config: SynagogueConfig) => {
+    lastRevision = Math.max(lastRevision, config.revision ?? 0);
+    if (config.updatedAt && config.updatedAt > lastUpdatedAt) {
+      lastUpdatedAt = config.updatedAt;
+    }
+  };
+
+  const apply = (config: SynagogueConfig, source: string) => {
+    if (!isNewer(config)) return;
+    lastRevision = Math.max(lastRevision, config.revision ?? 0);
+    if (config.updatedAt) lastUpdatedAt = config.updatedAt;
+
     void (async () => {
       const normalized = normalizeConfig(config);
-      let compact = normalized;
+      // Cloud payloads are already compact — do not re-upload/compact on the display.
       try {
-        compact = await compactConfigMedia(normalized);
         saveLocal({
-          config: compact,
+          config: normalized,
           syncedAt: new Date().toISOString(),
           pendingSync: false,
         });
       } catch {
-        /* ignore quota on mirror write */
+        /* ignore quota */
       }
       if (stopped) return;
-      const expanded = await expandConfigMedia(compact);
+      const expanded = await expandConfigMedia(normalized);
       if (stopped) return;
       onUpdate(expanded, { source });
     })();
@@ -109,23 +131,34 @@ export function subscribeLiveUpdates(
     };
   }
 
-  const poll = window.setInterval(() => {
+  const pollOnce = () => {
     if (stopped || !navigator.onLine) return;
     void pullFromCloud(synagogueId).then((cloud) => {
       if (stopped || !cloud) return;
-      if ((cloud.config.revision ?? 0) > lastRevision) {
-        apply(cloud.config, 'poll');
-      }
+      apply(cloud.config, 'poll');
     });
-  }, 4000);
+  };
 
-  return () => {
-    stopped = true;
-    channel?.removeEventListener('message', onMessage);
-    channel?.close();
-    window.removeEventListener('shul-live-update', onCustom);
-    window.removeEventListener('storage', onStorage);
-    supabaseUnsub?.();
-    clearInterval(poll);
+  pollOnce();
+  const poll = window.setInterval(pollOnce, 2000);
+
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') pollOnce();
+  };
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', pollOnce);
+
+  return {
+    noteBaseline,
+    stop: () => {
+      stopped = true;
+      channel?.removeEventListener('message', onMessage);
+      window.removeEventListener('shul-live-update', onCustom);
+      window.removeEventListener('storage', onStorage);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', pollOnce);
+      supabaseUnsub?.();
+      clearInterval(poll);
+    },
   };
 }

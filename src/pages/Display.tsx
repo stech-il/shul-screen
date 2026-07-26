@@ -66,6 +66,7 @@ export function Display({ synagogueId }: Props) {
   useEffect(() => {
     let cancelled = false;
     const stopSync = startAutoSync();
+    let live: ReturnType<typeof subscribeLiveUpdates> | null = null;
 
     async function load() {
       try {
@@ -73,23 +74,24 @@ export function Display({ synagogueId }: Props) {
         const result = await syncConfig(synagogueId, fallback);
         if (cancelled) return;
         setConfig(result.bundle.config);
+        live?.noteBaseline(result.bundle.config);
       } catch {
         /* ignore */
       }
     }
 
-    load();
-    const stopLive = subscribeLiveUpdates(synagogueId, (next) => {
+    live = subscribeLiveUpdates(synagogueId, (next) => {
       if (cancelled) return;
       setConfig(next);
     });
 
-    const onOnline = () => load();
+    void load();
+    const onOnline = () => void load();
     window.addEventListener('online', onOnline);
     return () => {
       cancelled = true;
       stopSync();
-      stopLive();
+      live?.stop();
       window.removeEventListener('online', onOnline);
     };
   }, [synagogueId]);
@@ -432,7 +434,11 @@ export function Display({ synagogueId }: Props) {
 
       {isCanvas ? (
         <div className="canvas-viewport">
-          <CanvasStage canvas={config.canvas ?? defaultCanvas()} data={canvasData} />
+          <CanvasStage
+            key={`cv-${config.revision ?? 0}-${config.updatedAt ?? ''}`}
+            canvas={config.canvas ?? defaultCanvas()}
+            data={canvasData}
+          />
         </div>
       ) : null}
 

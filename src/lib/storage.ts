@@ -331,9 +331,10 @@ export async function isServerCloudAvailable(): Promise<boolean> {
 
 async function pullServerCloud(id: string): Promise<CachedBundle | null> {
   try {
-    const res = await fetch(`/api/cloud/synagogues/${encodeURIComponent(id)}`, {
-      cache: 'no-store',
-    });
+    const res = await fetch(
+      `/api/cloud/synagogues/${encodeURIComponent(id)}?_=${Date.now()}`,
+      { cache: 'no-store' },
+    );
     if (res.status === 404) return null;
     if (!res.ok) return null;
     const body = (await res.json()) as CachedBundle;
