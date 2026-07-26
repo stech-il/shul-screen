@@ -1309,56 +1309,71 @@ export function Admin({ synagogueId }: Props) {
 
         {tab === 'media' && isOwner ? (
           <section className="card wide">
-            <h2>מדיה וגלריה</h2>
-            <p className="hint">
-              כל קובץ שנבחר נפתח בפופאפ גלריה — העלאה חדשה נכנסת לגלריה, ואפשר לבחור מחדש בכל שדה.
-              {isSupabaseConfigured
-                ? ' קבצים מועלים ל־Supabase Storage (shul-media). אחרי בחירה לחץ «שמור».'
-                : ' Supabase לא מוגדר — נשמר בדפדפן בלבד.'}
-            </p>
+            <div className="section-head">
+              <h2>מדיה וגלריה</h2>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() =>
+                  update({
+                    media: {
+                      logoDataUrl: '',
+                      backgroundDataUrl: '',
+                      eventImageUrl: '',
+                      loopVideoUrl: '',
+                      gallery: config.media.gallery ?? [],
+                    },
+                  })
+                }
+              >
+                נקה שיוכים
+              </button>
+            </div>
 
-            <MediaPickerField
-              label="לוגו"
-              value={config.media.logoDataUrl}
-              synagogueId={synagogueId}
-              gallery={config.media.gallery ?? []}
-              kind="image"
-              onChange={(url) => setMediaUrl('logoDataUrl', url, 'image')}
-              onGalleryChange={updateGallery}
-              onStatus={setStatus}
-            />
-            <MediaPickerField
-              label="רקע מסך"
-              value={config.media.backgroundDataUrl}
-              synagogueId={synagogueId}
-              gallery={config.media.gallery ?? []}
-              kind="image"
-              onChange={(url) => setMediaUrl('backgroundDataUrl', url, 'image')}
-              onGalleryChange={updateGallery}
-              onStatus={setStatus}
-            />
-            <MediaPickerField
-              label="תמונת אירוע"
-              value={config.media.eventImageUrl}
-              synagogueId={synagogueId}
-              gallery={config.media.gallery ?? []}
-              kind="image"
-              onChange={(url) => setMediaUrl('eventImageUrl', url, 'image')}
-              onGalleryChange={updateGallery}
-              onStatus={setStatus}
-            />
-            <MediaPickerField
-              label="סרטון קצר (מצב אירוע)"
-              value={config.media.loopVideoUrl}
-              synagogueId={synagogueId}
-              gallery={config.media.gallery ?? []}
-              kind="video"
-              onChange={(url) => setMediaUrl('loopVideoUrl', url, 'video')}
-              onGalleryChange={updateGallery}
-              onStatus={setStatus}
-            />
+            <div className="media-slots">
+              <MediaPickerField
+                label="לוגו"
+                value={config.media.logoDataUrl}
+                synagogueId={synagogueId}
+                gallery={config.media.gallery ?? []}
+                kind="image"
+                onChange={(url) => setMediaUrl('logoDataUrl', url, 'image')}
+                onGalleryChange={updateGallery}
+                onStatus={setStatus}
+              />
+              <MediaPickerField
+                label="רקע מסך"
+                value={config.media.backgroundDataUrl}
+                synagogueId={synagogueId}
+                gallery={config.media.gallery ?? []}
+                kind="image"
+                onChange={(url) => setMediaUrl('backgroundDataUrl', url, 'image')}
+                onGalleryChange={updateGallery}
+                onStatus={setStatus}
+              />
+              <MediaPickerField
+                label="תמונת אירוע"
+                value={config.media.eventImageUrl}
+                synagogueId={synagogueId}
+                gallery={config.media.gallery ?? []}
+                kind="image"
+                onChange={(url) => setMediaUrl('eventImageUrl', url, 'image')}
+                onGalleryChange={updateGallery}
+                onStatus={setStatus}
+              />
+              <MediaPickerField
+                label="סרטון קצר (מצב אירוע)"
+                value={config.media.loopVideoUrl}
+                synagogueId={synagogueId}
+                gallery={config.media.gallery ?? []}
+                kind="video"
+                onChange={(url) => setMediaUrl('loopVideoUrl', url, 'video')}
+                onGalleryChange={updateGallery}
+                onStatus={setStatus}
+              />
+            </div>
 
-            <div className="mg-field" style={{ marginTop: '1rem' }}>
+            <div className="media-gallery-block">
               <GalleryManager
                 synagogueId={synagogueId}
                 gallery={config.media.gallery ?? []}
@@ -1366,24 +1381,6 @@ export function Admin({ synagogueId }: Props) {
                 onStatus={setStatus}
               />
             </div>
-
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() =>
-                update({
-                  media: {
-                    logoDataUrl: '',
-                    backgroundDataUrl: '',
-                    eventImageUrl: '',
-                    loopVideoUrl: '',
-                    gallery: config.media.gallery ?? [],
-                  },
-                })
-              }
-            >
-              נקה שיוכי מדיה (הגלריה נשארת)
-            </button>
           </section>
         ) : null}
 

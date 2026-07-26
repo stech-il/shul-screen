@@ -183,6 +183,12 @@
   flex-direction: column;
   gap: 0.45rem;
   margin-bottom: 0.85rem;
+  padding: 0.85rem;
+  background: #fff;
+  border: 1px solid rgba(28, 49, 64, 0.12);
+  border-radius: 12px;
+  height: 100%;
+  box-sizing: border-box;
 }
 .mg-field-label {
   font-weight: 600;
