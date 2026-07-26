@@ -45,10 +45,6 @@ export function PlatformLogin() {
         </div>
         <form className="agency-login-card" onSubmit={onSubmit}>
           <h2>כניסה</h2>
-          <p className="hint">
-            אחרי התחברות תועבר ל־
-            <span dir="ltr">/#/agency</span>
-          </p>
           <label>
             שם משתמש
             <input
