@@ -985,8 +985,9 @@ export function Agency() {
               </p>
             ) : (
               <p className="hint warn">
-                לא מוגדר — הוסף ב־Render: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS,
-                MAIL_FROM
+                לא מוגדר — הוסף ב־Render משתני SMTP (למשל Resend / Brevo /
+                Mailgun / SES או מייל מהדומיין שלך): SMTP_HOST, SMTP_PORT,
+                SMTP_USER, SMTP_PASS, MAIL_FROM
               </p>
             )}
             <p className="hint">
