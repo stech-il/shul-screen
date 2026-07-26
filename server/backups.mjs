@@ -208,14 +208,46 @@ export async function backupAllSynagogues(reason = 'daily') {
 
 let cronTimer = null;
 
+/** Milliseconds until next local midnight in Asia/Jerusalem. */
+function msUntilNextMidnight() {
+  const now = new Date();
+  // Format "parts" in Israel time so DST is handled correctly.
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+  const get = (type) => Number(parts.find((p) => p.type === type)?.value || 0);
+  const h = get('hour');
+  const m = get('minute');
+  const s = get('second');
+  const elapsedTodayMs = ((h * 60 + m) * 60 + s) * 1000;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const remaining = dayMs - elapsedTodayMs;
+  // If we're within a second of midnight, schedule for tomorrow to avoid a double-fire.
+  return remaining < 1000 ? dayMs : remaining;
+}
+
+function scheduleNextMidnightBackup() {
+  const delay = msUntilNextMidnight();
+  const hours = (delay / 3_600_000).toFixed(1);
+  console.log(`Backups: next daily run in ~${hours}h (00:00 Asia/Jerusalem)`);
+  cronTimer = setTimeout(() => {
+    void backupAllSynagogues('daily')
+      .then((r) => console.log('Backups: daily done', r))
+      .catch((err) => console.error('Backups: daily failed', err))
+      .finally(() => scheduleNextMidnightBackup());
+  }, delay);
+}
+
 export function startBackupCron() {
   if (cronTimer) return;
-  // First run after 2 minutes, then every 24h
-  setTimeout(() => void backupAllSynagogues('daily').catch(() => {}), 120_000);
-  cronTimer = setInterval(
-    () => void backupAllSynagogues('daily').catch(() => {}),
-    24 * 60 * 60 * 1000,
-  );
+  scheduleNextMidnightBackup();
 }
 
 // —— HTTP ——

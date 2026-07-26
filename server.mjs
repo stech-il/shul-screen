@@ -368,5 +368,5 @@ server.listen(PORT, () => {
     console.log('SUMIT billing: disabled (set SUMIT_COMPANY_ID / SUMIT_API_KEY / SUMIT_API_PUBLIC_KEY)');
   }
   startBackupCron();
-  console.log('Backups: daily snapshots on disk, 7-day retention');
+  console.log('Backups: daily at 00:00 Asia/Jerusalem, 7-day retention');
 });

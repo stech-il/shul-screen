@@ -1271,7 +1271,7 @@ export function Agency() {
               <div>
                 <h2>גיבויים — {modal.config.name}</h2>
                 <p className="hint">
-                  כל גיבוי נשמר בדיסק של Render למשך 7 ימים (הגדרות מלאות + הו״ק אם קיים).
+                  גיבוי אוטומטי כל יום בחצות (שעון ישראל). כל גיבוי נשמר בדיסק של Render למשך 7 ימים (הגדרות מלאות + הו״ק אם קיים).
                   נוצרים אוטומטית בכל שמירה (עד פעם ב־15 דקות) וגם פעם ביום.
                 </p>
                 <div className="modal-actions" style={{ marginBottom: '0.75rem' }}>
