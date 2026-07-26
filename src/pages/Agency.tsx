@@ -12,15 +12,8 @@ import {
   TRIAL_DAYS,
 } from '../lib/license';
 import { fetchMailStatus, notifyTrialStarted, sendTestMail } from '../lib/notifications';
-import {
-  fetchInquiries,
-  INQUIRY_STATUS_LABELS,
-  INQUIRY_TOPIC_LABELS,
-  updateInquiryStatus,
-  type Inquiry,
-  type InquiryStatus,
-  type InquiryTopic,
-} from '../lib/inquiries';
+import { fetchInquiries } from '../lib/inquiries';
+import { InquiriesPanel } from '../components/InquiriesPanel';
 import {
   changePlatformPassword,
   clearPlatformSession,
@@ -137,10 +130,8 @@ export function Agency() {
     billingRecordCount: number;
     dataDirSet: boolean;
   } | null>(null);
-  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [inquiryUnread, setInquiryUnread] = useState(0);
-  const [inquiryFilter, setInquiryFilter] = useState<'all' | InquiryStatus>('all');
-  const [inquiryBusyId, setInquiryBusyId] = useState<string | null>(null);
+  const [agencyView, setAgencyView] = useState<'shuls' | 'inquiries'>('shuls');
 
   const [heartbeats, setHeartbeats] = useState<ScreenHeartbeat[]>([]);
 
@@ -196,7 +187,6 @@ export function Agency() {
   async function reloadInquiries() {
     try {
       const data = await fetchInquiries();
-      setInquiries(data.items);
       setInquiryUnread(data.unread);
     } catch {
       /* offline / API missing */
@@ -235,18 +225,6 @@ export function Agency() {
     return () => window.clearInterval(poll);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per login
   }, [platformOk]);
-
-  async function onInquiryStatus(id: string, status: InquiryStatus) {
-    setInquiryBusyId(id);
-    try {
-      await updateInquiryStatus(id, status);
-      await reloadInquiries();
-    } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'עדכון הפנייה נכשל');
-    } finally {
-      setInquiryBusyId(null);
-    }
-  }
 
   async function onSaveAdminEmail(e: FormEvent) {
     e.preventDefault();
@@ -734,6 +712,30 @@ export function Agency() {
           <p className="agency-sub">{loadPlatformSession()?.username}</p>
         </div>
         <div className="agency-top-actions">
+          <div className="agency-view-tabs" role="tablist" aria-label="תצוגת פאנל">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={agencyView === 'shuls'}
+              className={agencyView === 'shuls' ? 'on' : ''}
+              onClick={() => setAgencyView('shuls')}
+            >
+              בתי כנסת
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={agencyView === 'inquiries'}
+              className={agencyView === 'inquiries' ? 'on' : ''}
+              onClick={() => {
+                setAgencyView('inquiries');
+                void reloadInquiries();
+              }}
+            >
+              פניות
+              {inquiryUnread > 0 ? <span className="inq-badge">{inquiryUnread}</span> : null}
+            </button>
+          </div>
           <button
             type="button"
             className="btn ghost"
@@ -759,6 +761,7 @@ export function Agency() {
         </div>
       </header>
 
+      {agencyView === 'shuls' ? (
       <section className="agency-stats" aria-label="סיכום">
         <div className="stat">
           <strong>{stats.total}</strong>
@@ -776,14 +779,23 @@ export function Agency() {
           <strong>{stats.licensed}</strong>
           <span>עם רישיון</span>
         </div>
-        <a className={`stat inquiry-stat ${inquiryUnread ? 'has-unread' : ''}`} href="#inquiries">
+        <button
+          type="button"
+          className={`stat inquiry-stat ${inquiryUnread ? 'has-unread' : ''}`}
+          onClick={() => setAgencyView('inquiries')}
+        >
           <strong>{inquiryUnread}</strong>
           <span>פניות חדשות</span>
-        </a>
+        </button>
       </section>
+      ) : null}
 
       {msg ? <p className="agency-flash banner">{msg}</p> : null}
 
+      {agencyView === 'inquiries' ? (
+        <InquiriesPanel mode="agency" canManage />
+      ) : (
+      <>
       <div className="agency-toolbar">
         <input
           className="agency-search"
@@ -1079,7 +1091,7 @@ export function Agency() {
             )}
             <p className="hint">
               נשלחות התראות על תחילת ניסיון, סיום ניסיון, כשל תשלום, חידוש מוצלח — וגם על
-              פניות חדשות מהאתר (למנהל, לפונה, ולמייל בית הכנסת אם צוין).
+              פניות חדשות מניהול המסך (למנהל, לפונה, ולמייל בית הכנסת).
             </p>
             <button
               type="button"
@@ -1124,124 +1136,8 @@ export function Agency() {
           </form>
         </aside>
       </div>
-
-      <section className="agency-inquiries card" id="inquiries" aria-label="פניות">
-        <div className="agency-inquiries-head">
-          <div>
-            <h2>
-              פניות מהאתר
-              {inquiryUnread > 0 ? <span className="inq-badge">{inquiryUnread} חדשות</span> : null}
-            </h2>
-            <p className="hint">
-              כל פנייה מהטופס בדף הבית מגיעה לכאן. אם SMTP מוגדר — נשלח מייל למנהל, אישור לפונה,
-              ולמייל בית הכנסת כשמצוין.
-            </p>
-          </div>
-          <div className="agency-inquiries-actions">
-            <div className="agency-filters" role="group" aria-label="סינון פניות">
-              {(
-                [
-                  ['all', 'הכל'],
-                  ['new', 'חדשות'],
-                  ['read', 'נקראו'],
-                  ['done', 'טופלו'],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={inquiryFilter === id ? 'on' : ''}
-                  onClick={() => setInquiryFilter(id)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <button type="button" className="btn ghost" onClick={() => void reloadInquiries()}>
-              רענן
-            </button>
-          </div>
-        </div>
-
-        {inquiries.length === 0 ? (
-          <p className="hint">עדיין אין פניות.</p>
-        ) : (
-          <ul className="inquiry-list">
-            {inquiries
-              .filter((i) => (inquiryFilter === 'all' ? true : i.status === inquiryFilter))
-              .map((inq) => {
-                const topic =
-                  INQUIRY_TOPIC_LABELS[inq.topic as InquiryTopic] || inq.topic;
-                const status =
-                  INQUIRY_STATUS_LABELS[inq.status as InquiryStatus] || inq.status;
-                return (
-                  <li
-                    key={inq.id}
-                    className={`inquiry-item status-${inq.status}`}
-                  >
-                    <div className="inquiry-item-top">
-                      <strong>{inq.name}</strong>
-                      <span className="inquiry-topic">{topic}</span>
-                      <span className={`inquiry-status-pill status-${inq.status}`}>{status}</span>
-                      <time dateTime={inq.createdAt}>
-                        {new Date(inq.createdAt).toLocaleString('he-IL')}
-                      </time>
-                    </div>
-                    <p className="inquiry-meta">
-                      <a href={`mailto:${inq.email}`} dir="ltr">
-                        {inq.email}
-                      </a>
-                      {inq.phone ? (
-                        <>
-                          {' · '}
-                          <a href={`tel:${inq.phone}`} dir="ltr">
-                            {inq.phone}
-                          </a>
-                        </>
-                      ) : null}
-                      {inq.synagogueId ? ` · בית כנסת: ${inq.synagogueId}` : null}
-                    </p>
-                    <p className="inquiry-body">{inq.message}</p>
-                    <div className="inquiry-item-actions">
-                      {inq.status === 'new' ? (
-                        <button
-                          type="button"
-                          className="btn ghost"
-                          disabled={inquiryBusyId === inq.id}
-                          onClick={() => void onInquiryStatus(inq.id, 'read')}
-                        >
-                          סמן כנקרא
-                        </button>
-                      ) : null}
-                      {inq.status !== 'done' ? (
-                        <button
-                          type="button"
-                          className="btn primary"
-                          disabled={inquiryBusyId === inq.id}
-                          onClick={() => void onInquiryStatus(inq.id, 'done')}
-                        >
-                          טופל
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn ghost"
-                          disabled={inquiryBusyId === inq.id}
-                          onClick={() => void onInquiryStatus(inq.id, 'read')}
-                        >
-                          פתח מחדש
-                        </button>
-                      )}
-                      <a className="btn ghost" href={`mailto:${inq.email}?subject=Re: ${encodeURIComponent(topic)}`}>
-                        השב במייל
-                      </a>
-                    </div>
-                  </li>
-                );
-              })}
-          </ul>
-        )}
-      </section>
+      </>
+      )}
 
       {modal ? (
         <div className="agency-modal-backdrop" role="presentation" onClick={() => !busy && setModal(null)}>

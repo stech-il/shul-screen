@@ -1,0 +1,222 @@
+.inq-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.inq-panel .card {
+  background: var(--panel, rgba(255, 252, 247, 0.92));
+  border: 1px solid var(--line, rgba(22, 48, 56, 0.12));
+  border-radius: 14px;
+  padding: 1.1rem 1.2rem 1.25rem;
+  box-shadow: var(--shadow, 0 12px 32px rgba(22, 48, 56, 0.08));
+}
+
+.inq-panel h2 {
+  margin: 0;
+  font-family: 'Frank Ruhl Libre', serif;
+  font-size: 1.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inq-panel .hint {
+  margin: 0.35rem 0 0;
+  color: var(--muted, #5f737a);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.inq-panel .hint.warn {
+  color: #9a4a28;
+}
+
+.inq-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+  margin-top: 0.85rem;
+}
+
+.inq-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.86rem;
+  color: var(--muted, #5f737a);
+}
+
+.inq-form input,
+.inq-form select,
+.inq-form textarea {
+  font: inherit;
+  color: var(--ink, #163038);
+  background: #fff;
+  border: 1px solid var(--line, rgba(22, 48, 56, 0.14));
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+}
+
+.inq-form textarea {
+  margin-top: 0.75rem;
+  resize: vertical;
+  min-height: 6.5rem;
+}
+
+.inq-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.inq-form-msg {
+  margin: 0 !important;
+  color: #2f6b4f !important;
+}
+
+.inq-inbox-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.85rem;
+}
+
+.inq-inbox-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.inq-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  background: rgba(22, 48, 56, 0.05);
+  border-radius: 999px;
+  padding: 0.2rem;
+}
+
+.inq-filters button {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--muted, #5f737a);
+}
+
+.inq-filters button.on {
+  background: #fff;
+  color: var(--ink, #163038);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+.inq-badge {
+  font-family: 'Rubik', system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #9a4a28 16%, transparent);
+  color: #9a4a28;
+}
+
+.inq-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.inq-item {
+  border: 1px solid var(--line, rgba(22, 48, 56, 0.12));
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.inq-item.status-new {
+  border-color: color-mix(in srgb, #9a4a28 40%, transparent);
+  background: color-mix(in srgb, #9a4a28 6%, #fff);
+}
+
+.inq-item-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.7rem;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+
+.inq-item-top time {
+  margin-inline-start: auto;
+  font-size: 0.8rem;
+  color: var(--muted, #5f737a);
+}
+
+.inq-topic,
+.inq-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, #9a7a32 12%, transparent);
+  color: var(--ink, #163038);
+}
+
+.inq-status.status-new {
+  background: color-mix(in srgb, #9a4a28 16%, transparent);
+  color: #9a4a28;
+}
+
+.inq-status.status-done {
+  background: color-mix(in srgb, #2f6b4f 14%, transparent);
+  color: #2f6b4f;
+}
+
+.inq-meta {
+  margin: 0 0 0.4rem;
+  font-size: 0.86rem;
+  color: var(--muted, #5f737a);
+}
+
+.inq-meta a {
+  color: inherit;
+}
+
+.inq-body {
+  margin: 0 0 0.7rem;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.inq-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.inq-item-actions a.btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+@media (max-width: 700px) {
+  .inq-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

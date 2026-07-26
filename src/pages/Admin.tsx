@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { BillingCard } from '../components/BillingCard';
 import { DesignStudio } from '../components/DesignStudio';
 import { CanvasBuilder } from '../components/canvas/CanvasBuilder';
+import { InquiriesPanel } from '../components/InquiriesPanel';
 import { SiteFooter } from '../components/SiteFooter';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { MediaPickerField, GalleryManager } from '../components/MediaPicker';
@@ -73,7 +74,8 @@ type TabId =
   | 'live'
   | 'history'
   | 'settings'
-  | 'users';
+  | 'users'
+  | 'support';
 
 type TabGroup = 'daily' | 'studio' | 'system';
 
@@ -96,6 +98,7 @@ const TABS: { id: TabId; label: string; ownerOnly?: boolean; group: TabGroup }[]
   { id: 'nusach', label: 'נוסח', ownerOnly: true, group: 'studio' },
   { id: 'settings', label: 'הגדרות', group: 'system' },
   { id: 'users', label: 'משתמשים', ownerOnly: true, group: 'system' },
+  { id: 'support', label: 'פניות', group: 'system' },
   { id: 'history', label: 'היסטוריה', ownerOnly: true, group: 'system' },
 ];
 
@@ -1967,6 +1970,17 @@ export function Admin({ synagogueId }: Props) {
               ))
             )}
           </section>
+        ) : null}
+
+        {tab === 'support' ? (
+          <InquiriesPanel
+            mode="admin"
+            synagogueId={synagogueId}
+            synagogueName={config.name}
+            defaultName={session?.memberName || ''}
+            defaultEmail={config.contactEmail || ''}
+            canManage={false}
+          />
         ) : null}
 
         {tab === 'users' && isOwner ? (

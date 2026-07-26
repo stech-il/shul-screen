@@ -1,7 +1,5 @@
-import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { SiteFooter } from '../components/SiteFooter';
-import { INQUIRY_TOPIC_LABELS, submitInquiry, type InquiryTopic } from '../lib/inquiries';
 import './Landing.css';
 
 const WHATSAPP = 'https://wa.me/972524521527';
@@ -10,47 +8,11 @@ const PHONE_LABEL = '052-4521527';
 const MONTHLY = 99;
 
 export function Landing() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [topic, setTopic] = useState<InquiryTopic>('general');
-  const [message, setMessage] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [formMsg, setFormMsg] = useState('');
-  const [sent, setSent] = useState(false);
-
-  async function onSubmitInquiry(e: FormEvent) {
-    e.preventDefault();
-    setFormMsg('');
-    setBusy(true);
-    try {
-      await submitInquiry({
-        name,
-        email,
-        phone,
-        topic,
-        message,
-        source: 'landing',
-      });
-      setSent(true);
-      setName('');
-      setEmail('');
-      setPhone('');
-      setMessage('');
-      setTopic('general');
-      setFormMsg('הפנייה נשלחה — נחזור אליכם בהקדם.');
-    } catch (err) {
-      setFormMsg(err instanceof Error ? err.message : 'שליחת הפנייה נכשלה');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="landing" dir="rtl" lang="he">
       <header className="landing-nav">
         <p className="landing-nav-brand">screensmart</p>
-        <a className="landing-nav-cta" href="#contact">
+        <a className="landing-nav-cta" href={WHATSAPP} target="_blank" rel="noreferrer">
           דברו איתנו
         </a>
       </header>
@@ -179,87 +141,16 @@ export function Landing() {
       <section className="landing-section landing-contact" id="contact">
         <h2>מוכנים להתחיל?</h2>
         <p className="landing-section-lead">
-          שלחו פנייה — היא מגיעה ישירות לפאנל המנהל, עם התראה במייל כש־SMTP מוגדר.
+          screensmart · נחזור אליכם מהר, בעברית. לקוחות קיימים — פתיחת פנייה מתוך ניהול המסך.
         </p>
-
-        <form className="landing-inquiry" onSubmit={(e) => void onSubmitInquiry(e)}>
-          <div className="landing-inquiry-grid">
-            <label>
-              שם מלא
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                minLength={2}
-                maxLength={120}
-                placeholder="ישראל ישראלי"
-                autoComplete="name"
-              />
-            </label>
-            <label>
-              מייל
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-                placeholder="you@example.com"
-                autoComplete="email"
-              />
-            </label>
-            <label>
-              טלפון
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-                placeholder="05X-XXX-XXXX"
-                autoComplete="tel"
-              />
-            </label>
-            <label>
-              נושא
-              <select value={topic} onChange={(e) => setTopic(e.target.value as InquiryTopic)}>
-                {(Object.keys(INQUIRY_TOPIC_LABELS) as InquiryTopic[]).map((id) => (
-                  <option key={id} value={id}>
-                    {INQUIRY_TOPIC_LABELS[id]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <label className="landing-inquiry-msg">
-            הודעה
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              required
-              minLength={5}
-              maxLength={4000}
-              rows={4}
-              placeholder="ספרו בקצרה במה נוכל לעזור…"
-            />
-          </label>
-          <div className="landing-inquiry-actions">
-            <button type="submit" className="landing-btn primary" disabled={busy || sent}>
-              {busy ? 'שולח…' : sent ? 'נשלח' : 'שלחו פנייה'}
-            </button>
-            <a className="landing-btn ghost" href={WHATSAPP} target="_blank" rel="noreferrer">
-              וואטסאפ
-            </a>
-            <a className="landing-btn ghost" href={PHONE_TEL} dir="ltr">
-              {PHONE_LABEL}
-            </a>
-          </div>
-          {formMsg ? (
-            <p className={`landing-inquiry-status ${sent ? 'ok' : 'err'}`}>{formMsg}</p>
-          ) : null}
-        </form>
-
+        <div className="landing-cta-row">
+          <a className="landing-btn primary" href={WHATSAPP} target="_blank" rel="noreferrer">
+            וואטסאפ
+          </a>
+          <a className="landing-btn ghost" href={PHONE_TEL} dir="ltr">
+            {PHONE_LABEL}
+          </a>
+        </div>
         <p className="landing-admin-link">
           <Link to="/admin">כניסת מנהל מערכת</Link>
         </p>

@@ -1,4 +1,13 @@
-export type InquiryTopic = 'general' | 'demo' | 'support' | 'billing' | 'other';
+export type InquiryTopic =
+  | 'fault'
+  | 'support'
+  | 'content'
+  | 'billing'
+  | 'feature'
+  | 'other'
+  | 'general'
+  | 'demo';
+
 export type InquiryStatus = 'new' | 'read' | 'done';
 
 export interface Inquiry {
@@ -16,16 +25,19 @@ export interface Inquiry {
 }
 
 export const INQUIRY_TOPIC_LABELS: Record<InquiryTopic, string> = {
+  fault: 'תקלה במסך',
+  support: 'תמיכה טכנית',
+  content: 'תוכן / עיצוב',
+  billing: 'תשלום / רישיון',
+  feature: 'בקשת שיפור',
+  other: 'אחר',
   general: 'פנייה כללית',
   demo: 'בקשת הדגמה',
-  support: 'תמיכה טכנית',
-  billing: 'תשלום / רישיון',
-  other: 'אחר',
 };
 
 export const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   new: 'חדשה',
-  read: 'נקראה',
+  read: 'בטיפול',
   done: 'טופלה',
 };
 
@@ -54,12 +66,18 @@ export async function submitInquiry(input: {
   return parseJson(res);
 }
 
-export async function fetchInquiries(status?: InquiryStatus): Promise<{
+export async function fetchInquiries(opts?: {
+  status?: InquiryStatus;
+  synagogueId?: string;
+}): Promise<{
   items: Inquiry[];
   unread: number;
   total: number;
 }> {
-  const q = status ? `?status=${encodeURIComponent(status)}` : '';
+  const params = new URLSearchParams();
+  if (opts?.status) params.set('status', opts.status);
+  if (opts?.synagogueId) params.set('synagogueId', opts.synagogueId);
+  const q = params.toString() ? `?${params}` : '';
   const res = await fetch(`/api/inquiries${q}`, { cache: 'no-store' });
   return parseJson(res);
 }

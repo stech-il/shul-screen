@@ -10,7 +10,16 @@ import { mailConfigured, sendMail } from './mail.mjs';
 
 const PREFIX = 'inquiries';
 const PLATFORM_ID = '_platform';
-const TOPICS = new Set(['general', 'demo', 'support', 'billing', 'other']);
+const TOPICS = new Set([
+  'fault',
+  'support',
+  'content',
+  'billing',
+  'feature',
+  'other',
+  'general',
+  'demo',
+]);
 const STATUSES = new Set(['new', 'read', 'done']);
 
 /** @type {Map<string, number[]>} */
@@ -69,11 +78,14 @@ function isEmail(value) {
 
 function topicLabel(topic) {
   const map = {
+    fault: 'תקלה במסך',
+    support: 'תמיכה טכנית',
+    content: 'תוכן / עיצוב',
+    billing: 'תשלום / רישיון',
+    feature: 'בקשת שיפור',
+    other: 'אחר',
     general: 'פנייה כללית',
     demo: 'בקשת הדגמה',
-    support: 'תמיכה טכנית',
-    billing: 'תשלום / רישיון',
-    other: 'אחר',
   };
   return map[topic] || topic;
 }
@@ -263,13 +275,17 @@ export async function handleInquiries(req, res, url) {
       const email = String(body.email || '').trim().slice(0, 160).toLowerCase();
       const phone = String(body.phone || '').trim().slice(0, 40);
       const message = String(body.message || '').trim().slice(0, 4000);
-      const topicRaw = String(body.topic || 'general').trim();
-      const topic = TOPICS.has(topicRaw) ? topicRaw : 'general';
+      const topicRaw = String(body.topic || 'fault').trim();
+      const topic = TOPICS.has(topicRaw) ? topicRaw : 'fault';
       const synagogueId = String(body.synagogueId || '')
         .trim()
         .slice(0, 64);
-      const source = String(body.source || 'landing').trim().slice(0, 40) || 'landing';
+      const source = String(body.source || 'admin').trim().slice(0, 40) || 'admin';
 
+      if (!synagogueId && source === 'admin') {
+        sendJson(res, 400, { error: 'חסר מזהה בית כנסת' });
+        return;
+      }
       if (!name || name.length < 2) {
         sendJson(res, 400, { error: 'נא להזין שם' });
         return;
@@ -313,9 +329,11 @@ export async function handleInquiries(req, res, url) {
 
     if (url.pathname === '/api/inquiries' && req.method === 'GET') {
       const statusFilter = String(url.searchParams.get('status') || '').trim();
+      const synagogueFilter = String(url.searchParams.get('synagogueId') || '').trim();
       const items = (await listRecords(PREFIX))
         .map(publicInquiry)
         .filter((i) => (statusFilter && STATUSES.has(statusFilter) ? i.status === statusFilter : true))
+        .filter((i) => (synagogueFilter ? i.synagogueId === synagogueFilter : true))
         .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
       const unread = items.filter((i) => i.status === 'new').length;
       sendJson(res, 200, { items, unread, total: items.length });
