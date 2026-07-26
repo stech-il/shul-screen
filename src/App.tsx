@@ -19,7 +19,13 @@ function DisplayRoute() {
 
 function AdminRoute() {
   const { id = 'amishav' } = useParams();
-  return <Admin synagogueId={id} />;
+  let synagogueId = id;
+  try {
+    synagogueId = decodeURIComponent(id);
+  } catch {
+    /* keep raw id */
+  }
+  return <Admin synagogueId={synagogueId} />;
 }
 
 export default function App() {

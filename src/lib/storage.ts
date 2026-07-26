@@ -471,6 +471,7 @@ export async function pushToCloud(
 export async function syncConfig(
   id: string,
   fallback?: SynagogueConfig,
+  options?: { preferCloud?: boolean },
 ): Promise<{
   bundle: CachedBundle;
   source: 'cloud' | 'local' | 'default';
@@ -484,6 +485,7 @@ export async function syncConfig(
       ? 'server'
       : 'local-sim';
   const local = loadLocal(id);
+  const preferCloud = Boolean(options?.preferCloud);
 
   async function withExpanded(
     bundle: CachedBundle,
@@ -508,8 +510,11 @@ export async function syncConfig(
   if (online) {
     const cloud = await pullFromCloud(id);
     if (cloud) {
-      // Prefer newer revision
-      if (!local || (cloud.config.revision ?? 0) >= (local.config.revision ?? 0)) {
+      const cloudRev = cloud.config.revision ?? 0;
+      const localRev = local?.config.revision ?? 0;
+      // Login / auth must see latest members+passwords from the server.
+      const takeCloud = preferCloud || !local || cloudRev >= localRev;
+      if (takeCloud) {
         const normalized = {
           ...cloud,
           config: await compactConfigMedia(normalizeConfig(cloud.config)),

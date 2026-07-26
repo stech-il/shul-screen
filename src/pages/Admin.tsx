@@ -492,12 +492,22 @@ export function Admin({ synagogueId }: Props) {
         role: role === 'owner' ? 'owner' : 'editor',
         passwordHash,
       };
-      setConfig((c) =>
-        c ? { ...c, members: [...(c.members ?? []), member] } : c,
-      );
+      const nextMembers = [...(config.members ?? []), member];
+      const nextConfig = { ...config, members: nextMembers };
+      setConfig(nextConfig);
       setNewMember({ name: '', username: '', password: '', role: 'editor' });
       form.reset();
-      setStatus(`נוסף «${username}» — לחץ שמור כדי לשמור בענן`);
+      setStatus(`שומר את «${username}» בענן…`);
+      const result = await saveConfig(nextConfig, undefined, {
+        by: memberName,
+        summary: `הוספת משתמש ${username}`,
+      });
+      if (!result.ok) {
+        setStatus(result.error ?? 'המשתמש נוסף מקומית אך השמירה לענן נכשלה — לחץ שמור');
+      } else {
+        setStatus(`המשתמש «${username}» נשמר — אפשר להתחבר ב־/#/login/...`);
+      }
+      refreshHistory();
     } catch (err) {
       setStatus(`הוספת משתמש נכשלה: ${String((err as Error)?.message || err)}`);
     }
@@ -517,15 +527,22 @@ export function Admin({ synagogueId }: Props) {
       return;
     }
     const passwordHash = await hashPassword(nextPass.trim());
-    setConfig((c) =>
-      c
-        ? {
-            ...c,
-            members: c.members.map((m) => (m.id === memberId ? { ...m, passwordHash } : m)),
-          }
-        : c,
+    const nextConfig = {
+      ...config,
+      members: config.members.map((m) => (m.id === memberId ? { ...m, passwordHash } : m)),
+    };
+    setConfig(nextConfig);
+    setStatus(`שומר סיסמה חדשה ל־${member.username || member.name}…`);
+    const result = await saveConfig(nextConfig, undefined, {
+      by: memberName,
+      summary: `איפוס סיסמה ל־${member.username || member.name}`,
+    });
+    setStatus(
+      result.ok
+        ? `סיסמה עודכנה ל־${member.username || member.name}`
+        : result.error ?? 'הסיסמה עודכנה מקומית — לחץ שמור',
     );
-    setStatus(`סיסמה עודכנה ל־${member.username || member.name} — לחץ שמור`);
+    refreshHistory();
   }
 
   function startEditMember(member: Member) {
@@ -1754,7 +1771,7 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'users' && isOwner ? (
           <section className="card wide">
             <h2>משתמשים והרשאות</h2>
-            <p className="hint">מנהל — הכל. עורך — תוכן בלבד. כניסה עם שם משתמש וסיסמה.</p>
+            <p className="hint">מנהל — הכל. עורך — תוכן בלבד. התחברות עם שם המשתמש (לא שם התצוגה) והסיסמה.</p>
             <ul className="members-list">
               {config.members.map((m) =>
                 editMemberId === m.id ? (

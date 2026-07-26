@@ -13,18 +13,22 @@ import {
  * Prefer Supabase Auth / Argon2 server-side when cloud is connected.
  */
 
-function toHex(buf: ArrayBuffer): string {
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+function toHex(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function sha256(bytes: Uint8Array): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', bytes);
+  // Copy so WebCrypto always hashes the exact view (not a larger underlying buffer).
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const buf = await crypto.subtle.digest('SHA-256', copy);
   return toHex(buf);
 }
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const saltHex = toHex(salt.buffer);
+  const saltHex = toHex(salt);
   const payload = new TextEncoder().encode(`${saltHex}:${password}`);
   const hash = await sha256(payload);
   return `${saltHex}:${hash}`;
@@ -66,14 +70,25 @@ export async function authenticateMember(
   password: string,
 ): Promise<Member | null> {
   const u = normalizeUsername(username);
-  if (!u || !password) return null;
+  const pass = password.trim();
+  if (!u || !pass) return null;
   for (const member of members) {
     if (memberUsername(member) !== u) continue;
     const hash = memberPasswordHash(member);
     if (!hash) continue;
-    if (await verifyPassword(password, hash)) return member;
+    if (await verifyPassword(pass, hash)) return member;
   }
   return null;
+}
+
+/** True when username exists but password does not match (for clearer login errors). */
+export async function memberUsernameExists(
+  members: Member[],
+  username: string,
+): Promise<boolean> {
+  const u = normalizeUsername(username);
+  if (!u) return false;
+  return members.some((m) => memberUsername(m) === u);
 }
 
 const SESSION_KEY = 'shul-screen:session';
