@@ -1440,7 +1440,7 @@ export function Admin({ synagogueId }: Props) {
           <section className="card wide">
             <h2>זמני היום</h2>
             <p className="hint">
-              סמן אילו זמנים להציג, וגרור את השורות למעלה/למטה כדי לקבוע את סדר ההצגה במסך
+              רשימה שאפשר לבטל — סמנו או בטלו זמנים, וגררו לשנות סדר במסך
             </p>
 
             {config.enabledZmanim.length ? (
