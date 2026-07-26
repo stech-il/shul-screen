@@ -705,31 +705,6 @@ export function CanvasBuilder({
         </div>
         </div>
         </div>
-
-        <ul className="cb-layers">
-          {[...canvas.widgets]
-            .sort((a, b) => b.z - a.z)
-            .map((w) => (
-              <li key={w.id} className={selectedId === w.id ? 'on' : ''}>
-                <button type="button" onClick={() => setSelectedId(w.id)}>
-                  {WIDGET_LABELS[w.type]}
-                  {w.type === 'zman' && w.zmanKey
-                    ? ` — ${w.title || ZMAN_DEFS.find((d) => d.key === w.zmanKey)?.label || w.zmanKey}`
-                    : w.title
-                      ? ` — ${w.title}`
-                      : ''}
-                </button>
-                <button
-                  type="button"
-                  className="cb-eye"
-                  onClick={() => patchWidget(w.id, { visible: !w.visible })}
-                  title={w.visible ? 'הסתר' : 'הצג'}
-                >
-                  {w.visible ? 'כן' : 'לא'}
-                </button>
-              </li>
-            ))}
-        </ul>
         </div>
 
         <aside className="cb-inspector cb-inspector-el" dir="rtl">
