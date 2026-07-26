@@ -1,4 +1,4 @@
-# מסך בית כנסת
+# smartech — מסך בית כנסת
 
 תוכנה להצגת מסך דיגיטלי בבתי כנסת — גרסה 0.3.
 
@@ -75,10 +75,10 @@ npm run dist
 cd screen
 git init
 git add .
-git commit -m "Initial commit: Shul Screen app"
+git commit -m "Initial commit: smartech app"
 # צור ריפו ריק ב-GitHub ואז:
 git branch -M main
-git remote add origin https://github.com/USER/shul-screen.git
+git remote add origin https://github.com/USER/smartech.git
 git push -u origin main
 ```
 

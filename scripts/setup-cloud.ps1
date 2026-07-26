@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Sets up durable cloud DB for Shul Screen (GitHub-backed).
+  Sets up durable cloud DB for smartech (GitHub-backed).
 
   1) Ensures private repo stech-il/shul-screen-data exists
   2) Copies a GitHub token to the clipboard for Render Environment
@@ -10,12 +10,12 @@
 $ErrorActionPreference = 'Stop'
 $repo = 'stech-il/shul-screen-data'
 
-Write-Host '=== Shul Screen cloud setup ===' -ForegroundColor Cyan
+Write-Host '=== smartech cloud setup ===' -ForegroundColor Cyan
 
 gh repo view $repo --json name 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
   Write-Host "Creating private repo $repo ..."
-  gh repo create $repo --private --description 'Shul Screen cloud data store'
+  gh repo create $repo --private --description 'smartech cloud data store'
 }
 
 $token = (gh auth token).Trim()

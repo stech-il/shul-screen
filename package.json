@@ -1,9 +1,9 @@
 {
-  "name": "shul-screen",
+  "name": "smartech",
   "private": true,
   "version": "0.3.1",
-  "description": "מסך תצוגה לבתי כנסת — זמנים, הודעות, פיקוד העורף וקיוסק",
-  "author": "Shul Screen",
+  "description": "smartech — מסך תצוגה לבתי כנסת: זמנים, הודעות, פיקוד העורף וקיוסק",
+  "author": "smartech",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -42,8 +42,8 @@
     "vitest": "^3.2.4"
   },
   "build": {
-    "appId": "il.shulscreen.app",
-    "productName": "Shul Screen Kiosk",
+    "appId": "il.smartech.app",
+    "productName": "smartech Kiosk",
     "directories": {
       "output": "release"
     },
@@ -56,13 +56,13 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "ShulScreen-Setup-${version}.${ext}"
+      "artifactName": "smartech-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": true,
       "allowToChangeInstallationDirectory": false,
-      "shortcutName": "מסך בית כנסת"
+      "shortcutName": "smartech"
     },
     "publish": null
   },
