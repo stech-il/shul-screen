@@ -506,6 +506,14 @@ textarea {
   gap: 0.35rem;
 }
 
+.members-list li.member-editing {
+  display: block;
+}
+
+.members-list li.member-editing .member-form {
+  margin: 0;
+}
+
 .billing-form {
   display: grid;
   gap: 0.6rem;

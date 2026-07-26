@@ -113,6 +113,12 @@ export function Admin({ synagogueId }: Props) {
     password: '',
     role: 'editor' as UserRole,
   });
+  const [editMemberId, setEditMemberId] = useState<string | null>(null);
+  const [editMember, setEditMember] = useState({
+    name: '',
+    username: '',
+    role: 'editor' as UserRole,
+  });
   const [session, setSession] = useState(() => loadSession());
   const [tab, setTab] = useState<TabId>(() => {
     if (searchParams.get('billing') === '1' && canEditSettings(loadSession()?.role ?? 'editor')) {
@@ -493,6 +499,72 @@ export function Admin({ synagogueId }: Props) {
         : c,
     );
     setStatus(`סיסמה עודכנה ל־${member.username || member.name} — לחץ שמור`);
+  }
+
+  function startEditMember(member: Member) {
+    setEditMemberId(member.id);
+    setEditMember({
+      name: member.name,
+      username: member.username || member.name,
+      role: member.role,
+    });
+  }
+
+  function saveEditMember(e: FormEvent) {
+    e.preventDefault();
+    if (!isOwner || !config || !editMemberId) return;
+    const name = editMember.name.trim();
+    const username = editMember.username.trim().toLowerCase();
+    if (!name || !username) {
+      setStatus('יש למלא שם ושם משתמש');
+      return;
+    }
+    const taken = config.members.some(
+      (m) => m.id !== editMemberId && (m.username || m.name).toLowerCase() === username,
+    );
+    if (taken) {
+      setStatus('שם המשתמש כבר קיים');
+      return;
+    }
+    const owners = config.members.filter((m) => m.role === 'owner');
+    const current = config.members.find((m) => m.id === editMemberId);
+    if (
+      current?.role === 'owner' &&
+      editMember.role !== 'owner' &&
+      owners.length <= 1
+    ) {
+      setStatus('חייב להישאר לפחות מנהל אחד');
+      return;
+    }
+    setConfig((c) =>
+      c
+        ? {
+            ...c,
+            members: c.members.map((m) =>
+              m.id === editMemberId ? { ...m, name, username, role: editMember.role } : m,
+            ),
+          }
+        : c,
+    );
+    setEditMemberId(null);
+    setStatus(`המשתמש עודכן — לחץ שמור`);
+  }
+
+  function removeMember(member: Member) {
+    if (!isOwner || !config) return;
+    if (member.id === session?.memberId) {
+      setStatus('אי אפשר למחוק את המשתמש שאיתו התחברת');
+      return;
+    }
+    const owners = config.members.filter((m) => m.role === 'owner');
+    if (member.role === 'owner' && owners.length <= 1) {
+      setStatus('חייב להישאר לפחות מנהל אחד');
+      return;
+    }
+    if (!confirm(`למחוק את «${member.username || member.name}»?`)) return;
+    if (editMemberId === member.id) setEditMemberId(null);
+    update({ members: config.members.filter((x) => x.id !== member.id) });
+    setStatus(`המשתמש נמחק — לחץ שמור`);
   }
 
   function updateModes(patch: Partial<ModeSettings>) {
@@ -1653,34 +1725,82 @@ export function Admin({ synagogueId }: Props) {
             <h2>משתמשים והרשאות</h2>
             <p className="hint">מנהל — הכל. עורך — תוכן בלבד. כניסה עם שם משתמש וסיסמה.</p>
             <ul className="members-list">
-              {config.members.map((m) => (
-                <li key={m.id}>
-                  <div>
-                    <strong>{m.name}</strong>
-                    <span>
-                      {m.username || m.name} · {m.role === 'owner' ? 'מנהל' : 'עורך'}
-                    </span>
-                  </div>
-                  <div className="member-actions">
-                    <button
-                      type="button"
-                      className="btn ghost"
-                      onClick={() => void resetMemberPassword(m.id)}
-                    >
-                      אפס סיסמה
-                    </button>
-                    <button
-                      type="button"
-                      className="btn danger"
-                      onClick={() =>
-                        update({ members: config.members.filter((x) => x.id !== m.id) })
-                      }
-                    >
-                      הסר
-                    </button>
-                  </div>
-                </li>
-              ))}
+              {config.members.map((m) =>
+                editMemberId === m.id ? (
+                  <li key={m.id} className="member-editing">
+                    <form className="member-form" onSubmit={saveEditMember}>
+                      <input
+                        placeholder="שם לתצוגה"
+                        value={editMember.name}
+                        onChange={(e) =>
+                          setEditMember({ ...editMember, name: e.target.value })
+                        }
+                      />
+                      <input
+                        placeholder="שם משתמש"
+                        value={editMember.username}
+                        onChange={(e) =>
+                          setEditMember({ ...editMember, username: e.target.value })
+                        }
+                        dir="ltr"
+                        style={{ textAlign: 'left' }}
+                        autoComplete="off"
+                      />
+                      <select
+                        value={editMember.role}
+                        onChange={(e) =>
+                          setEditMember({ ...editMember, role: e.target.value as UserRole })
+                        }
+                      >
+                        <option value="editor">עורך</option>
+                        <option value="owner">מנהל</option>
+                      </select>
+                      <button type="submit" className="btn primary">
+                        שמור שינוי
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() => setEditMemberId(null)}
+                      >
+                        ביטול
+                      </button>
+                    </form>
+                  </li>
+                ) : (
+                  <li key={m.id}>
+                    <div>
+                      <strong>{m.name}</strong>
+                      <span>
+                        {m.username || m.name} · {m.role === 'owner' ? 'מנהל' : 'עורך'}
+                      </span>
+                    </div>
+                    <div className="member-actions">
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() => startEditMember(m)}
+                      >
+                        ערוך
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() => void resetMemberPassword(m.id)}
+                      >
+                        אפס סיסמה
+                      </button>
+                      <button
+                        type="button"
+                        className="btn danger"
+                        onClick={() => removeMember(m)}
+                      >
+                        מחק
+                      </button>
+                    </div>
+                  </li>
+                ),
+              )}
             </ul>
             <form className="member-form" onSubmit={addMember}>
               <input
