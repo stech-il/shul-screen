@@ -400,7 +400,9 @@ export function CanvasBuilder({
           </div>
         </div>
 
-        <div className="cb-stage-settings">
+        <details className="cb-stage-settings-wrap">
+          <summary>הגדרות מסך ורקע</summary>
+          <div className="cb-stage-settings">
           <label>
             יחס מסך
             <select
@@ -486,10 +488,12 @@ export function CanvasBuilder({
               אפס פריסה
             </button>
           </div>
-        </div>
+          </div>
+        </details>
       </div>
 
       <div className="cb-workspace">
+        <div className="cb-stage-col">
         <div
           ref={stageRef}
           className={`canvas-stage cb-stage ${dragging ? 'is-dragging' : ''}`}
@@ -661,7 +665,33 @@ export function CanvasBuilder({
           ) : null}
         </div>
 
-        <aside className="cb-inspector cb-inspector-el">
+        <ul className="cb-layers">
+          {[...canvas.widgets]
+            .sort((a, b) => b.z - a.z)
+            .map((w) => (
+              <li key={w.id} className={selectedId === w.id ? 'on' : ''}>
+                <button type="button" onClick={() => setSelectedId(w.id)}>
+                  {WIDGET_LABELS[w.type]}
+                  {w.type === 'zman' && w.zmanKey
+                    ? ` — ${w.title || ZMAN_DEFS.find((d) => d.key === w.zmanKey)?.label || w.zmanKey}`
+                    : w.title
+                      ? ` — ${w.title}`
+                      : ''}
+                </button>
+                <button
+                  type="button"
+                  className="cb-eye"
+                  onClick={() => patchWidget(w.id, { visible: !w.visible })}
+                  title={w.visible ? 'הסתר' : 'הצג'}
+                >
+                  {w.visible ? 'כן' : 'לא'}
+                </button>
+              </li>
+            ))}
+        </ul>
+        </div>
+
+        <aside className="cb-inspector cb-inspector-el" dir="rtl">
           {selected ? (
             <ElementorWidgetPanel
               selected={selected}
@@ -690,43 +720,16 @@ export function CanvasBuilder({
             <div className="cb-empty-inspector">
               <h3>בחרו רכיב לעריכה</h3>
               <p>
-                כמו באלמנטור: לחצו על רכיב במסך — ייפתח כאן פאנל מלא עם לשוניות תוכן, עיצוב
-                ומתקדם. על הרכיב עצמו מופיע סרגל מהיר.
+                לחצו על רכיב במסך — ייפתח כאן פאנל עם לשוניות תוכן, עיצוב ומתקדם.
               </p>
               <ul>
                 <li>גררו להזזה · ידית בפינה לשינוי גודל</li>
                 <li>חיצים / Delete · קליק ימני לאפשרויות</li>
-                <li>הוסיפו רכיבים מהשורה למעלה</li>
               </ul>
             </div>
           )}
         </aside>
       </div>
-
-      <ul className="cb-layers">
-        {[...canvas.widgets]
-          .sort((a, b) => b.z - a.z)
-          .map((w) => (
-            <li key={w.id} className={selectedId === w.id ? 'on' : ''}>
-              <button type="button" onClick={() => setSelectedId(w.id)}>
-                {WIDGET_LABELS[w.type]}
-                {w.type === 'zman' && w.zmanKey
-                  ? ` — ${w.title || ZMAN_DEFS.find((d) => d.key === w.zmanKey)?.label || w.zmanKey}`
-                  : w.title
-                    ? ` — ${w.title}`
-                    : ''}
-              </button>
-              <button
-                type="button"
-                className="cb-eye"
-                onClick={() => patchWidget(w.id, { visible: !w.visible })}
-                title={w.visible ? 'הסתר' : 'הצג'}
-              >
-                {w.visible ? 'מוצג' : 'מוסתר'}
-              </button>
-            </li>
-          ))}
-      </ul>
 
       <MediaGalleryModal
         open={Boolean(picker)}

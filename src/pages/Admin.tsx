@@ -838,7 +838,7 @@ export function Admin({ synagogueId }: Props) {
   );
 
   return (
-    <div className="admin" dir="rtl" lang="he">
+    <div className={`admin${tab === 'canvas' ? ' canvas-mode' : ''}`} dir="rtl" lang="he">
       <header className="admin-header sticky-bar">
         <div className="admin-title">
           <p className="eyebrow">
@@ -899,7 +899,7 @@ export function Admin({ synagogueId }: Props) {
         </div>
       ) : null}
 
-      <div className="admin-body">
+      <div className={`admin-body${tab === 'canvas' ? ' is-canvas' : ''}`}>
         <nav className="admin-tabs" aria-label="ניווט ניהול">
           {TAB_GROUPS.map((group) => {
             const items = TABS.filter(
@@ -925,6 +925,7 @@ export function Admin({ synagogueId }: Props) {
         </nav>
 
         <div className="admin-main">
+        {tab !== 'canvas' ? (
         <div className="admin-quick" role="navigation" aria-label="פעולות מהירות">
           <button type="button" className={tab === 'content' ? 'on' : ''} onClick={() => setTab('content')}>
             תפילות
@@ -943,6 +944,7 @@ export function Admin({ synagogueId }: Props) {
           </Link>
           <span className="admin-quick-hint">Ctrl+S לפרסום</span>
         </div>
+        ) : null}
 
         <div className="admin-grid">
         {tab === 'design' && isOwner ? (
@@ -957,10 +959,13 @@ export function Admin({ synagogueId }: Props) {
         ) : null}
 
         {tab === 'canvas' && isOwner ? (
-          <section className="card wide">
+          <section className="card wide canvas-builder-card">
             <div className="section-head">
               <h2>בונה מסך חופשי</h2>
               <div className="section-head-actions">
+                <Link className="btn ghost" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
+                  מסך חי ↗
+                </Link>
                 <button
                   type="button"
                   className="btn ghost"
@@ -1002,10 +1007,6 @@ export function Admin({ synagogueId }: Props) {
                 )}
               </div>
             </div>
-            <p className="hint">
-              גררו רכיבים על המסך. בכניסה ללשונית מופעל אוטומטית מצב «בונה חופשי» — לחצו «פרסם למסך»
-              כדי לעדכן את הטלוויזיה.
-            </p>
             <CanvasBuilder
               canvas={config.canvas}
               blocks={config.blocks}
