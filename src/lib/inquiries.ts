@@ -35,6 +35,8 @@ export interface Inquiry {
   messages?: InquiryMessage[];
   awaiting?: InquiryAwaiting;
   replyCount?: number;
+  unreadForCustomer?: number;
+  unreadForSupport?: number;
 }
 
 export const INQUIRY_TOPIC_LABELS: Record<InquiryTopic, string> = {
@@ -86,6 +88,8 @@ export async function fetchInquiries(opts?: {
   items: Inquiry[];
   unread: number;
   unreadCustomer: number;
+  unreadMessages: number;
+  unreadMessagesCustomer: number;
   total: number;
 }> {
   const params = new URLSearchParams();
@@ -93,6 +97,19 @@ export async function fetchInquiries(opts?: {
   if (opts?.synagogueId) params.set('synagogueId', opts.synagogueId);
   const q = params.toString() ? `?${params}` : '';
   const res = await fetch(`/api/inquiries${q}`, { cache: 'no-store' });
+  return parseJson(res);
+}
+
+export async function markInquiriesSeen(input: {
+  role: InquiryAuthor;
+  synagogueId?: string;
+  id?: string;
+}): Promise<{ ok: boolean; updated: number }> {
+  const res = await fetch('/api/inquiries/seen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
   return parseJson(res);
 }
 

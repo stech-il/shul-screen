@@ -161,6 +161,20 @@ function awaitingFromMessages(messages, status) {
   return last.author === 'customer' ? 'support' : 'customer';
 }
 
+function messageTs(m) {
+  const t = Date.parse(String(m?.at || ''));
+  return Number.isFinite(t) ? t : 0;
+}
+
+/** Unread reply count for a role: messages from the other side after last seen. */
+function unreadMessagesForRole(rec, role) {
+  const messages = normalizeMessages(rec);
+  const other = role === 'customer' ? 'support' : 'customer';
+  const seenRaw = role === 'customer' ? rec.customerSeenAt : rec.supportSeenAt;
+  const seenAt = Date.parse(String(seenRaw || '')) || 0;
+  return messages.filter((m) => m.author === other && messageTs(m) > seenAt).length;
+}
+
 function publicInquiry(rec) {
   const messages = normalizeMessages(rec);
   const status = rec.status || 'new';
@@ -180,6 +194,8 @@ function publicInquiry(rec) {
     messages,
     awaiting,
     replyCount: Math.max(0, messages.length - 1),
+    unreadForCustomer: unreadMessagesForRole(rec, 'customer'),
+    unreadForSupport: unreadMessagesForRole(rec, 'support'),
   };
 }
 
@@ -373,12 +389,54 @@ export async function handleInquiries(req, res, url) {
 
       const unreadSupport = items.filter((i) => i.awaiting === 'support' || i.status === 'new').length;
       const unreadCustomer = items.filter((i) => i.awaiting === 'customer').length;
+      const unreadMessagesCustomer = items.reduce((n, i) => n + (i.unreadForCustomer || 0), 0);
+      const unreadMessagesSupport = items.reduce((n, i) => n + (i.unreadForSupport || 0), 0);
       sendJson(res, 200, {
         items,
         unread: unreadSupport,
         unreadCustomer,
+        unreadMessages: unreadMessagesSupport,
+        unreadMessagesCustomer,
         total: items.length,
       });
+      return;
+    }
+
+    if (url.pathname === '/api/inquiries/seen' && req.method === 'POST') {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const role = String(body.role || '').trim();
+      const synagogueId = String(body.synagogueId || '').trim();
+      const inquiryId = String(body.id || '').trim();
+      if (role !== 'customer' && role !== 'support') {
+        sendJson(res, 400, { error: 'תפקיד לא תקין' });
+        return;
+      }
+      if (role === 'customer' && !synagogueId && !inquiryId) {
+        sendJson(res, 400, { error: 'חסר מזהה בית כנסת' });
+        return;
+      }
+
+      const now = nowIso();
+      const seenKey = role === 'customer' ? 'customerSeenAt' : 'supportSeenAt';
+      let records = await listRecords(PREFIX);
+      if (inquiryId) {
+        records = records.filter((r) => r.id === inquiryId);
+      } else if (synagogueId) {
+        records = records.filter((r) => String(r.synagogueId || '') === synagogueId);
+      }
+
+      let updatedCount = 0;
+      for (const existing of records) {
+        if (role === 'customer' && synagogueId && String(existing.synagogueId || '') !== synagogueId) {
+          continue;
+        }
+        if (unreadMessagesForRole(existing, role) <= 0) continue;
+        const updated = { ...existing, [seenKey]: now, updatedAt: existing.updatedAt || now };
+        await putRecord(PREFIX, existing.id, updated);
+        updatedCount += 1;
+      }
+      sendJson(res, 200, { ok: true, updated: updatedCount });
       return;
     }
 

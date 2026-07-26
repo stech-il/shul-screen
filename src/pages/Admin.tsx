@@ -37,6 +37,7 @@ import { daysLeft, isLicenseValid } from '../lib/license';
 import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
 import { saveDesignTemplate } from '../lib/designTemplates';
+import { fetchInquiries, markInquiriesSeen } from '../lib/inquiries';
 import {
   loadLocal,
   pullFromCloud,
@@ -160,6 +161,7 @@ export function Admin({ synagogueId }: Props) {
   const [previewShabbatZmanimMap, setPreviewShabbatZmanimMap] =
     useState<HebcalZmanimResult['times']>({});
   const [itemDrag, setItemDrag] = useState<{ blockId: string; index: number } | null>(null);
+  const [inquiryUnreadMessages, setInquiryUnreadMessages] = useState(0);
 
   const setConfig = (
     updater: SynagogueConfig | null | ((c: SynagogueConfig | null) => SynagogueConfig | null),
@@ -243,6 +245,31 @@ export function Admin({ synagogueId }: Props) {
       /* ignore */
     }
   }, [tab, synagogueId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadUnread() {
+      try {
+        if (tab === 'support') {
+          await markInquiriesSeen({ role: 'customer', synagogueId });
+          if (!cancelled) setInquiryUnreadMessages(0);
+          return;
+        }
+        const data = await fetchInquiries({ synagogueId });
+        if (!cancelled) {
+          setInquiryUnreadMessages(data.unreadMessagesCustomer || 0);
+        }
+      } catch {
+        /* ignore badge errors */
+      }
+    }
+    void loadUnread();
+    const id = window.setInterval(() => void loadUnread(), 15_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [synagogueId, tab]);
 
   useEffect(() => {
     if (!toast) return;
@@ -862,6 +889,20 @@ export function Admin({ synagogueId }: Props) {
           </div>
         </div>
         <div className="admin-actions">
+          {inquiryUnreadMessages > 0 ? (
+            <button
+              className="btn inquiry-mail-btn has-unread"
+              type="button"
+              onClick={() => setTab('support')}
+              title={`${inquiryUnreadMessages} הודעות חדשות מפניות`}
+              aria-label={`${inquiryUnreadMessages} הודעות חדשות בפניות`}
+            >
+              <span className="inquiry-mail-icon" aria-hidden="true">
+                ✉
+              </span>
+              <span className="inquiry-mail-badge">{inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}</span>
+            </button>
+          ) : null}
           <button
             className="btn ghost"
             type="button"
@@ -920,6 +961,11 @@ export function Admin({ synagogueId }: Props) {
                     onClick={() => setTab(t.id)}
                   >
                     {t.label}
+                    {t.id === 'support' && inquiryUnreadMessages > 0 ? (
+                      <span className="tab-unread-badge">
+                        {inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>
