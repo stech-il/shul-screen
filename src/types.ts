@@ -362,6 +362,8 @@ export interface SavedDesignTemplate {
   name: string;
   description: string;
   createdAt: string;
+  /** Owning screen — custom templates are private to this synagogue */
+  synagogueId?: string;
   theme: 'light' | 'dark';
   layout: ScreenLayout;
   design: DesignSettings;

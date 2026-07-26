@@ -11,7 +11,7 @@ import { compactMediaUrl, expandMediaUrl, isHeavyDataUrl } from './mediaPersist'
 export const LEGACY_DESIGN_TEMPLATES_KEY = 'shul-screen:design-templates';
 
 const DB_NAME = 'shul-screen-templates';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'templates';
 const MAX_TEMPLATES = 40;
 
@@ -25,6 +25,10 @@ function clone<T>(value: T): T {
 
 function uid() {
   return `tpl_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function cacheKey(synagogueId: string): string {
+  return `syn:${synagogueId}`;
 }
 
 /** Call on boot — removes the old localStorage blob that caused QuotaExceededError. */
@@ -44,6 +48,13 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE);
       }
+      // Drop legacy shared cache key so templates don't leak across screens
+      try {
+        const tx = req.transaction;
+        if (tx) tx.objectStore(STORE).delete('list');
+      } catch {
+        /* ignore */
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error('IndexedDB open failed'));
@@ -57,22 +68,28 @@ function idbReq<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
-async function readAllFromIdb(): Promise<SavedDesignTemplate[]> {
+async function readAllFromIdb(synagogueId: string): Promise<SavedDesignTemplate[]> {
   const db = await openDb();
   try {
     const raw = await idbReq(
-      db.transaction(STORE, 'readonly').objectStore(STORE).get('list'),
+      db.transaction(STORE, 'readonly').objectStore(STORE).get(cacheKey(synagogueId)),
     );
-    return Array.isArray(raw) ? (raw as SavedDesignTemplate[]) : [];
+    const list = Array.isArray(raw) ? (raw as SavedDesignTemplate[]) : [];
+    return list.filter((t) => !t.synagogueId || t.synagogueId === synagogueId);
   } finally {
     db.close();
   }
 }
 
-async function writeAllToIdb(list: SavedDesignTemplate[]): Promise<void> {
+async function writeAllToIdb(synagogueId: string, list: SavedDesignTemplate[]): Promise<void> {
   const db = await openDb();
   try {
-    await idbReq(db.transaction(STORE, 'readwrite').objectStore(STORE).put(list, 'list'));
+    await idbReq(
+      db
+        .transaction(STORE, 'readwrite')
+        .objectStore(STORE)
+        .put(list, cacheKey(synagogueId)),
+    );
   } finally {
     db.close();
   }
@@ -128,43 +145,14 @@ async function expandTemplate(template: SavedDesignTemplate): Promise<SavedDesig
   };
 }
 
-function readLegacyLocal(): SavedDesignTemplate[] {
+// —— Cloud sync — templates live per synagogue; IndexedDB is an offline cache ——
+
+async function fetchCloudTemplates(synagogueId: string): Promise<SavedDesignTemplate[] | null> {
   try {
-    const raw = localStorage.getItem(LEGACY_DESIGN_TEMPLATES_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as SavedDesignTemplate[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-let migratePromise: Promise<void> | null = null;
-
-async function migrateLegacyIfNeeded(): Promise<void> {
-  if (migratePromise) return migratePromise;
-  migratePromise = (async () => {
-    // Always free the legacy key first so quota is available for other keys.
-    const legacy = readLegacyLocal();
-    purgeLegacyDesignTemplateStorage();
-    if (!legacy.length) return;
-    const existing = await readAllFromIdb();
-    if (existing.length) return;
-    try {
-      const slimmed = await Promise.all(legacy.slice(0, MAX_TEMPLATES).map((t) => slimTemplate(t)));
-      await writeAllToIdb(slimmed);
-    } catch {
-      /* drop unreadable legacy templates rather than crash */
-    }
-  })();
-  return migratePromise;
-}
-
-// —— Cloud sync — templates live on the server, IndexedDB is an offline cache ——
-
-async function fetchCloudTemplates(): Promise<SavedDesignTemplate[] | null> {
-  try {
-    const res = await fetch(`/api/cloud/templates?_=${Date.now()}`, { cache: 'no-store' });
+    const res = await fetch(
+      `/api/cloud/templates/${encodeURIComponent(synagogueId)}?_=${Date.now()}`,
+      { cache: 'no-store' },
+    );
     if (!res.ok) return null;
     const data = (await res.json()) as { items?: SavedDesignTemplate[] };
     return Array.isArray(data.items) ? data.items : [];
@@ -173,9 +161,12 @@ async function fetchCloudTemplates(): Promise<SavedDesignTemplate[] | null> {
   }
 }
 
-async function pushCloudTemplates(items: SavedDesignTemplate[]): Promise<boolean> {
+async function pushCloudTemplates(
+  synagogueId: string,
+  items: SavedDesignTemplate[],
+): Promise<boolean> {
   try {
-    const res = await fetch('/api/cloud/templates', {
+    const res = await fetch(`/api/cloud/templates/${encodeURIComponent(synagogueId)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items }),
@@ -186,19 +177,17 @@ async function pushCloudTemplates(items: SavedDesignTemplate[]): Promise<boolean
   }
 }
 
-export async function loadDesignTemplates(): Promise<SavedDesignTemplate[]> {
+export async function loadDesignTemplates(synagogueId: string): Promise<SavedDesignTemplate[]> {
+  if (!synagogueId.trim()) return [];
   purgeLegacyDesignTemplateStorage();
-  await migrateLegacyIfNeeded();
-  const local = await readAllFromIdb().catch(() => [] as SavedDesignTemplate[]);
-  const cloud = await fetchCloudTemplates();
-  if (cloud === null) return local; // offline — use cache
-  if (cloud.length === 0 && local.length > 0) {
-    // First run after the cloud upgrade — keep personal templates by uploading them.
-    void pushCloudTemplates(local);
-    return local;
+  const local = await readAllFromIdb(synagogueId).catch(() => [] as SavedDesignTemplate[]);
+  const cloud = await fetchCloudTemplates(synagogueId);
+  if (cloud === null) {
+    return local.filter((t) => !t.synagogueId || t.synagogueId === synagogueId);
   }
+  // Do NOT upload a local shared cache into another synagogue's cloud list.
   try {
-    await writeAllToIdb(cloud);
+    await writeAllToIdb(synagogueId, cloud);
   } catch {
     /* cache write failed — cloud copy is still authoritative */
   }
@@ -206,6 +195,7 @@ export async function loadDesignTemplates(): Promise<SavedDesignTemplate[]> {
 }
 
 export async function saveDesignTemplate(input: {
+  synagogueId: string;
   name: string;
   description?: string;
   theme: SynagogueConfig['theme'];
@@ -218,8 +208,10 @@ export async function saveDesignTemplate(input: {
   error?: string;
   warning?: string;
 }> {
+  const synagogueId = input.synagogueId.trim();
+  if (!synagogueId) return { ok: false, error: 'חסר מזהה בית כנסת' };
+
   purgeLegacyDesignTemplateStorage();
-  await migrateLegacyIfNeeded();
 
   const name = input.name.trim() || 'תבנית ללא שם';
   const draft: SavedDesignTemplate = {
@@ -227,6 +219,7 @@ export async function saveDesignTemplate(input: {
     name,
     description: (input.description ?? '').trim() || 'תבנית שמורה מהעיצוב הנוכחי',
     createdAt: new Date().toISOString(),
+    synagogueId,
     theme: input.theme,
     layout: input.layout,
     design: {
@@ -238,11 +231,14 @@ export async function saveDesignTemplate(input: {
 
   try {
     const slim = await slimTemplate(draft);
-    const list = await loadDesignTemplates();
-    const next = [slim, ...list].slice(0, MAX_TEMPLATES);
-    await writeAllToIdb(next);
+    const list = await loadDesignTemplates(synagogueId);
+    const next = [slim, ...list.filter((t) => t.synagogueId === synagogueId || !t.synagogueId)].slice(
+      0,
+      MAX_TEMPLATES,
+    );
+    await writeAllToIdb(synagogueId, next);
     purgeLegacyDesignTemplateStorage();
-    const cloudOk = await pushCloudTemplates(next);
+    const cloudOk = await pushCloudTemplates(synagogueId, next);
     return {
       ok: true,
       template: slim,
@@ -261,17 +257,22 @@ export async function saveDesignTemplate(input: {
   }
 }
 
-export async function deleteDesignTemplate(id: string): Promise<void> {
+export async function deleteDesignTemplate(synagogueId: string, id: string): Promise<void> {
   if (id.startsWith('seed:')) return;
+  if (!synagogueId.trim()) return;
   purgeLegacyDesignTemplateStorage();
-  await migrateLegacyIfNeeded();
-  const list = (await loadDesignTemplates()).filter((t) => t.id !== id && !t.id.startsWith('seed:'));
-  await writeAllToIdb(list);
-  await pushCloudTemplates(list);
+  const list = (await loadDesignTemplates(synagogueId)).filter(
+    (t) => t.id !== id && !t.id.startsWith('seed:'),
+  );
+  await writeAllToIdb(synagogueId, list);
+  await pushCloudTemplates(synagogueId, list);
 }
 
-export async function getDesignTemplate(id: string): Promise<SavedDesignTemplate | undefined> {
-  const list = await loadDesignTemplates();
+export async function getDesignTemplate(
+  synagogueId: string,
+  id: string,
+): Promise<SavedDesignTemplate | undefined> {
+  const list = await loadDesignTemplates(synagogueId);
   return list.find((t) => t.id === id);
 }
 

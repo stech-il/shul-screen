@@ -1028,6 +1028,7 @@ export function Admin({ synagogueId }: Props) {
                       const name = window.prompt('שם לתבנית העיצוב:', `עיצוב ${config.name}`);
                       if (name == null) return;
                       const result = await saveDesignTemplate({
+                        synagogueId,
                         name: name.trim() || `עיצוב ${config.name}`,
                         description: 'נשמר מבונה המסך',
                         theme: config.theme,

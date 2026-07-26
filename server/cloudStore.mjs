@@ -490,18 +490,35 @@ export async function listHeartbeats() {
   return out.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
 }
 
-// —— Saved design templates — one shared list for the whole platform ——
+// —— Saved design templates — one list per synagogue (not shared platform-wide) ——
 
-export async function getDesignTemplates() {
-  const rec = await getRecord('templates', 'list');
-  return Array.isArray(rec?.items) ? rec.items : [];
+function safeTemplateOwnerId(synagogueId) {
+  return String(synagogueId || '')
+    .replace(/[^a-zA-Z0-9_\u0590-\u05FF-]/g, '_')
+    .slice(0, 80);
 }
 
-export async function putDesignTemplates(items) {
+export async function getDesignTemplates(synagogueId) {
+  const id = safeTemplateOwnerId(synagogueId);
+  if (!id) return [];
+  const rec = await getRecord('templates', id);
+  const items = Array.isArray(rec?.items) ? rec.items : [];
+  return items
+    .filter((t) => t && typeof t === 'object')
+    .map((t) => ({ ...t, synagogueId: t.synagogueId || id }));
+}
+
+export async function putDesignTemplates(synagogueId, items) {
+  const id = safeTemplateOwnerId(synagogueId);
+  if (!id) throw new Error('חסר מזהה בית כנסת לתבניות');
   if (!Array.isArray(items)) throw new Error('items must be an array');
-  await putRecord('templates', 'list', {
-    items,
+  const stamped = items
+    .filter((t) => t && typeof t === 'object' && !String(t.id || '').startsWith('seed:'))
+    .map((t) => ({ ...t, synagogueId: id }));
+  await putRecord('templates', id, {
+    synagogueId: id,
+    items: stamped,
     updatedAt: new Date().toISOString(),
   });
-  return items;
+  return stamped;
 }

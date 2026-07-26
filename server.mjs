@@ -177,29 +177,33 @@ async function handleCloud(req, res, url) {
     return;
   }
 
-  // Heartbeats — display posts, agency reads
-  // Saved design templates — shared cloud list
-  if (url.pathname === '/api/cloud/templates' && req.method === 'GET') {
+  // Saved design templates — per-synagogue lists
+  const templatesMatch = url.pathname.match(/^\/api\/cloud\/templates(?:\/([^/]+))?$/);
+  if (templatesMatch && (req.method === 'GET' || req.method === 'PUT')) {
     try {
-      sendJson(res, 200, { items: await getDesignTemplates() });
-    } catch (err) {
-      sendJson(res, 500, { error: String(err?.message || err) });
-    }
-    return;
-  }
-  if (url.pathname === '/api/cloud/templates' && req.method === 'PUT') {
-    try {
+      const synagogueId = decodeURIComponent(templatesMatch[1] || '').trim();
+      if (!synagogueId) {
+        sendJson(res, 400, { error: 'חסר מזהה בית כנסת' });
+        return;
+      }
+      if (req.method === 'GET') {
+        sendJson(res, 200, { items: await getDesignTemplates(synagogueId), synagogueId });
+        return;
+      }
       const raw = await readBody(req);
       const body = JSON.parse(raw.toString('utf8') || '{}');
-      const items = await putDesignTemplates(Array.isArray(body.items) ? body.items : []);
-      sendJson(res, 200, { ok: true, count: items.length });
+      const items = await putDesignTemplates(
+        synagogueId,
+        Array.isArray(body.items) ? body.items : [],
+      );
+      sendJson(res, 200, { ok: true, count: items.length, synagogueId });
     } catch (err) {
       sendJson(res, 500, { error: String(err?.message || err) });
     }
     return;
   }
 
-  if (url.pathname === '/api/cloud/heartbeats' && req.method === 'GET') {
+  if (url.pathname.startsWith('/api/cloud/heartbeats') && req.method === 'GET') {
     try {
       sendJson(res, 200, { items: await listHeartbeats() });
     } catch (err) {

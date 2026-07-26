@@ -204,8 +204,8 @@ export function DesignStudio({
   const panel = useMemo(() => parsePanelColor(d.panelColor), [d.panelColor]);
 
   useEffect(() => {
-    void loadDesignTemplates().then(setSaved);
-  }, []);
+    void loadDesignTemplates(synagogueId).then(setSaved);
+  }, [synagogueId]);
 
   useEffect(() => {
     ensureCustomFontsLoaded(customFonts);
@@ -271,6 +271,7 @@ export function DesignStudio({
 
   async function onSaveTemplate() {
     const result = await saveDesignTemplate({
+      synagogueId,
       name: tplName || `עיצוב ${new Date().toLocaleDateString('he-IL')}`,
       description: tplDesc,
       theme: config.theme,
@@ -282,13 +283,13 @@ export function DesignStudio({
       onStatus?.(result.error ?? 'שמירת התבנית נכשלה');
       return;
     }
-    setSaved(await loadDesignTemplates());
+    setSaved(await loadDesignTemplates(synagogueId));
     setTplName('');
     setTplDesc('');
     onStatus?.(
       result.warning
         ? `נשמרה תבנית «${result.template.name}» — ${result.warning}`
-        : `נשמרה תבנית «${result.template.name}» בענן`,
+        : `נשמרה תבנית «${result.template.name}» למסך זה בלבד`,
     );
   }
 
@@ -298,8 +299,8 @@ export function DesignStudio({
       return;
     }
     if (!confirm(`למחוק את התבנית «${name}»?`)) return;
-    await deleteDesignTemplate(id);
-    setSaved(await loadDesignTemplates());
+    await deleteDesignTemplate(synagogueId, id);
+    setSaved(await loadDesignTemplates(synagogueId));
     onStatus?.(`נמחקה התבנית «${name}»`);
   }
 
@@ -386,8 +387,8 @@ export function DesignStudio({
           <div>
             <h2>תבניות ({SEED_DESIGN_TEMPLATES.length + saved.length})</h2>
             <p className="hint">
-              {SEED_DESIGN_TEMPLATES.length} תבניות מוכנות עם תצוגה מקדימה — לחצו להחלה. התבניות שלכם
-              נשמרות בענן.
+              {SEED_DESIGN_TEMPLATES.length} תבניות מוכנות עם תצוגה מקדימה — לחצו להחלה. התבניות
+              שתשמרו כאן שייכות למסך זה בלבד.
             </p>
           </div>
           <input

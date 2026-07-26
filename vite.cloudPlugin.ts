@@ -85,18 +85,30 @@ export function cloudApiPlugin(): Plugin {
             return;
           }
 
-          if (pathOnly === '/api/cloud/templates' && req.method === 'GET') {
-            send(200, { items: await store.getDesignTemplates() });
-            return;
-          }
-          if (pathOnly === '/api/cloud/templates' && req.method === 'PUT') {
-            const raw = await readReq(req);
-            const body = JSON.parse(raw.toString('utf8') || '{}');
-            const items = await store.putDesignTemplates(
-              Array.isArray(body.items) ? body.items : [],
-            );
-            send(200, { ok: true, count: items.length });
-            return;
+          if (pathOnly.startsWith('/api/cloud/templates')) {
+            const m = pathOnly.match(/^\/api\/cloud\/templates(?:\/([^/]+))?$/);
+            const synagogueId = decodeURIComponent(m?.[1] || '').trim();
+            if (!synagogueId) {
+              send(400, { error: 'חסר מזהה בית כנסת' });
+              return;
+            }
+            if (req.method === 'GET') {
+              send(200, {
+                items: await store.getDesignTemplates(synagogueId),
+                synagogueId,
+              });
+              return;
+            }
+            if (req.method === 'PUT') {
+              const raw = await readReq(req);
+              const body = JSON.parse(raw.toString('utf8') || '{}');
+              const items = await store.putDesignTemplates(
+                synagogueId,
+                Array.isArray(body.items) ? body.items : [],
+              );
+              send(200, { ok: true, count: items.length, synagogueId });
+              return;
+            }
           }
 
           if (pathOnly === '/api/cloud/heartbeats' && req.method === 'GET') {
