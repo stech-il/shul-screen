@@ -96,7 +96,7 @@
   overflow: hidden;
 }
 
-/* Frame keeps aspect ratio — never stretch the stage (that broke templates) */
+/* Frame: measure available space; stage is fixed ref size then CSS-scaled to fit */
 .cb-stage-frame {
   flex: 1 1 auto;
   min-height: 0;
@@ -105,17 +105,36 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  container-type: size;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
 }
 
-.cb-stage-frame .cb-stage {
+.cb-stage-scaler {
+  position: relative;
   flex: none;
-  width: min(100cqw, calc(100cqh * var(--cb-aspect, 1.777778)));
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+.cb-stage-scaler .cb-stage {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  flex: none;
+  width: auto;
   height: auto;
-  max-width: 100%;
-  max-height: 100%;
-  aspect-ratio: var(--cb-aspect, 1.777778);
+  max-width: none;
+  max-height: none;
   margin: 0;
+  aspect-ratio: auto;
+}
+
+.cb-fit-meta {
+  font-size: 0.72rem;
+  color: var(--muted, #5a6b73);
+  margin-inline-start: 0.35rem;
+  direction: ltr;
+  unicode-bidi: plaintext;
 }
 
 .cb-stage-settings-wrap {

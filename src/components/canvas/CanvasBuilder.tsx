@@ -148,6 +148,8 @@ export function CanvasBuilder({
   onInteractionEnd,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const scaleRef = useRef(1);
   const dragRef = useRef<DragState | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -156,6 +158,7 @@ export function CanvasBuilder({
   const [boxUnit, setBoxUnit] = useState<'percent' | 'px'>('px');
   const [showExtraPalette, setShowExtraPalette] = useState(false);
   const [editTab, setEditTab] = useState<ElementorTab>('content');
+  const [fitScale, setFitScale] = useState(1);
   const fontOptions = fontSelectOptions(customFonts);
 
   const selected = canvas.widgets.find((w) => w.id === selectedId) ?? null;
@@ -164,13 +167,35 @@ export function CanvasBuilder({
     setEditTab('content');
   }, [selectedId]);
 
-  // Reference pixel canvas — real screens scale proportionally from this.
+  // Fixed reference canvas (same as TV at 1080p). Scaled to fit the editor frame.
   const refWidth = CANVAS_REF_WIDTH;
   const refHeight = Math.round(CANVAS_REF_WIDTH / (ASPECT_RATIOS[canvas.aspect] ?? 16 / 9));
   const pctToPx = (pct: number, axis: 'x' | 'y') =>
     Math.round((pct / 100) * (axis === 'x' ? refWidth : refHeight));
   const pxToPct = (px: number, axis: 'x' | 'y') =>
     (px / (axis === 'x' ? refWidth : refHeight)) * 100;
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    function measure(width: number, height: number) {
+      if (width < 2 || height < 2) return;
+      const next = Math.min(width / refWidth, height / refHeight);
+      const clamped = Number.isFinite(next) && next > 0 ? next : 1;
+      scaleRef.current = clamped;
+      setFitScale((prev) => (Math.abs(prev - clamped) < 0.0005 ? prev : clamped));
+    }
+
+    measure(frame.clientWidth, frame.clientHeight);
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      measure(entry.contentRect.width, entry.contentRect.height);
+    });
+    ro.observe(frame);
+    return () => ro.disconnect();
+  }, [refWidth, refHeight]);
 
   const patchWidget = useCallback(
     (id: string, patch: Partial<CanvasWidget>) => {
@@ -319,11 +344,13 @@ export function CanvasBuilder({
     e.preventDefault();
     e.stopPropagation();
     const stage = stageRef.current?.getBoundingClientRect();
+    const s = scaleRef.current || 1;
     setSelectedId(widget.id);
     setMenu({
       id: widget.id,
-      x: e.clientX - (stage?.left ?? 0),
-      y: e.clientY - (stage?.top ?? 0),
+      // Convert screen offset → local stage px (pre-transform)
+      x: (e.clientX - (stage?.left ?? 0)) / s,
+      y: (e.clientY - (stage?.top ?? 0)) / s,
     });
   }
 
@@ -397,6 +424,9 @@ export function CanvasBuilder({
             <button type="button" className="cb-chip accent" onClick={explodeZmanim}>
               פצל זמנים לבלוקים
             </button>
+            <span className="cb-fit-meta" title="גודל הבמה ביחס למסך ייחוס 1920px">
+              {refWidth}×{refHeight} · {Math.round(fitScale * 100)}%
+            </span>
           </div>
         </div>
 
@@ -494,12 +524,19 @@ export function CanvasBuilder({
 
       <div className="cb-workspace">
         <div className="cb-stage-col">
-        <div className="cb-stage-frame">
+        <div className="cb-stage-frame" ref={frameRef}>
+        <div
+          className="cb-stage-scaler"
+          style={{ width: refWidth * fitScale, height: refHeight * fitScale }}
+        >
         <div
           ref={stageRef}
           className={`canvas-stage cb-stage ${dragging ? 'is-dragging' : ''}`}
           style={{
-            aspectRatio: String(ratio),
+            width: refWidth,
+            height: refHeight,
+            transform: `scale(${fitScale})`,
+            transformOrigin: 'top left',
             ['--cb-aspect' as string]: String(ratio),
             ['--cv-overlay' as string]: String(canvas.overlayOpacity),
             ...(canvas.backgroundUrl
@@ -665,6 +702,7 @@ export function CanvasBuilder({
               </button>
             </div>
           ) : null}
+        </div>
         </div>
         </div>
 
