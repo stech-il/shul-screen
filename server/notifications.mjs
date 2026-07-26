@@ -131,7 +131,7 @@ export async function notifyTrialStarted(synagogueId, opts = {}) {
     : `תקופת ניסיון התחילה — ${name}`;
 
   const credsText = hasCreds
-    ? `\nפרטי כניסה לניהול המסך:\nשם משתמש: ${username}\nסיסמה: ${password}\nקישור לניהול: ${loginUrl || '—'}\nקישור למסך החי: ${displayUrl || '—'}\n\nשמרו את הסיסמה במקום בטוח — היא לא תוצג שוב במערכת.\n`
+    ? `\nפרטי כניסה לניהול המסך:\nשם משתמש: ${username}\nסיסמה: ${password}\nקישור לניהול: ${loginUrl || '—'}\nקישור למסך החי: ${displayUrl || '—'}\n`
     : '';
 
   const text = `שלום,\n\nבית הכנסת «${name}» נפתח במערכת screensmart עם תקופת ניסיון של ${TRIAL_DAYS} ימים.\nהניסיון בתוקף עד ${until}.\n${credsText}\nלאחר תקופת הניסיון יש להפעיל מנוי כדי שהמסך ימשיך לפעול.\n`;
