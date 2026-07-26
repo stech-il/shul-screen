@@ -39,6 +39,7 @@ import { saveDesignTemplate } from '../lib/designTemplates';
 import {
   isSupabaseConfigured,
   loadLocal,
+  pullFromCloud,
   saveConfig,
   startAutoSync,
   syncConfig,
@@ -782,9 +783,22 @@ export function Admin({ synagogueId }: Props) {
                       return;
                     }
                     void (async () => {
-                      const current = loadLocal(synagogueId)?.config;
+                      let current = loadLocal(synagogueId)?.config;
                       if (!current) {
-                        setStatus('התשלום עבר — רענן את הדף כדי לראות את הרישיון');
+                        try {
+                          current = (await pullFromCloud(synagogueId))?.config;
+                        } catch {
+                          /* ignore */
+                        }
+                      }
+                      if (!current) {
+                        // Still apply license into in-memory config so the banner updates
+                        setConfigRaw((prev) =>
+                          prev ? { ...prev, license } : prev,
+                        );
+                        setStatus(
+                          'התשלום עבר והרישיון עודכן בשרת — רענן את הדף אם המסך לא נפתח',
+                        );
                         return;
                       }
                       const toSave = { ...current, license };

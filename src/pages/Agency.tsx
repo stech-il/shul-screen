@@ -289,7 +289,7 @@ export function Agency() {
       const cfg = await fetchBillingConfig();
       setBillingConfigured(cfg.configured);
       if (!cfg.configured) return;
-      const sub = await fetchSubscription(config.id);
+      const sub = await fetchSubscription(config.id, { sync: true });
       setBillingSub(sub);
       setBillingAmount(String(sub.amount > 0 ? sub.amount : 99));
       setBillingActive(sub.amount > 0 ? sub.active : true);
@@ -1124,6 +1124,11 @@ export function Agency() {
                         {billingSub.hasPaymentMethod
                           ? ` · כרטיס •••• ${billingSub.cardMask || '????'}`
                           : ''}
+                        {billingSub.hasStandingOrder
+                          ? ' · הו״ק פעילה ב־SUMIT'
+                          : billingSub.hasPaymentMethod
+                            ? ' · אין הו״ק ב־SUMIT (חיוב חד־פעמי בלבד)'
+                            : ''}
                         {billingSub.paidUntil
                           ? ` · שולם עד ${formatBillingDate(billingSub.paidUntil)}`
                           : ''}

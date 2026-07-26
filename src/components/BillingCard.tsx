@@ -37,7 +37,13 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    Promise.all([fetchBillingConfig(), fetchSubscription(synagogueId).catch(() => null)])
+    // sync=1 pulls invoices from SUMIT so history appears even if a prior save failed
+    Promise.all([
+      fetchBillingConfig(),
+      fetchSubscription(synagogueId, { sync: true }).catch(() =>
+        fetchSubscription(synagogueId).catch(() => null),
+      ),
+    ])
       .then(([cfg, s]) => {
         if (cancelled) return;
         setConfig(cfg);
@@ -81,7 +87,11 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
       const until = license?.expiresAt
         ? formatBillingDate(license.expiresAt)
         : formatBillingDate(next.paidUntil);
-      setMsg(`התשלום בוצע — הרישיון חודש עד ${until}. הוראת הקבע פעילה.`);
+      setMsg(
+        next.hasStandingOrder === false
+          ? `התשלום בוצע והרישיון חודש עד ${until}, אך הו״ק לא נוצרה ב־SUMIT — עדכן כרטיס שוב או פנה לתמיכה.`
+          : `התשלום בוצע — הרישיון חודש עד ${until}. הוראת הקבע פעילה.`,
+      );
       onRenewed?.(license);
     } catch (err) {
       setMsg(err instanceof Error ? err.message : 'התשלום נכשל');
@@ -109,7 +119,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
   }
 
   const amountSet = (sub?.amount ?? 0) > 0;
-  const invoices = (sub?.history ?? []).filter((h) => h.ok);
+  const invoices = sub?.history ?? [];
 
   return (
     <section className="card">
@@ -134,6 +144,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                     ? 'מבוטל'
                     : '—'}{' '}
               · שולם עד: {formatBillingDate(sub.paidUntil)}
+              {sub.hasStandingOrder ? ' · הו״ק פעילה ב־SUMIT' : ' · הו״ק עדיין לא נוצרה ב־SUMIT'}
             </p>
           ) : (
             <p className="hint">עדיין לא הוזן כרטיס אשראי.</p>
@@ -250,26 +261,30 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
 
           {invoices.length ? (
             <div className="billing-invoices">
-              <h3>היסטוריית חשבוניות</h3>
+              <h3>היסטוריית חיובים</h3>
               <ul>
                 {invoices.map((h, i) => (
                   <li key={`${h.at}-${i}`}>
                     <span>
                       {formatBillingDate(h.at)} · {formatIls(h.amount)}
+                      {h.ok ? '' : ' · נכשל'}
                       {h.documentNumber ? ` · מס׳ ${h.documentNumber}` : ''}
+                      {h.error ? ` — ${h.error}` : ''}
                     </span>
-                    {h.documentUrl ? (
+                    {h.ok && h.documentUrl ? (
                       <a href={h.documentUrl} target="_blank" rel="noreferrer" dir="ltr">
                         הורדה
                       </a>
-                    ) : (
+                    ) : h.ok ? (
                       <span className="hint">נשמר ב־SUMIT</span>
-                    )}
+                    ) : null}
                   </li>
                 ))}
               </ul>
             </div>
-          ) : null}
+          ) : (
+            <p className="hint">אין חיובים להצגה עדיין.</p>
+          )}
         </>
       )}
 

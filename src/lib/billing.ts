@@ -23,6 +23,8 @@ export interface BillingSubscription {
   active: boolean;
   status: 'none' | 'active' | 'failed' | 'canceled';
   hasPaymentMethod: boolean;
+  /** True when SUMIT created a standing order (הוראת קבע) */
+  hasStandingOrder?: boolean;
   cardMask: string;
   payerName: string;
   payerEmail: string;
@@ -71,8 +73,22 @@ export function savePlatformBilling(adminEmail: string): Promise<{ adminEmail: s
   });
 }
 
-export function fetchSubscription(id: string): Promise<BillingSubscription> {
-  return api<BillingSubscription>(`/api/billing/subscriptions/${encodeURIComponent(id)}`);
+export function fetchSubscription(
+  id: string,
+  opts?: { sync?: boolean },
+): Promise<BillingSubscription> {
+  const q = opts?.sync ? '?sync=1' : '';
+  return api<BillingSubscription>(
+    `/api/billing/subscriptions/${encodeURIComponent(id)}${q}`,
+  );
+}
+
+/** Pull latest invoices / HOK status from SUMIT into our store. */
+export function syncSubscription(id: string): Promise<BillingSubscription> {
+  return api<BillingSubscription>(
+    `/api/billing/subscriptions/${encodeURIComponent(id)}/sync`,
+    { method: 'POST', body: '{}' },
+  );
 }
 
 export function fetchAllSubscriptions(): Promise<BillingSubscription[]> {

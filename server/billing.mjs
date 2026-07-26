@@ -4,9 +4,11 @@
  * Flow:
  * 1. Platform admin sets monthly amount + admin email (for invoice copies).
  * 2. Synagogue enters card → browser tokenizes (SingleUseToken).
- * 3. First charge via /billing/recurring/charge/ (1 month) + save method.
- * 4. Server returns a fresh 1-month license; client must persist it if cloud
- *    bundle is missing. Cron re-charges due subscriptions every 6h.
+ * 3. First charge via /billing/recurring/charge/ creates a real HOK in SUMIT
+ *    (monthly, continuous) and charges the first month immediately.
+ * 4. Server persists history + grants a 1-month license on the cloud bundle.
+ * 5. Cron syncs new SUMIT payments (HOK auto-charges) and extends licenses;
+ *    only falls back to manual charge when no recurring item exists.
  *
  * Env: SUMIT_COMPANY_ID, SUMIT_API_KEY, SUMIT_API_PUBLIC_KEY
  */
@@ -20,6 +22,8 @@ const PREFIX = 'billing';
 const PLATFORM_ID = '_platform';
 const HISTORY_MAX = 36;
 const RETRY_COOLDOWN_MS = 5 * 60 * 60 * 1000;
+/** Continuous monthly HOK — Recurrence 0/null = continuous per SUMIT docs. */
+const HOK_RECURRENCE = 0;
 
 export function billingConfigured() {
   return Boolean(COMPANY_ID && API_KEY && PUBLIC_KEY);
@@ -126,15 +130,12 @@ function sumitError(resp) {
   );
 }
 
-function paymentOk(payment, data) {
-  if (payment) {
-    if (payment.ValidPayment === true) return true;
-    const st = String(payment.Status ?? '');
-    if (st === '000' || st === '0') return true;
-  }
-  // Some successful envelopes expose IDs without a nested Payment object
-  if (data?.CustomerID || data?.PaymentID || data?.DocumentID) return true;
-  return false;
+function paymentOk(payment) {
+  if (!payment) return false;
+  if (payment.ValidPayment === false) return false;
+  if (payment.ValidPayment === true) return true;
+  const st = String(payment.Status ?? '');
+  return st === '000' || st === '0';
 }
 
 function extractCardMask(payment, data) {
@@ -157,9 +158,24 @@ function extractDocumentUrl(data, payment) {
   );
 }
 
+function extractRecurringIds(data) {
+  const raw =
+    data?.RecurringCustomerItemIDs ||
+    data?.RecurringItemIDs ||
+    data?.RecurringItems ||
+    [];
+  if (Array.isArray(raw)) {
+    return raw
+      .map((x) => (typeof x === 'object' ? x?.ID ?? x?.Id : x))
+      .filter((x) => x != null && x !== '');
+  }
+  return [];
+}
+
 /**
- * Charge. First time: SingleUseToken via recurring/charge (1 month HOK).
- * Renewals: payments/charge against saved customer.
+ * Create / charge a real SUMIT standing order (הוראת קבע).
+ * With token: creates HOK + first charge.
+ * Without token: one-off charge against saved customer (manual / legacy).
  */
 async function sumitCharge(rec, shulName, singleUseToken, adminEmail) {
   const customerBase = {
@@ -173,7 +189,8 @@ async function sumitCharge(rec, shulName, singleUseToken, adminEmail) {
 
   let resp;
   if (singleUseToken) {
-    // Create / renew recurring item for 1 month and charge now
+    // Match SUMIT swagger: Duration_Months on Item only; Recurrence on line.
+    // Recurrence 0 = continuous monthly standing order.
     resp = await sumitPost('/billing/recurring/charge/', {
       Customer: {
         ...customerBase,
@@ -183,16 +200,23 @@ async function sumitCharge(rec, shulName, singleUseToken, adminEmail) {
       SingleUseToken: singleUseToken,
       Items: [
         {
-          Item: { Name: itemName, Description: itemDesc, Duration_Months: 1 },
+          Item: {
+            Name: itemName,
+            Description: itemDesc,
+            Duration_Months: 1,
+          },
           Quantity: 1,
           UnitPrice: rec.amount,
           Currency: 0,
-          Duration_Months: 1,
-          Recurrence: 0,
+          Recurrence: HOK_RECURRENCE,
         },
       ],
       VATIncluded: true,
       OnlyDocument: false,
+      PreventStandingOrder: false,
+      UpdateCustomerByEmail: true,
+      UpdateCustomerByEmail_AttachDocument: true,
+      SendCopyToOrganization: true,
     });
   } else {
     const customer = rec.customerId
@@ -210,24 +234,52 @@ async function sumitCharge(rec, shulName, singleUseToken, adminEmail) {
       ],
       VATIncluded: true,
       OnlyDocument: false,
+      UpdateCustomerByEmail: true,
+      UpdateCustomerByEmail_AttachDocument: true,
+      SendCopyToOrganization: true,
+      SendDocumentByEmail: true,
     });
   }
 
   const data = resp?.Data || {};
   const payment = data.Payment || data.payment || null;
+  const recurringIds = extractRecurringIds(data);
 
-  if (!sumitEnvelopeOk(resp) || !paymentOk(payment, data)) {
-    console.error('SUMIT charge failed', JSON.stringify({
-      Status: resp?.Status,
-      UserErrorMessage: resp?.UserErrorMessage,
-      TechnicalErrorDetails: resp?.TechnicalErrorDetails,
-      PaymentStatus: payment?.Status,
-      ValidPayment: payment?.ValidPayment,
-    }));
+  if (!sumitEnvelopeOk(resp) || !paymentOk(payment)) {
+    console.error(
+      'SUMIT charge failed',
+      JSON.stringify({
+        Status: resp?.Status,
+        UserErrorMessage: resp?.UserErrorMessage,
+        TechnicalErrorDetails: resp?.TechnicalErrorDetails,
+        PaymentStatus: payment?.Status,
+        ValidPayment: payment?.ValidPayment,
+        RecurringIds: recurringIds,
+      }),
+    );
     throw new Error(sumitError(resp));
   }
 
-  const recurringIds = data.RecurringCustomerItemIDs || [];
+  if (singleUseToken && recurringIds.length === 0) {
+    console.error(
+      'SUMIT charge OK but no RecurringCustomerItemIDs — HOK was not created',
+      JSON.stringify({ CustomerID: data.CustomerID, PaymentID: payment?.ID, DataKeys: Object.keys(data || {}) }),
+    );
+    // Payment already cleared — still return success so we grant license + history,
+    // but flag missing HOK for the UI / retry.
+    return {
+      paymentId: payment?.ID ?? data.PaymentID ?? null,
+      customerId: data.CustomerID ?? payment?.CustomerID ?? rec.customerId ?? null,
+      recurringItemId: null,
+      documentId: data.DocumentID ?? payment?.DocumentID ?? null,
+      documentUrl: extractDocumentUrl(data, payment),
+      documentNumber: data.DocumentNumber ?? null,
+      cardMask: extractCardMask(payment, data) || rec.cardMask,
+      amount: Number(payment?.Amount ?? rec.amount) || rec.amount,
+      missingStandingOrder: true,
+    };
+  }
+
   return {
     paymentId: payment?.ID ?? data.PaymentID ?? null,
     customerId: data.CustomerID ?? payment?.CustomerID ?? rec.customerId ?? null,
@@ -236,7 +288,123 @@ async function sumitCharge(rec, shulName, singleUseToken, adminEmail) {
     documentUrl: extractDocumentUrl(data, payment),
     documentNumber: data.DocumentNumber ?? null,
     cardMask: extractCardMask(payment, data) || rec.cardMask,
+    amount: Number(payment?.Amount ?? rec.amount) || rec.amount,
+    missingStandingOrder: false,
   };
+}
+
+/** Fetch recent valid payments from SUMIT and merge into local history. */
+async function syncPaymentsFromSumit(rec) {
+  if (!rec.customerId) return rec;
+  const to = new Date();
+  const from = new Date();
+  from.setMonth(from.getMonth() - 18);
+  let resp;
+  try {
+    resp = await sumitPost('/billing/payments/list/', {
+      Date_From: from.toISOString(),
+      Date_To: to.toISOString(),
+      Valid: true,
+    });
+  } catch (err) {
+    console.warn('SUMIT payments/list failed', err);
+    return rec;
+  }
+  if (!sumitEnvelopeOk(resp)) return rec;
+
+  const list =
+    resp?.Data?.Payments ||
+    resp?.Data?.Items ||
+    resp?.Data?.List ||
+    (Array.isArray(resp?.Data) ? resp.Data : []) ||
+    [];
+
+  const mine = list.filter((p) => {
+    const cid = p?.CustomerID ?? p?.Customer?.ID;
+    return cid != null && String(cid) === String(rec.customerId);
+  });
+
+  const known = new Set(
+    (rec.history || [])
+      .map((h) => (h.paymentId != null ? String(h.paymentId) : ''))
+      .filter(Boolean),
+  );
+
+  let added = 0;
+  const nextHistory = [...(rec.history || [])];
+  for (const p of mine) {
+    const pid = p?.ID ?? p?.PaymentID;
+    if (pid != null && known.has(String(pid))) continue;
+    const ok =
+      p?.ValidPayment === true ||
+      String(p?.Status ?? '') === '000' ||
+      String(p?.Status ?? '') === '0';
+    if (!ok) continue;
+    const at =
+      p?.Date ||
+      p?.PaymentDate ||
+      p?.CreatedDate ||
+      p?.Timestamp ||
+      nowIso();
+    nextHistory.push({
+      at: typeof at === 'string' ? at : nowIso(),
+      amount: Number(p?.Amount ?? rec.amount) || rec.amount,
+      ok: true,
+      paymentId: pid ?? null,
+      documentId: p?.DocumentID ?? null,
+      documentUrl: p?.DocumentDownloadURL ?? null,
+      documentNumber: p?.DocumentNumber ?? null,
+      source: 'sumit-sync',
+    });
+    known.add(pid != null ? String(pid) : '');
+    added += 1;
+  }
+
+  if (added === 0) return rec;
+
+  nextHistory.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  rec.history = nextHistory.slice(-HISTORY_MAX);
+
+  const lastOk = [...rec.history].reverse().find((h) => h.ok);
+  if (lastOk) {
+    rec.lastChargeAt = lastOk.at;
+    rec.lastError = null;
+    if (rec.status !== 'canceled') rec.status = 'active';
+    // Extend paidUntil to cover each newly discovered payment beyond current
+    const okCount = rec.history.filter((h) => h.ok).length;
+    if (!rec.paidUntil || Date.parse(rec.paidUntil) < Date.now()) {
+      // Catch up: set paidUntil from last charge + 1 month
+      rec.paidUntil = addMonths(lastOk.at, 1);
+    }
+    void okCount;
+  }
+  return rec;
+}
+
+/** Ensure customer has an active HOK in SUMIT; store recurringItemId if found. */
+async function syncRecurringItem(rec) {
+  if (!rec.customerId) return rec;
+  try {
+    const resp = await sumitPost('/billing/recurring/listforcustomer/', {
+      Customer: { ID: rec.customerId, SearchMode: 0 },
+      IncludeInactive: false,
+    });
+    if (!sumitEnvelopeOk(resp)) return rec;
+    const items = resp?.Data?.RecurringItems || [];
+    if (!items.length) return rec;
+    const first = items[0];
+    const id = first?.ID ?? first?.Id ?? null;
+    if (id != null) {
+      rec.recurringItemId = id;
+      if (rec.status !== 'canceled') {
+        rec.active = true;
+        rec.status = 'active';
+      }
+    }
+  } catch (err) {
+    console.warn('SUMIT recurring/listforcustomer failed', err);
+  }
+  return rec;
 }
 
 /** Build / extend a 1-month screen license. Always returns the license object. */
@@ -253,7 +421,7 @@ async function extendLicense(id, months = 1) {
     expiresAt,
     holderName: prev?.holderName || bundle?.config?.name || id,
     synagogueId: id,
-    locked: false, // successful payment unlocks
+    locked: false,
     serverValidated: true,
   };
 
@@ -269,6 +437,53 @@ async function extendLicense(id, months = 1) {
     console.warn(`billing: no cloud bundle for ${id} — license returned for client to save`);
   }
   return license;
+}
+
+/**
+ * Apply a successful payment to local subscription + license.
+ * Saves subscription first so history survives even if license write fails.
+ */
+async function applySuccessfulPayment(rec, result, { extend = true } = {}) {
+  rec.customerId = result.customerId ?? rec.customerId;
+  if (result.recurringItemId) rec.recurringItemId = result.recurringItemId;
+  rec.cardMask = result.cardMask || rec.cardMask;
+  rec.status = 'active';
+  rec.active = true;
+  rec.lastChargeAt = nowIso();
+  rec.lastError = result.missingStandingOrder
+    ? 'החיוב עבר והרישיון חודש, אך SUMIT לא יצר הוראת קבע. עדכן כרטיס שוב או בדוק שמודול הו״ק פעיל ב־SUMIT.'
+    : null;
+  rec.paidUntil = addMonths(rec.paidUntil, 1);
+  const entry = {
+    at: nowIso(),
+    amount: result.amount ?? rec.amount,
+    ok: true,
+    paymentId: result.paymentId,
+    documentId: result.documentId,
+    documentUrl: result.documentUrl,
+    documentNumber: result.documentNumber,
+  };
+  // de-dupe by paymentId
+  if (
+    result.paymentId == null ||
+    !(rec.history || []).some((h) => String(h.paymentId) === String(result.paymentId))
+  ) {
+    rec.history = [...(rec.history || []), entry];
+  }
+  await saveSubscription(rec);
+
+  let license = null;
+  if (extend) {
+    try {
+      license = await extendLicense(rec.synagogueId, 1);
+    } catch (err) {
+      console.error('extendLicense failed after payment', err);
+      // Payment already saved — surface soft error via lastError but don't roll back
+      rec.lastError = `התשלום נשמר אך חידוש הרישיון נכשל: ${String(err?.message || err).slice(0, 160)}`;
+      await saveSubscription(rec).catch(() => {});
+    }
+  }
+  return { subscription: rec, license };
 }
 
 async function chargeAndRenew(id, options = {}) {
@@ -294,29 +509,7 @@ async function chargeAndRenew(id, options = {}) {
       options.singleUseToken,
       platform.adminEmail || undefined,
     );
-    rec.customerId = result.customerId;
-    rec.recurringItemId = result.recurringItemId || rec.recurringItemId;
-    rec.cardMask = result.cardMask || rec.cardMask;
-    rec.status = 'active';
-    rec.active = true;
-    rec.lastChargeAt = nowIso();
-    rec.lastError = null;
-    rec.paidUntil = addMonths(rec.paidUntil, 1);
-    rec.history = [
-      ...(rec.history || []),
-      {
-        at: nowIso(),
-        amount: rec.amount,
-        ok: true,
-        paymentId: result.paymentId,
-        documentId: result.documentId,
-        documentUrl: result.documentUrl,
-        documentNumber: result.documentNumber,
-      },
-    ];
-    await saveSubscription(rec);
-    const license = await extendLicense(id, 1);
-    return { subscription: rec, license };
+    return await applySuccessfulPayment(rec, result, { extend: true });
   } catch (err) {
     const message = String(err?.message || err);
     rec.status = rec.customerId ? 'failed' : rec.status === 'none' ? 'none' : 'failed';
@@ -325,35 +518,73 @@ async function chargeAndRenew(id, options = {}) {
       ...(rec.history || []),
       { at: nowIso(), amount: rec.amount, ok: false, error: message.slice(0, 200) },
     ];
-    await saveSubscription(rec);
+    await saveSubscription(rec).catch(() => {});
     throw new Error(message);
   }
 }
 
+/**
+ * For HOK-managed subs: sync SUMIT payments and extend license for each new one.
+ * For legacy (customer but no HOK): charge via payments/charge when due.
+ */
 export async function runBillingCycle() {
   if (!billingConfigured()) return { skipped: true };
   const all = await listRecords(PREFIX);
   const now = Date.now();
   let charged = 0;
+  let synced = 0;
   let failed = 0;
+
   for (const raw of all) {
     if (!raw?.synagogueId || raw.synagogueId === PLATFORM_ID) continue;
-    const rec = { ...defaultSubscription(raw.synagogueId), ...raw };
+    let rec = { ...defaultSubscription(raw.synagogueId), ...raw };
     if (!rec.active || !(rec.amount > 0) || !rec.customerId) continue;
-    const due = !rec.paidUntil || Date.parse(rec.paidUntil) <= now;
-    if (!due) continue;
-    const lastAttempt = rec.history?.length ? Date.parse(rec.history[rec.history.length - 1].at) : 0;
-    if (now - lastAttempt < RETRY_COOLDOWN_MS) continue;
+
     try {
+      const beforeCount = (rec.history || []).filter((h) => h.ok).length;
+      rec = await syncRecurringItem(rec);
+      rec = await syncPaymentsFromSumit(rec);
+      const afterCount = (rec.history || []).filter((h) => h.ok).length;
+      const newPayments = afterCount - beforeCount;
+
+      if (newPayments > 0) {
+        await saveSubscription(rec);
+        // Extend license once per newly discovered payment
+        for (let i = 0; i < newPayments; i += 1) {
+          await extendLicense(rec.synagogueId, 1);
+        }
+        // Align paidUntil with last charge
+        const lastOk = [...(rec.history || [])].reverse().find((h) => h.ok);
+        if (lastOk) rec.paidUntil = addMonths(lastOk.at, 1);
+        await saveSubscription(rec);
+        synced += newPayments;
+        console.log(`billing: synced ${newPayments} payment(s) for ${rec.synagogueId}`);
+        continue;
+      }
+
+      // Already has SUMIT HOK — SUMIT will charge; we only sync
+      if (rec.recurringItemId) continue;
+
+      // Legacy path: no HOK — charge ourselves when due
+      const due = !rec.paidUntil || Date.parse(rec.paidUntil) <= now;
+      if (!due) continue;
+      const lastAttempt = rec.history?.length
+        ? Date.parse(rec.history[rec.history.length - 1].at)
+        : 0;
+      if (now - lastAttempt < RETRY_COOLDOWN_MS) continue;
+
       await chargeAndRenew(rec.synagogueId);
       charged += 1;
       console.log(`billing: charged ${rec.synagogueId} (${rec.amount}₪)`);
     } catch (err) {
       failed += 1;
-      console.error(`billing: charge failed for ${rec.synagogueId}:`, String(err?.message || err));
+      console.error(
+        `billing: cycle failed for ${rec.synagogueId}:`,
+        String(err?.message || err),
+      );
     }
   }
-  return { charged, failed, total: all.length };
+  return { charged, synced, failed, total: all.length };
 }
 
 let cronTimer = null;
@@ -393,6 +624,7 @@ function publicRecord(rec) {
     active: rec.active,
     status: rec.status,
     hasPaymentMethod: Boolean(rec.customerId),
+    hasStandingOrder: Boolean(rec.recurringItemId),
     cardMask: rec.cardMask || '',
     payerName: rec.payerName || '',
     payerEmail: rec.payerEmail || '',
@@ -403,6 +635,31 @@ function publicRecord(rec) {
   };
 }
 
+/** Enrich subscription from SUMIT before returning to client. */
+async function loadSubscriptionPublic(id, { sync = false } = {}) {
+  let rec = await getSubscription(id);
+  if (sync && billingConfigured() && rec.customerId) {
+    try {
+      const before = (rec.history || []).filter((h) => h.ok).length;
+      rec = await syncRecurringItem(rec);
+      rec = await syncPaymentsFromSumit(rec);
+      const after = (rec.history || []).filter((h) => h.ok).length;
+      if (after !== before || rec.recurringItemId) {
+        await saveSubscription(rec);
+      }
+      // If we discovered payments newer than license, extend
+      if (after > before) {
+        for (let i = 0; i < after - before; i += 1) {
+          await extendLicense(id, 1).catch(() => null);
+        }
+      }
+    } catch (err) {
+      console.warn('subscription sync', err);
+    }
+  }
+  return publicRecord(rec);
+}
+
 export async function handleBilling(req, res, url) {
   if (req.method === 'OPTIONS') {
     sendJson(res, 204, {});
@@ -410,7 +667,9 @@ export async function handleBilling(req, res, url) {
   }
 
   if (url.pathname === '/api/billing/config') {
-    const platform = billingConfigured() ? await getPlatformSettings().catch(() => defaultPlatform()) : defaultPlatform();
+    const platform = billingConfigured()
+      ? await getPlatformSettings().catch(() => defaultPlatform())
+      : defaultPlatform();
     sendJson(res, 200, {
       configured: billingConfigured(),
       companyId: billingConfigured() ? COMPANY_ID : null,
@@ -446,6 +705,67 @@ export async function handleBilling(req, res, url) {
     return;
   }
 
+  // SUMIT Trigger / webhook — extend license when HOK auto-charges
+  if (url.pathname === '/api/billing/webhook' && req.method === 'POST') {
+    try {
+      const raw = (await readBody(req)).toString('utf8') || '';
+      let payload = {};
+      try {
+        payload = JSON.parse(raw);
+      } catch {
+        const params = new URLSearchParams(raw);
+        if (params.get('json')) {
+          payload = JSON.parse(params.get('json'));
+        } else {
+          payload = Object.fromEntries(params.entries());
+        }
+      }
+      // Flatten Data if present
+      const data = payload?.Data && typeof payload.Data === 'object' ? payload.Data : payload;
+      const externalId =
+        data?.Customer?.ExternalIdentifier ||
+        data?.ExternalIdentifier ||
+        payload?.Customer?.ExternalIdentifier ||
+        null;
+      const customerId = data?.CustomerID || data?.Customer?.ID || payload?.CustomerID || null;
+      const paymentId = data?.Payment?.ID || data?.PaymentID || payload?.PaymentID || null;
+      const valid =
+        data?.Payment?.ValidPayment === true ||
+        String(data?.Payment?.Status ?? data?.Status ?? '') === '000';
+
+      let rec = null;
+      if (externalId) {
+        rec = await getSubscription(String(externalId));
+      } else if (customerId) {
+        const all = await listRecords(PREFIX);
+        const found = all.find((r) => r?.customerId != null && String(r.customerId) === String(customerId));
+        if (found) rec = { ...defaultSubscription(found.synagogueId), ...found };
+      }
+
+      if (rec && valid && rec.synagogueId && rec.synagogueId !== PLATFORM_ID) {
+        await applySuccessfulPayment(
+          rec,
+          {
+            paymentId,
+            customerId: customerId ?? rec.customerId,
+            recurringItemId: rec.recurringItemId,
+            documentId: data?.DocumentID ?? null,
+            documentUrl: data?.DocumentDownloadURL ?? null,
+            documentNumber: data?.DocumentNumber ?? null,
+            cardMask: rec.cardMask,
+            amount: Number(data?.Payment?.Amount ?? rec.amount) || rec.amount,
+          },
+          { extend: true },
+        );
+      }
+      sendJson(res, 200, { ok: true });
+    } catch (err) {
+      console.error('billing webhook', err);
+      sendJson(res, 200, { ok: false }); // acknowledge to avoid SUMIT retries storm
+    }
+    return;
+  }
+
   if (!billingConfigured()) {
     sendJson(res, 503, {
       error: 'סליקה לא מוגדרת בשרת (SUMIT_COMPANY_ID / SUMIT_API_KEY / SUMIT_API_PUBLIC_KEY)',
@@ -477,7 +797,9 @@ export async function handleBilling(req, res, url) {
     const action = m[2] || '';
 
     if (req.method === 'GET' && !action) {
-      sendJson(res, 200, publicRecord(await getSubscription(id)));
+      // sync=1 pulls latest invoices from SUMIT into history
+      const sync = url.searchParams.get('sync') === '1';
+      sendJson(res, 200, await loadSubscriptionPublic(id, { sync }));
       return;
     }
 
@@ -490,7 +812,9 @@ export async function handleBilling(req, res, url) {
       if (typeof body.active === 'boolean') {
         rec.active = body.active;
         if (!body.active && rec.status === 'active') rec.status = 'canceled';
-        if (body.active && rec.status === 'canceled') rec.status = rec.customerId ? 'active' : 'none';
+        if (body.active && rec.status === 'canceled') {
+          rec.status = rec.customerId ? 'active' : 'none';
+        }
       }
       await saveSubscription(rec);
       sendJson(res, 200, publicRecord(rec));
@@ -525,8 +849,23 @@ export async function handleBilling(req, res, url) {
       return;
     }
 
+    if (req.method === 'POST' && action === 'sync') {
+      sendJson(res, 200, await loadSubscriptionPublic(id, { sync: true }));
+      return;
+    }
+
     if (req.method === 'POST' && action === 'cancel') {
       const rec = await getSubscription(id);
+      // Best-effort cancel in SUMIT
+      if (rec.recurringItemId) {
+        try {
+          await sumitPost('/billing/recurring/cancel/', {
+            RecurringCustomerItemID: rec.recurringItemId,
+          });
+        } catch (err) {
+          console.warn('SUMIT cancel failed', err);
+        }
+      }
       rec.active = false;
       rec.status = 'canceled';
       await saveSubscription(rec);
