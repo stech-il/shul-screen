@@ -163,7 +163,9 @@ function uploadToSupabaseWithProgress(
 
 /**
  * Upload media to Supabase Storage when configured.
- * Falls back to compressed data URL for offline / no-cloud mode.
+ * Otherwise uploads to the app's durable cloud media API (/api/cloud/media)
+ * so every display screen can load the same file.
+ * Falls back to compressed data URL only when cloud is unavailable.
  */
 export async function uploadMedia(
   synagogueId: string,
@@ -194,6 +196,34 @@ export async function uploadMedia(
       return { url: data.publicUrl, remote: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'העלאה נכשלה';
+      // Fall through to server cloud media
+      report(onProgress, 40, `Supabase נכשל — מעלה לענן המערכת...`);
+      try {
+        return await uploadToServerCloud(synagogueId, file, kind, folder, onProgress, message);
+      } catch {
+        const url =
+          kind === 'image'
+            ? await fileToOptimizedDataUrl(file, (p, l) =>
+                report(onProgress, 50 + p / 2, l ?? 'שומר מקומית...'),
+              )
+            : await readFileAsDataUrl(file, kind, (p, l) =>
+                report(onProgress, 50 + p / 2, l ?? 'שומר מקומית...'),
+              );
+        return {
+          url,
+          remote: false,
+          warning: `העלאה לשרת נכשלה (${message}). נשמר מקומית — לחץ שמור מהמחשב הזה.`,
+        };
+      }
+    }
+  }
+
+  if (navigator.onLine) {
+    try {
+      return await uploadToServerCloud(synagogueId, file, kind, folder, onProgress);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'העלאה נכשלה';
+      report(onProgress, 50, 'שומר מקומית...');
       const url =
         kind === 'image'
           ? await fileToOptimizedDataUrl(file, (p, l) =>
@@ -205,7 +235,7 @@ export async function uploadMedia(
       return {
         url,
         remote: false,
-        warning: `העלאה לשרת נכשלה (${message}). נשמר מקומית — צור bucket ציבורי בשם ${MEDIA_BUCKET} ולחץ שמור.`,
+        warning: `העלאה לענן נכשלה (${message}). נשמר מקומית במכשיר זה בלבד.`,
       };
     }
   }
@@ -217,10 +247,109 @@ export async function uploadMedia(
   return {
     url,
     remote: false,
-    warning: isSupabaseConfigured
-      ? 'אין אינטרנט — נשמר מקומית בגלריה. לחץ שמור.'
-      : 'Supabase לא מוגדר (.env.local) — נשמר בגלריה מקומית. לחץ שמור.',
+    warning: 'אין אינטרנט — נשמר מקומית במכשיר זה בלבד. לחץ שמור כשיש רשת.',
   };
+}
+
+async function uploadToServerCloud(
+  synagogueId: string,
+  file: File,
+  kind: MediaKind,
+  folder: string,
+  onProgress?: UploadProgressFn,
+  priorWarning?: string,
+): Promise<UploadMediaResult> {
+  report(onProgress, 10, 'מכין קובץ...');
+  // Compress images before upload to keep cloud payloads small
+  let blob: Blob = file;
+  let contentType = file.type || (kind === 'video' ? 'video/mp4' : 'image/jpeg');
+  let ext = (file.name.split('.').pop() || (kind === 'video' ? 'mp4' : 'jpg')).toLowerCase();
+
+  if (kind === 'image' && file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
+    const dataUrl = await fileToOptimizedDataUrl(file, (p, l) =>
+      report(onProgress, 10 + p * 0.35, l ?? 'דוחס...'),
+    );
+    const comma = dataUrl.indexOf(',');
+    const meta = dataUrl.slice(0, comma);
+    const b64 = dataUrl.slice(comma + 1);
+    contentType = meta.includes('image/png') ? 'image/png' : 'image/jpeg';
+    ext = contentType === 'image/png' ? 'png' : 'jpg';
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    blob = new Blob([bytes], { type: contentType });
+  }
+
+  report(onProgress, 55, 'מעלה לענן...');
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  const dataBase64 = btoa(binary);
+
+  const base = safeName(file.name.replace(/\.[^.]+$/, '')) || 'file';
+  const fileName = `${folder}-${Date.now()}-${base}.${ext}`;
+
+  const res = await fetch(`/api/cloud/media/${encodeURIComponent(synagogueId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileName, contentType, dataBase64 }),
+  });
+  const body = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    url?: string;
+    error?: string;
+  };
+  if (!res.ok || !body.url) {
+    throw new Error(body.error || `שגיאת שרת ${res.status}`);
+  }
+  report(onProgress, 100, 'הועלה לענן');
+  return {
+    url: body.url,
+    remote: true,
+    warning: priorWarning
+      ? `נשמר בענן המערכת (Supabase: ${priorWarning})`
+      : undefined,
+  };
+}
+
+/** Upload a data URL / blob already in memory to durable cloud media. */
+export async function uploadDataUrlToCloud(
+  synagogueId: string,
+  dataUrl: string,
+  fileNameHint = 'image.jpg',
+): Promise<string | null> {
+  if (!dataUrl.startsWith('data:') || !navigator.onLine) return null;
+  try {
+    const comma = dataUrl.indexOf(',');
+    if (comma < 0) return null;
+    const meta = dataUrl.slice(0, comma);
+    const b64 = dataUrl.slice(comma + 1);
+    const contentType = /data:([^;]+)/.exec(meta)?.[1] || 'application/octet-stream';
+    const ext =
+      contentType === 'image/png'
+        ? 'png'
+        : contentType === 'image/webp'
+          ? 'webp'
+          : contentType.startsWith('video/')
+            ? 'mp4'
+            : contentType.startsWith('font/') || contentType.includes('font')
+              ? 'woff2'
+              : 'jpg';
+    const fileName = `migrated-${Date.now()}-${safeName(fileNameHint)}.${ext}`;
+    const res = await fetch(`/api/cloud/media/${encodeURIComponent(synagogueId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName, contentType, dataBase64: b64 }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { url?: string };
+    return body.url || null;
+  } catch {
+    return null;
+  }
 }
 
 const MAX_FONT_BYTES = 4 * 1024 * 1024;
@@ -287,6 +416,11 @@ export async function uploadFont(
       return { url: data.publicUrl, remote: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'העלאה נכשלה';
+      try {
+        return await uploadToServerCloud(synagogueId, file, 'image', 'fonts', onProgress, message);
+      } catch {
+        /* fall through to local */
+      }
       report(onProgress, 50, 'שומר מקומית...');
       const url = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -300,6 +434,14 @@ export async function uploadFont(
         remote: false,
         warning: `העלאה לשרת נכשלה (${message}). נשמר מקומית — לחץ שמור.`,
       };
+    }
+  }
+
+  if (navigator.onLine) {
+    try {
+      return await uploadToServerCloud(synagogueId, file, 'image', 'fonts', onProgress);
+    } catch {
+      /* local fallback */
     }
   }
 
@@ -321,8 +463,6 @@ export async function uploadFont(
   return {
     url,
     remote: false,
-    warning: isSupabaseConfigured
-      ? 'אין אינטרנט — הפונט נשמר מקומית. לחץ שמור.'
-      : 'הפונט נשמר מקומית במכשיר. לחץ שמור (מומלץ לחבר ענן להצגה בכל מסך).',
+    warning: 'הפונט נשמר מקומית במכשיר. לחץ שמור כשיש רשת כדי שיעלה לענן.',
   };
 }

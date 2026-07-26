@@ -11,8 +11,10 @@ import {
   cloudConfigured,
   deleteBundle,
   getBundle,
+  getMediaFile,
   listBundles,
   putBundle,
+  putMediaFile,
   statusPayload,
 } from './server/cloudStore.mjs';
 import { billingConfigured, handleBilling, startBillingCron } from './server/billing.mjs';
@@ -47,7 +49,7 @@ function sendJson(res, status, obj) {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,PUT,POST,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   });
 }
@@ -147,6 +149,51 @@ async function handleCloud(req, res, url) {
       });
     } catch (err) {
       sendJson(res, 500, { error: String(err.message || err) });
+    }
+    return;
+  }
+
+  // POST /api/cloud/media/:synagogueId  { fileName, contentType, dataBase64 }
+  const mediaPost = url.pathname.match(/^\/api\/cloud\/media\/([^/]+)$/);
+  if (mediaPost && req.method === 'POST') {
+    try {
+      const synagogueId = decodeURIComponent(mediaPost[1]);
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const fileName = String(body.fileName || `file-${Date.now()}.bin`);
+      const contentType = String(body.contentType || 'application/octet-stream');
+      const dataBase64 = String(body.dataBase64 || '');
+      if (!dataBase64) {
+        sendJson(res, 400, { error: 'missing dataBase64' });
+        return;
+      }
+      const buffer = Buffer.from(dataBase64, 'base64');
+      const saved = await putMediaFile(synagogueId, fileName, buffer, contentType);
+      sendJson(res, 200, { ok: true, url: saved.url, fileName: saved.fileName, bytes: saved.bytes });
+    } catch (err) {
+      sendJson(res, 500, { error: String(err?.message || err) });
+    }
+    return;
+  }
+
+  // GET /api/cloud/media/:synagogueId/:fileName
+  const mediaGet = url.pathname.match(/^\/api\/cloud\/media\/([^/]+)\/([^/]+)$/);
+  if (mediaGet && req.method === 'GET') {
+    try {
+      const synagogueId = decodeURIComponent(mediaGet[1]);
+      const fileName = decodeURIComponent(mediaGet[2]);
+      const file = await getMediaFile(synagogueId, fileName);
+      if (!file) {
+        sendJson(res, 404, { error: 'media not found' });
+        return;
+      }
+      send(res, 200, file.buffer, {
+        'Content-Type': file.contentType || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=86400',
+        'Access-Control-Allow-Origin': '*',
+      });
+    } catch (err) {
+      sendJson(res, 500, { error: String(err?.message || err) });
     }
     return;
   }

@@ -320,11 +320,96 @@ export async function deleteBundle(id) {
   }
 }
 
+// —— Binary media files on persistent disk (Render Disk / DATA_DIR) ——
+const MEDIA_PREFIX = 'media';
+const MAX_MEDIA_BYTES = 8 * 1024 * 1024;
+const MEDIA_ROOT = process.env.DATA_DIR
+  ? path.join(process.env.DATA_DIR, MEDIA_PREFIX)
+  : path.join(__dirname, 'data', MEDIA_PREFIX);
+
+function safeMediaName(name) {
+  return String(name || 'file')
+    .replace(/[^\w.\u0590-\u05FF-]+/g, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 100) || 'file';
+}
+
+function localMediaDir(synagogueId) {
+  const safe = String(synagogueId).replace(/[^a-zA-Z0-9_\u0590-\u05FF-]/g, '_').slice(0, 80);
+  return path.join(MEDIA_ROOT, safe);
+}
+
+function localMediaPath(synagogueId, fileName) {
+  return path.join(localMediaDir(synagogueId), safeMediaName(fileName));
+}
+
+function guessContentType(fileName) {
+  const ext = path.extname(String(fileName)).toLowerCase();
+  const map = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
+/**
+ * Store a media file on the persistent disk. Returns a public API path.
+ * (Does NOT use GitHub — binaries belong on the Render disk.)
+ */
+export async function putMediaFile(synagogueId, fileName, buffer, contentType) {
+  if (!Buffer.isBuffer(buffer)) buffer = Buffer.from(buffer);
+  if (buffer.length === 0) throw new Error('קובץ ריק');
+  if (buffer.length > MAX_MEDIA_BYTES) {
+    throw new Error(`קובץ גדול מדי (עד ${Math.round(MAX_MEDIA_BYTES / (1024 * 1024))}MB)`);
+  }
+  const safe = safeMediaName(fileName);
+  const dir = localMediaDir(synagogueId);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(localMediaPath(synagogueId, safe), buffer);
+
+  const url = `/api/cloud/media/${encodeURIComponent(synagogueId)}/${encodeURIComponent(safe)}`;
+  return {
+    url,
+    fileName: safe,
+    bytes: buffer.length,
+    contentType: contentType || guessContentType(safe),
+  };
+}
+
+/** Read a media file from the persistent disk. */
+export async function getMediaFile(synagogueId, fileName) {
+  const safe = safeMediaName(fileName);
+  const p = localMediaPath(synagogueId, safe);
+  if (!fs.existsSync(p)) return null;
+  const buffer = fs.readFileSync(p);
+  return { buffer, contentType: guessContentType(safe), sha: null };
+}
+
 export function statusPayload() {
+  let diskOk = false;
+  try {
+    fs.mkdirSync(MEDIA_ROOT, { recursive: true });
+    diskOk = fs.existsSync(MEDIA_ROOT);
+  } catch {
+    diskOk = false;
+  }
   return {
     ok: true,
     backend: cloudBackend(),
     repo: GH_TOKEN ? GH_REPO : null,
     persistent: Boolean(GH_TOKEN),
+    media: true,
+    mediaRoot: MEDIA_ROOT,
+    diskOk,
   };
 }

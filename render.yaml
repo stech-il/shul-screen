@@ -3,16 +3,24 @@ services:
   - type: web
     name: shul-screen
     runtime: node
-    plan: free
+    # Disk requires paid plan (Starter+). Free cannot attach persistent disks.
+    plan: starter
     region: frankfurt
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
+    disk:
+      name: shul-media
+      mountPath: /var/data
+      sizeGB: 5
     envVars:
       - key: NODE_VERSION
         value: "20"
       - key: ELECTRON_SKIP_BINARY_DOWNLOAD
         value: "1"
+      # All durable files (media uploads) live on the attached disk
+      - key: DATA_DIR
+        value: /var/data
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
@@ -21,14 +29,14 @@ services:
         sync: false
       - key: VITE_PLATFORM_ADMIN_PASSWORD
         sync: false
-      # Durable cloud DB (GitHub Contents API) — required so redeploys keep synagogue data
+      # Durable synagogue JSON (GitHub Contents API)
       - key: CLOUD_GITHUB_TOKEN
         sync: false
       - key: CLOUD_GITHUB_REPO
         value: stech-il/shul-screen-data
       - key: CLOUD_GITHUB_BRANCH
         value: main
-      # SUMIT billing (הוראת קבע) — from SUMIT dashboard: Settings → API
+      # SUMIT billing (הוראת קבע)
       - key: SUMIT_COMPANY_ID
         sync: false
       - key: SUMIT_API_KEY

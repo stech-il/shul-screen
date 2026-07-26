@@ -68,6 +68,46 @@ export function cloudApiPlugin(): Plugin {
             return;
           }
 
+          const mediaPost = pathOnly.match(/^\/api\/cloud\/media\/([^/]+)$/);
+          if (mediaPost && req.method === 'POST') {
+            const synagogueId = decodeURIComponent(mediaPost[1]);
+            const raw = await readReq(req);
+            const body = JSON.parse(raw.toString('utf8') || '{}') as {
+              fileName?: string;
+              contentType?: string;
+              dataBase64?: string;
+            };
+            if (!body.dataBase64) {
+              send(400, { error: 'missing dataBase64' });
+              return;
+            }
+            const buffer = Buffer.from(body.dataBase64, 'base64');
+            const saved = await store.putMediaFile(
+              synagogueId,
+              body.fileName || `file-${Date.now()}.bin`,
+              buffer,
+              body.contentType || 'application/octet-stream',
+            );
+            send(200, { ok: true, url: saved.url, fileName: saved.fileName, bytes: saved.bytes });
+            return;
+          }
+
+          const mediaGet = pathOnly.match(/^\/api\/cloud\/media\/([^/]+)\/([^/]+)$/);
+          if (mediaGet && req.method === 'GET') {
+            const synagogueId = decodeURIComponent(mediaGet[1]);
+            const fileName = decodeURIComponent(mediaGet[2]);
+            const file = await store.getMediaFile(synagogueId, fileName);
+            if (!file) {
+              send(404, { error: 'media not found' });
+              return;
+            }
+            res.statusCode = 200;
+            res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.end(file.buffer);
+            return;
+          }
+
           const match = pathOnly.match(/^\/api\/cloud\/synagogues\/([^/]+)$/);
           if (!match) {
             send(404, { error: 'not found' });
