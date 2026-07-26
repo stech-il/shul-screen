@@ -7,6 +7,25 @@ import './index.css';
 // Free localStorage quota left by older template saves (before IndexedDB migration).
 purgeLegacyDesignTemplateStorage();
 
+/**
+ * HashRouter lives under /#/… — map plain paths like /admin → /#/admin
+ * so shared links and bookmarks still open the right screen.
+ */
+(function redirectPathToHash() {
+  const { pathname, search, hash } = window.location;
+  if (hash && hash !== '#' && hash !== '#/') return;
+  if (pathname === '/' || pathname === '') return;
+  if (
+    pathname.startsWith('/assets') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/healthz')
+  ) {
+    return;
+  }
+  const target = `/#${pathname}${search}`;
+  window.location.replace(target);
+})();
+
 /** Kiosk often keeps an old PWA build; force reload when a new service worker takes over. */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
