@@ -29,6 +29,7 @@ import {
   mailConfigured,
 } from './server/notifications.mjs';
 import { handleInquiries } from './server/inquiries.mjs';
+import { handleDiskFiles } from './server/diskFiles.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, 'dist');
@@ -165,6 +166,12 @@ async function handleCloud(req, res, url) {
   }
 
   // Backup API (before synagogue match — different path shape)
+  // Disk file browser (Agency settings)
+  if (url.pathname.startsWith('/api/cloud/disk')) {
+    await handleDiskFiles(req, res, url);
+    return;
+  }
+
   if (url.pathname.startsWith('/api/cloud/backups/')) {
     await handleBackups(req, res, url);
     return;

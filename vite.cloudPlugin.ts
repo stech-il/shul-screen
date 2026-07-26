@@ -77,6 +77,14 @@ export function cloudApiPlugin(): Plugin {
             return;
           }
 
+          if (pathOnly.startsWith('/api/cloud/disk')) {
+            const disk = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/diskFiles.mjs')).href
+            );
+            await disk.handleDiskFiles(req, res, new URL(url, 'http://localhost'));
+            return;
+          }
+
           if (pathOnly === '/api/cloud/templates' && req.method === 'GET') {
             send(200, { items: await store.getDesignTemplates() });
             return;

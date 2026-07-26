@@ -14,6 +14,7 @@ import {
 import { fetchMailStatus, notifyTrialStarted, sendTestMail } from '../lib/notifications';
 import { fetchInquiries } from '../lib/inquiries';
 import { InquiriesPanel } from '../components/InquiriesPanel';
+import { DiskFilesPanel } from '../components/DiskFilesPanel';
 import {
   changePlatformPassword,
   clearPlatformSession,
@@ -856,6 +857,8 @@ export function Agency() {
               <p className="hint">טוען סטטוס דיסק…</p>
             )}
           </div>
+
+          <DiskFilesPanel />
 
           <form className="side-card" onSubmit={(e) => void onSaveAdminEmail(e)}>
             <h2>מייל חשבונית ברירת מחדל</h2>
