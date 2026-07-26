@@ -64,7 +64,7 @@ function tpl(
   partial: Partial<DesignSettings>,
   canvasLayout: CanvasLayoutConfig,
   bgKey: TemplateBackgroundKey,
-  overlay = 0.22,
+  overlay = 0.14,
 ): SavedDesignTemplate {
   const sid = `seed:${id}`;
   const bg = TEMPLATE_BACKGROUNDS[bgKey];

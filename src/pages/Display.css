@@ -41,6 +41,17 @@
       rgba(0, 0, 0, calc(var(--overlay) * 0.7))
     ),
     var(--bg-image);
+  background-size: cover;
+  background-position: center;
+}
+
+/* Light themes: cream wash instead of heavy black darkening */
+.display.has-bg-image.theme-light {
+  background-image: linear-gradient(
+      color-mix(in srgb, var(--bg1) calc(var(--overlay) * 85%), transparent),
+      color-mix(in srgb, var(--bg2) calc(var(--overlay) * 55%), transparent)
+    ),
+    var(--bg-image);
 }
 
 .display.license-lock {

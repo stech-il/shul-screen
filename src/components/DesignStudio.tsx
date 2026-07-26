@@ -124,14 +124,19 @@ function TemplatePreview({
     .sort((a, b) => a.z - b.z)
     .slice(0, 18);
 
+  const wash = Math.round(Math.min(0.55, d.overlayOpacity || 0.14) * 100);
+  const bgLayer = bgImage
+    ? `linear-gradient(color-mix(in srgb, ${d.backgroundColor} ${wash}%, transparent), color-mix(in srgb, ${d.backgroundColor2} ${Math.round(wash * 0.65)}%, transparent)), url(${bgImage})`
+    : `linear-gradient(145deg, ${d.backgroundColor}, ${d.backgroundColor2})`;
+
   return (
     <div
       className={`tpl-preview ${theme === 'dark' ? 'is-dark' : ''} ${bgImage ? 'has-bg' : ''}`}
       style={{
         backgroundColor: d.backgroundColor,
-        backgroundImage: bgImage
-          ? `linear-gradient(rgba(0,0,0,${Math.min(0.45, d.overlayOpacity || 0.2)}), rgba(0,0,0,${Math.min(0.3, (d.overlayOpacity || 0.2) * 0.7)})), url(${bgImage})`
-          : `linear-gradient(145deg, ${d.backgroundColor}, ${d.backgroundColor2})`,
+        backgroundImage: bgLayer,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         color: d.primaryColor,
       }}
       aria-hidden

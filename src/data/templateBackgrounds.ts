@@ -386,7 +386,38 @@ export const BG_GOLD_SANCTUARY = svgUrl(`
 </svg>
 `);
 
-export const TEMPLATE_BACKGROUNDS = {
+/**
+ * Photo backgrounds live in /public/template-bgs (webp).
+ * SVG helpers above remain available as fallbacks for offline/dev.
+ */
+const PHOTO = {
+  goldColumns: '/template-bgs/gold-columns.webp',
+  chabadCream: '/template-bgs/chabad-cream.webp',
+  blueGold: '/template-bgs/chabad-cream.webp',
+  maroonParchment: '/template-bgs/maroon-parchment.webp',
+  cozumel: '/template-bgs/cozumel-blue.webp',
+  campusAerial: '/template-bgs/campus-aerial.webp',
+  arkWood: '/template-bgs/ark-wood.webp',
+  jerusalemStone: '/template-bgs/jerusalem-stone.webp',
+  shabbatNight: '/template-bgs/shabbat-night.webp',
+  negev: '/template-bgs/negev.webp',
+  tzfat: '/template-bgs/shabbat-night.webp',
+  grove: '/template-bgs/campus-aerial.webp',
+  kinneret: '/template-bgs/cozumel-blue.webp',
+  wedding: '/template-bgs/wedding.webp',
+  remembrance: '/template-bgs/jerusalem-stone.webp',
+  modern: BG_MODERN,
+  nightTv: '/template-bgs/gold-sanctuary.webp',
+  parchment: '/template-bgs/parchment.webp',
+  goldSanctuary: '/template-bgs/gold-sanctuary.webp',
+} as const;
+
+export const TEMPLATE_BACKGROUNDS = PHOTO;
+
+export type TemplateBackgroundKey = keyof typeof TEMPLATE_BACKGROUNDS;
+
+/** Soft fallbacks if a photo fails to load */
+export const TEMPLATE_BACKGROUND_FALLBACKS: Partial<Record<TemplateBackgroundKey, string>> = {
   goldColumns: BG_GOLD_COLUMNS,
   chabadCream: BG_CHABAD_CREAM,
   blueGold: BG_BLUE_GOLD,
@@ -402,10 +433,7 @@ export const TEMPLATE_BACKGROUNDS = {
   kinneret: BG_KINNERET,
   wedding: BG_WEDDING,
   remembrance: BG_REMEMBRANCE,
-  modern: BG_MODERN,
-  nightTv: BG_NIGHT_TV,
   parchment: BG_PARCHMENT,
   goldSanctuary: BG_GOLD_SANCTUARY,
-} as const;
-
-export type TemplateBackgroundKey = keyof typeof TEMPLATE_BACKGROUNDS;
+  nightTv: BG_NIGHT_TV,
+};

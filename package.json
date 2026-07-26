@@ -38,6 +38,7 @@
     "cross-env": "^7.0.3",
     "electron": "^36.0.0",
     "electron-builder": "^26.0.12",
+    "sharp": "^0.33.5",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^1.0.0",
@@ -70,6 +71,7 @@
   },
   "allowScripts": {
     "electron@36.9.5": true,
-    "esbuild@0.25.12": true
+    "esbuild@0.25.12": true,
+    "sharp@0.33.5": true
   }
 }

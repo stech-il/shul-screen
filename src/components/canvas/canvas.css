@@ -14,7 +14,11 @@
 .canvas-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, var(--cv-overlay, 0.3));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #f4ead8 calc(var(--cv-overlay, 0.25) * 90%), transparent),
+    rgba(0, 0, 0, calc(var(--cv-overlay, 0.25) * 0.45))
+  );
   pointer-events: none;
 }
 
