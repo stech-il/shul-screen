@@ -157,6 +157,7 @@ export function ElementorWidgetPanel({
                 <RichTextEditor
                   value={selected.text ?? ''}
                   onChange={(html) => patchWidget(selected.id, { text: html })}
+                  onFontSizePx={(px) => patchWidget(selected.id, { fontSizePx: px })}
                   placeholder="כתוב טקסט חופשי עם עיצוב…"
                 />
               </div>

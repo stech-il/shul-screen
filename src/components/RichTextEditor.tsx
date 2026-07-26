@@ -5,6 +5,8 @@ import './RichTextEditor.css';
 interface Props {
   value: string;
   onChange: (html: string) => void;
+  /** Called when user picks a px size — useful to sync widget.fontSizePx */
+  onFontSizePx?: (px: number) => void;
   placeholder?: string;
   dir?: 'rtl' | 'ltr';
   minHeight?: string;
@@ -22,7 +24,7 @@ type Cmd =
   | 'justifyLeft'
   | 'removeFormat';
 
-const SIZE_PRESETS = [16, 20, 24, 28, 32, 40, 48, 64, 80] as const;
+const SIZE_PRESETS = [8, 12, 16, 20, 24, 28, 32, 40, 48, 64, 80] as const;
 
 function run(cmd: Cmd, value?: string) {
   document.execCommand(cmd, false, value);
@@ -31,6 +33,7 @@ function run(cmd: Cmd, value?: string) {
 export function RichTextEditor({
   value,
   onChange,
+  onFontSizePx,
   placeholder = 'כתוב כאן…',
   dir = 'rtl',
   minHeight = '7rem',
@@ -113,55 +116,70 @@ export function RichTextEditor({
     emit();
   }
 
+  function clearFontSizes(root: HTMLElement) {
+    root.querySelectorAll<HTMLElement>('[style]').forEach((node) => {
+      if (node.style.fontSize) {
+        node.style.removeProperty('font-size');
+      }
+      if (!node.getAttribute('style')?.trim()) {
+        node.removeAttribute('style');
+      }
+    });
+    root.querySelectorAll('font[size]').forEach((font) => font.removeAttribute('size'));
+  }
+
   /**
-   * Apply font-size in px to the current selection (or all text if nothing selected).
-   * Saves/restores selection so clicking the size field doesn't lose the range.
+   * Apply font-size in px to all content (reliable) or current selection.
+   * Also clears nested font-size so old sizes cannot override the new one.
    */
   function setSizePx(raw: string) {
     const n = Math.round(Number(raw));
-    if (!Number.isFinite(n) || n < 8 || n > 400) return;
+    if (!Number.isFinite(n) || n < 6 || n > 400) return;
     const el = ref.current;
     if (!el) return;
 
     el.focus();
-    if (!restoreSelection()) {
-      selectAllContent();
-    }
+    const hadSelection =
+      restoreSelection() &&
+      (() => {
+        const sel = window.getSelection();
+        return Boolean(sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed);
+      })();
 
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) {
-      selectAllContent();
+    if (!hadSelection) {
+      // Apply to entire free-text block — most reliable for the canvas widget.
+      clearFontSizes(el);
+      const wrapper = document.createElement('span');
+      wrapper.style.fontSize = `${n}px`;
+      while (el.firstChild) wrapper.appendChild(el.firstChild);
+      clearFontSizes(wrapper);
+      wrapper.style.fontSize = `${n}px`;
+      el.appendChild(wrapper);
+    } else {
+      const active = window.getSelection();
+      if (!active || active.rangeCount === 0) return;
+      const range = active.getRangeAt(0);
+      const span = document.createElement('span');
+      span.style.fontSize = `${n}px`;
+      try {
+        const frag = range.extractContents();
+        const holder = document.createElement('div');
+        holder.appendChild(frag);
+        clearFontSizes(holder);
+        while (holder.firstChild) span.appendChild(holder.firstChild);
+        range.insertNode(span);
+      } catch {
+        selectAllContent();
+        clearFontSizes(el);
+        const wrapper = document.createElement('span');
+        wrapper.style.fontSize = `${n}px`;
+        while (el.firstChild) wrapper.appendChild(el.firstChild);
+        el.appendChild(wrapper);
+      }
     }
-    const active = window.getSelection();
-    if (!active || active.rangeCount === 0) return;
-
-    let range = active.getRangeAt(0);
-    if (range.collapsed || !el.contains(range.commonAncestorContainer)) {
-      selectAllContent();
-      const again = window.getSelection();
-      if (!again || again.rangeCount === 0) return;
-      range = again.getRangeAt(0);
-    }
-
-    const span = document.createElement('span');
-    span.style.fontSize = `${n}px`;
-    try {
-      range.surroundContents(span);
-    } catch {
-      const frag = range.extractContents();
-      span.appendChild(frag);
-      range.insertNode(span);
-    }
-
-    // Place caret after the sized span
-    const after = document.createRange();
-    after.setStartAfter(span);
-    after.collapse(true);
-    active.removeAllRanges();
-    active.addRange(after);
-    savedRange.current = after.cloneRange();
 
     setSizeDraft(String(n));
+    onFontSizePx?.(n);
     emit();
   }
 
