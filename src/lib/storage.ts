@@ -383,14 +383,6 @@ async function listServerCloud(): Promise<CachedBundle[]> {
   }
 }
 
-async function deleteServerCloud(id: string): Promise<void> {
-  try {
-    await fetch(`/api/cloud/synagogues/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  } catch {
-    /* ignore */
-  }
-}
-
 async function pullSupabase(id: string): Promise<CachedBundle | null> {
   const sb = getSupabase();
   if (!sb) return null;
