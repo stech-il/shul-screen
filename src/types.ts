@@ -116,6 +116,12 @@ export interface CanvasWidget {
   fontSizePx?: number;
   /** Letter spacing in px */
   letterSpacingPx?: number;
+  /** Title font size in px — when set, overrides titleScale */
+  titleSizePx?: number;
+  /** Line height in px */
+  lineHeightPx?: number;
+  /** Inner padding in px */
+  paddingPx?: number;
   /** scale of title relative to the widget font */
   titleScale: number;
   fontFamily?: string;
@@ -128,6 +134,12 @@ export interface CanvasWidget {
   opacity: number;
   radius: number;
 }
+
+/**
+ * Reference stage width used to convert widget percent values to px in the
+ * builder. Real screens scale proportionally from this.
+ */
+export const CANVAS_REF_WIDTH = 1920;
 
 export interface CanvasLayoutConfig {
   aspect: '16:9' | '16:10' | '4:3' | '21:9';

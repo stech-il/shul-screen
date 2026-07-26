@@ -8,6 +8,7 @@ import type {
   ScheduleBlock,
   ZmanKey,
 } from '../../types';
+import { CANVAS_REF_WIDTH } from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { fontSelectOptions } from '../../lib/customFonts';
 import { MediaGalleryModal } from '../MediaPicker';
@@ -72,6 +73,51 @@ const PALETTE: CanvasWidgetType[] = [
   'image',
 ];
 
+/** Numeric px input where an empty value means "automatic". */
+function PxField({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  placeholder = 'אוטומטי',
+  onChange,
+}: {
+  label: string;
+  value: number | undefined;
+  min: number;
+  max: number;
+  step?: number;
+  placeholder?: string;
+  onChange: (value: number | undefined) => void;
+}) {
+  return (
+    <label>
+      {label} (px)
+      <input
+        type="number"
+        dir="ltr"
+        min={min}
+        max={max}
+        step={step}
+        placeholder={placeholder}
+        value={value ?? ''}
+        onChange={(e) => {
+          const raw = e.target.value.trim();
+          if (!raw) {
+            onChange(undefined);
+            return;
+          }
+          const n = Number(raw);
+          if (!Number.isFinite(n)) return;
+          onChange(clamp(step < 1 ? n : Math.round(n), min, max));
+        }}
+        style={{ textAlign: 'left' }}
+      />
+    </label>
+  );
+}
+
 export function CanvasBuilder({
   canvas,
   data,
@@ -91,9 +137,18 @@ export function CanvasBuilder({
   const [dragging, setDragging] = useState(false);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [picker, setPicker] = useState<PickerTarget | null>(null);
+  const [boxUnit, setBoxUnit] = useState<'percent' | 'px'>('px');
   const fontOptions = fontSelectOptions(customFonts);
 
   const selected = canvas.widgets.find((w) => w.id === selectedId) ?? null;
+
+  // Reference pixel canvas — real screens scale proportionally from this.
+  const refWidth = CANVAS_REF_WIDTH;
+  const refHeight = Math.round(CANVAS_REF_WIDTH / (ASPECT_RATIOS[canvas.aspect] ?? 16 / 9));
+  const pctToPx = (pct: number, axis: 'x' | 'y') =>
+    Math.round((pct / 100) * (axis === 'x' ? refWidth : refHeight));
+  const pxToPct = (px: number, axis: 'x' | 'y') =>
+    (px / (axis === 'x' ? refWidth : refHeight)) * 100;
 
   const patchWidget = useCallback(
     (id: string, patch: Partial<CanvasWidget>) => {
@@ -522,40 +577,101 @@ export function CanvasBuilder({
                 </button>
               </div>
 
+              <div className="cb-unit-switch">
+                <span>יחידות מיקום וגודל</span>
+                <div className="cb-unit-buttons">
+                  <button
+                    type="button"
+                    className={boxUnit === 'px' ? 'on' : ''}
+                    onClick={() => setBoxUnit('px')}
+                  >
+                    px
+                  </button>
+                  <button
+                    type="button"
+                    className={boxUnit === 'percent' ? 'on' : ''}
+                    onClick={() => setBoxUnit('percent')}
+                  >
+                    %
+                  </button>
+                </div>
+              </div>
+
               <div className="cb-grid-fields">
                 <label>
-                  X %
+                  X {boxUnit === 'px' ? 'px' : '%'}
                   <input
                     type="number"
-                    value={Math.round(selected.x * 10) / 10}
-                    onChange={(e) => patchWidget(selected.id, { x: Number(e.target.value) })}
+                    dir="ltr"
+                    value={
+                      boxUnit === 'px'
+                        ? pctToPx(selected.x, 'x')
+                        : Math.round(selected.x * 10) / 10
+                    }
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      if (!Number.isFinite(n)) return;
+                      patchWidget(selected.id, { x: boxUnit === 'px' ? pxToPct(n, 'x') : n });
+                    }}
                   />
                 </label>
                 <label>
-                  Y %
+                  Y {boxUnit === 'px' ? 'px' : '%'}
                   <input
                     type="number"
-                    value={Math.round(selected.y * 10) / 10}
-                    onChange={(e) => patchWidget(selected.id, { y: Number(e.target.value) })}
+                    dir="ltr"
+                    value={
+                      boxUnit === 'px'
+                        ? pctToPx(selected.y, 'y')
+                        : Math.round(selected.y * 10) / 10
+                    }
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      if (!Number.isFinite(n)) return;
+                      patchWidget(selected.id, { y: boxUnit === 'px' ? pxToPct(n, 'y') : n });
+                    }}
                   />
                 </label>
                 <label>
-                  רוחב %
+                  רוחב {boxUnit === 'px' ? 'px' : '%'}
                   <input
                     type="number"
-                    value={Math.round(selected.w * 10) / 10}
-                    onChange={(e) => patchWidget(selected.id, { w: Number(e.target.value) })}
+                    dir="ltr"
+                    value={
+                      boxUnit === 'px'
+                        ? pctToPx(selected.w, 'x')
+                        : Math.round(selected.w * 10) / 10
+                    }
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      if (!Number.isFinite(n)) return;
+                      patchWidget(selected.id, { w: boxUnit === 'px' ? pxToPct(n, 'x') : n });
+                    }}
                   />
                 </label>
                 <label>
-                  גובה %
+                  גובה {boxUnit === 'px' ? 'px' : '%'}
                   <input
                     type="number"
-                    value={Math.round(selected.h * 10) / 10}
-                    onChange={(e) => patchWidget(selected.id, { h: Number(e.target.value) })}
+                    dir="ltr"
+                    value={
+                      boxUnit === 'px'
+                        ? pctToPx(selected.h, 'y')
+                        : Math.round(selected.h * 10) / 10
+                    }
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      if (!Number.isFinite(n)) return;
+                      patchWidget(selected.id, { h: boxUnit === 'px' ? pxToPct(n, 'y') : n });
+                    }}
                   />
                 </label>
               </div>
+              {boxUnit === 'px' ? (
+                <p className="cb-hint">
+                  פיקסלים ביחס למסך {refWidth}×{refHeight} — מותאם אוטומטית לכל גודל מסך.
+                </p>
+              ) : null}
 
               <label>
                 כותרת מותאמת
@@ -742,57 +858,54 @@ export function CanvasBuilder({
                 </select>
               </label>
 
-              <label>
-                גודל פונט (px)
-                <input
-                  type="number"
+              <div className="cb-grid-fields">
+                <PxField
+                  label="גודל פונט"
+                  value={selected.fontSizePx}
                   min={8}
-                  max={200}
-                  step={1}
-                  placeholder="אוטומטי"
-                  value={selected.fontSizePx ?? ''}
-                  onChange={(e) => {
-                    const raw = e.target.value.trim();
-                    if (!raw) {
-                      patchWidget(selected.id, { fontSizePx: undefined });
-                      return;
-                    }
-                    const n = Number(raw);
-                    if (!Number.isFinite(n)) return;
-                    patchWidget(selected.id, {
-                      fontSizePx: Math.min(200, Math.max(8, Math.round(n))),
-                    });
-                  }}
-                  dir="ltr"
-                  style={{ textAlign: 'left' }}
+                  max={400}
+                  onChange={(v) => patchWidget(selected.id, { fontSizePx: v })}
                 />
-              </label>
-
-              <label>
-                מרווח בין אותיות (px)
-                <input
-                  type="number"
-                  min={-5}
-                  max={40}
+                <PxField
+                  label="גודל כותרת"
+                  value={selected.titleSizePx}
+                  min={6}
+                  max={400}
+                  onChange={(v) => patchWidget(selected.id, { titleSizePx: v })}
+                />
+                <PxField
+                  label="מרווח אותיות"
+                  value={selected.letterSpacingPx}
+                  min={-20}
+                  max={80}
                   step={0.5}
                   placeholder="0"
-                  value={selected.letterSpacingPx ?? ''}
-                  onChange={(e) => {
-                    const raw = e.target.value.trim();
-                    if (!raw) {
-                      patchWidget(selected.id, { letterSpacingPx: undefined });
-                      return;
-                    }
-                    const n = Number(raw);
-                    if (!Number.isFinite(n)) return;
-                    patchWidget(selected.id, {
-                      letterSpacingPx: Math.min(40, Math.max(-5, n)),
-                    });
-                  }}
-                  dir="ltr"
-                  style={{ textAlign: 'left' }}
+                  onChange={(v) => patchWidget(selected.id, { letterSpacingPx: v })}
                 />
-              </label>
+                <PxField
+                  label="גובה שורה"
+                  value={selected.lineHeightPx}
+                  min={4}
+                  max={400}
+                  onChange={(v) => patchWidget(selected.id, { lineHeightPx: v })}
+                />
+                <PxField
+                  label="ריפוד פנימי"
+                  value={selected.paddingPx}
+                  min={0}
+                  max={200}
+                  onChange={(v) => patchWidget(selected.id, { paddingPx: v })}
+                />
+                <PxField
+                  label="עיגול פינות"
+                  value={selected.radius}
+                  min={0}
+                  max={200}
+                  placeholder="0"
+                  onChange={(v) => patchWidget(selected.id, { radius: v ?? 0 })}
+                />
+              </div>
+              <p className="cb-hint">שדה ריק = אוטומטי (מתאים את עצמו לגודל המסך).</p>
 
               <label>
                 יישור טקסט
@@ -829,6 +942,7 @@ export function CanvasBuilder({
                   max={1.5}
                   step={0.05}
                   value={selected.titleScale ?? 0.55}
+                  disabled={Boolean(selected.titleSizePx)}
                   onChange={(e) => patchWidget(selected.id, { titleScale: Number(e.target.value) })}
                 />
               </label>
@@ -842,17 +956,6 @@ export function CanvasBuilder({
                   step={0.05}
                   value={selected.opacity}
                   onChange={(e) => patchWidget(selected.id, { opacity: Number(e.target.value) })}
-                />
-              </label>
-
-              <label>
-                עיגול פינות ({selected.radius}px)
-                <input
-                  type="range"
-                  min={0}
-                  max={40}
-                  value={selected.radius}
-                  onChange={(e) => patchWidget(selected.id, { radius: Number(e.target.value) })}
                 />
               </label>
 

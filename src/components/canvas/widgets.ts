@@ -171,6 +171,12 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
       typeof w.fontSizePx === 'number' && w.fontSizePx > 0 ? w.fontSizePx : undefined,
     letterSpacingPx:
       typeof w.letterSpacingPx === 'number' ? w.letterSpacingPx : undefined,
+    titleSizePx:
+      typeof w.titleSizePx === 'number' && w.titleSizePx > 0 ? w.titleSizePx : undefined,
+    lineHeightPx:
+      typeof w.lineHeightPx === 'number' && w.lineHeightPx > 0 ? w.lineHeightPx : undefined,
+    paddingPx:
+      typeof w.paddingPx === 'number' && w.paddingPx >= 0 ? w.paddingPx : undefined,
     titleScale: w.titleScale ?? fallback.titleScale,
     fontWeight: w.fontWeight ?? fallback.fontWeight,
     bg: w.bg ?? fallback.bg,

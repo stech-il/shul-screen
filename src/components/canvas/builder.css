@@ -232,6 +232,42 @@
   gap: 0.4rem;
 }
 
+.cb-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted, #5a6b73);
+}
+
+.cb-unit-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted, #5a6b73);
+}
+
+.cb-unit-buttons {
+  display: inline-flex;
+  border: 1px solid var(--line, rgba(28, 49, 64, 0.16));
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.cb-unit-buttons button {
+  border: 0;
+  background: transparent;
+  padding: 0.2rem 0.7rem;
+  font: inherit;
+  cursor: pointer;
+  color: var(--muted, #5a6b73);
+}
+
+.cb-unit-buttons button.on {
+  background: var(--accent, #a8893d);
+  color: #fff;
+}
+
 .cb-empty-inspector ul {
   margin: 0.4rem 0;
   padding-inline-start: 1.1rem;

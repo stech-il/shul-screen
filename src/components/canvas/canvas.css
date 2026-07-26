@@ -66,7 +66,7 @@
 .canvas-widget h3 {
   margin: 0;
   font-family: var(--font-heading, serif);
-  font-size: 1.05em;
+  font-size: var(--cw-title-size, 1.05em);
   color: var(--accent, #a8893d);
   letter-spacing: var(--cw-ls, 0.02em);
 }
@@ -134,7 +134,7 @@
 
 .cw-zman-title {
   margin: 0;
-  font-size: calc(1em * var(--cw-title-fs, 0.55));
+  font-size: var(--cw-title-size, calc(1em * var(--cw-title-fs, 0.55)));
   font-weight: 500;
   line-height: 1.15;
   color: var(--cw-title-color, var(--accent, #a8893d));

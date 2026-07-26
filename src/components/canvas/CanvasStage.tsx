@@ -4,13 +4,15 @@ import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ASPECT_RATIOS } from './widgets';
 import './canvas.css';
 
+const num = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+
 export function widgetStyle(widget: CanvasWidget): CSSProperties {
-  const fontSizePx =
-    typeof widget.fontSizePx === 'number' && widget.fontSizePx > 0
-      ? widget.fontSizePx
-      : undefined;
-  const letterSpacingPx =
-    typeof widget.letterSpacingPx === 'number' ? widget.letterSpacingPx : undefined;
+  const fontSizePx = num(widget.fontSizePx);
+  const letterSpacingPx = num(widget.letterSpacingPx);
+  const titleSizePx = num(widget.titleSizePx);
+  const lineHeightPx = num(widget.lineHeightPx);
+  const paddingPx = num(widget.paddingPx);
 
   return {
     left: `${widget.x}%`,
@@ -28,13 +30,20 @@ export function widgetStyle(widget: CanvasWidget): CSSProperties {
       widget.fontWeight === 'bold' ? 700 : widget.fontWeight === 'medium' ? 500 : 400,
     ['--cw-fs' as string]: String(widget.fontScale ?? 1),
     ['--cw-title-fs' as string]: String(widget.titleScale ?? 0.55),
-    ...(fontSizePx != null ? { fontSize: `${fontSizePx}px` } : {}),
+    ...(fontSizePx != null && fontSizePx > 0 ? { fontSize: `${fontSizePx}px` } : {}),
     ...(letterSpacingPx != null
       ? {
           letterSpacing: `${letterSpacingPx}px`,
           ['--cw-ls' as string]: `${letterSpacingPx}px`,
         }
       : {}),
+    ...(titleSizePx != null && titleSizePx > 0
+      ? { ['--cw-title-size' as string]: `${titleSizePx}px` }
+      : {}),
+    ...(lineHeightPx != null && lineHeightPx > 0
+      ? { lineHeight: `${lineHeightPx}px` }
+      : {}),
+    ...(paddingPx != null && paddingPx >= 0 ? { padding: `${paddingPx}px` } : {}),
     ...(widget.color ? { color: widget.color } : {}),
     ...(widget.titleColor ? { ['--cw-title-color' as string]: widget.titleColor } : {}),
   };
