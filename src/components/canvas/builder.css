@@ -81,9 +81,8 @@
   gap: 0.5rem;
   align-items: stretch;
   direction: ltr; /* stage on the left, panel on the right */
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
   position: relative;
 }
 
@@ -184,8 +183,10 @@
 .cb-el-panel {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
   background: #fff;
 }
 
@@ -251,13 +252,16 @@
 }
 
 .cb-el-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-  padding: 0.55rem 0.55rem 1rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.65rem 0.7rem 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.55rem;
 }
 
 .cb-el-field {
@@ -335,6 +339,11 @@
   grid-template-columns: minmax(0, 1fr) minmax(300px, 320px);
 }
 
+.cb-workspace.is-editing > * {
+  min-height: 0;
+  max-height: 100%;
+}
+
 .cb-stage-col {
   direction: rtl;
   display: flex;
@@ -342,23 +351,22 @@
   gap: 0;
   min-width: 0;
   min-height: 0;
-  height: 100%;
+  overflow: hidden;
 }
 
 /* Stage hugs the left and fills the column */
 .cb-stage-frame {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: min(52vh, 420px);
   min-width: 0;
   width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
-  justify-content: flex-start; /* push canvas to the left */
+  justify-content: center;
   overflow: hidden;
   background: #12161a;
   border-radius: 6px;
-  padding: 0.2rem;
+  padding: 0.35rem;
   box-sizing: border-box;
 }
 
@@ -366,13 +374,13 @@
   flex: none;
   width: auto;
   height: auto;
-  max-width: none;
-  max-height: none;
+  max-width: 100%;
+  max-height: 100%;
   margin: 0;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-/* Editor panel — fixed to the visual right */
+/* Editor panel — right sidebar; constrained height so body can scroll */
 .cb-inspector-el {
   position: relative !important;
   inset: auto !important;
@@ -381,13 +389,22 @@
   left: auto !important;
   bottom: auto !important;
   width: auto !important;
+  min-width: 0;
+  min-height: 0 !important;
   height: 100% !important;
-  max-height: none !important;
+  max-height: 100% !important;
+  align-self: stretch;
   z-index: 5;
   box-shadow: none;
   border-radius: 8px;
   overflow: hidden;
   direction: rtl;
+  background: #fff;
+  border: 1px solid rgba(28, 49, 64, 0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
 }
 
 .cb-fit-meta {
@@ -598,19 +615,15 @@
   color: #fff;
 }
 
-.cb-inspector-el {
-  padding: 0;
-  gap: 0;
-  max-height: none;
-  height: 100%;
-  direction: rtl;
-}
-
 .cb-el-panel {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
-  max-height: inherit;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  background: #fff;
 }
 
 .cb-el-head {
@@ -620,6 +633,7 @@
   gap: 0.5rem;
   padding: 0.75rem 0.85rem 0.55rem;
   border-bottom: 1px solid var(--line, rgba(28, 49, 64, 0.12));
+  flex-shrink: 0;
 }
 .cb-el-head strong {
   display: block;
@@ -642,6 +656,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   border-bottom: 1px solid var(--line, rgba(28, 49, 64, 0.12));
+  flex-shrink: 0;
 }
 .cb-el-tabs button {
   border: 0;
@@ -666,9 +681,12 @@
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  padding: 0.75rem 0.85rem 1rem;
+  padding: 0.75rem 0.85rem 1.25rem;
+  overflow-x: hidden;
   overflow-y: auto;
-  flex: 1;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -755,9 +773,25 @@
   top: auto;
 }
 
+.cb-inspector.cb-inspector-el {
+  padding: 0;
+  gap: 0;
+  max-height: 100%;
+  background: #fff;
+}
+
 .cb-inspector-el .cb-el-panel {
+  flex: 1 1 auto;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
+}
+
+.cb-inspector-el .cb-el-palette {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
 }
 
 .cb-sec {

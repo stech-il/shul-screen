@@ -163,15 +163,21 @@ export function CanvasBuilder({
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
+    let raf = 0;
 
     function fit() {
       const el = frameRef.current;
       if (!el) return;
-      const pad = 4;
-      const fw = el.clientWidth - pad;
-      const fh = el.clientHeight - pad;
-      if (fw < 40 || fh < 40) return;
-      // Largest 16:9 (etc.) rectangle that fits the frame — fill the editor like WordPress.
+      const pad = 8;
+      const fw = Math.max(0, el.clientWidth - pad);
+      const fh = Math.max(0, el.clientHeight - pad);
+      if (fw < 40 || fh < 40) {
+        // Layout not ready yet — retry next frame
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(fit);
+        return;
+      }
+      // Largest 16:9 (etc.) rectangle that fits the frame
       let w = fw;
       let h = w / ratio;
       if (h > fh) {
@@ -185,10 +191,14 @@ export function CanvasBuilder({
     }
 
     fit();
-    const ro = new ResizeObserver(() => fit());
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(fit);
+    });
     ro.observe(frame);
     window.addEventListener('resize', fit);
     return () => {
+      cancelAnimationFrame(raf);
       ro.disconnect();
       window.removeEventListener('resize', fit);
     };
