@@ -34,6 +34,8 @@ const PREFIX = 'billing';
 const PLATFORM_ID = '_platform';
 const HISTORY_MAX = 36;
 const RETRY_COOLDOWN_MS = 5 * 60 * 60 * 1000;
+/** Max SUMIT pull frequency per synagogue — keep under API quota (~2000/mo). */
+const SUMIT_SYNC_MIN_MS = 7 * 24 * 60 * 60 * 1000;
 /** Continuous monthly HOK — Recurrence 0/null = continuous per SUMIT docs. */
 const HOK_RECURRENCE = 0;
 
@@ -69,6 +71,8 @@ function defaultSubscription(id) {
     paidUntil: null,
     lastChargeAt: null,
     lastError: null,
+    /** ISO — last successful SUMIT pull (payments / recurring). Throttled weekly. */
+    lastSumitSyncAt: null,
     updatedAt: nowIso(),
     history: [],
   };
@@ -469,6 +473,7 @@ async function applySuccessfulPayment(rec, result, { extend = true } = {}) {
   rec.status = 'active';
   rec.active = true;
   rec.lastChargeAt = nowIso();
+  rec.lastSumitSyncAt = nowIso();
   rec.lastError = result.missingStandingOrder
     ? 'החיוב עבר והרישיון חודש, אך SUMIT לא יצר הוראת קבע. עדכן כרטיס שוב או בדוק שמודול הו״ק פעיל ב־SUMIT.'
     : null;
@@ -581,6 +586,7 @@ export async function runBillingCycle() {
   const now = Date.now();
   let charged = 0;
   let synced = 0;
+  let skippedFresh = 0;
   let failed = 0;
 
   for (const raw of all) {
@@ -589,19 +595,31 @@ export async function runBillingCycle() {
     if (!rec.active || !(rec.amount > 0) || !rec.customerId) continue;
 
     try {
+      // Weekly SUMIT pull only — subscription state lives in our store between pulls
+      if (!shouldSyncFromSumit(rec)) {
+        skippedFresh += 1;
+        // Legacy (no HOK): still charge when due without a full payments sync
+        if (!rec.recurringItemId) {
+          const due = !rec.paidUntil || Date.parse(rec.paidUntil) <= now;
+          if (!due) continue;
+          const lastAttempt = rec.history?.length
+            ? Date.parse(rec.history[rec.history.length - 1].at)
+            : 0;
+          if (now - lastAttempt < RETRY_COOLDOWN_MS) continue;
+          await chargeAndRenew(rec.synagogueId);
+          charged += 1;
+          console.log(`billing: charged ${rec.synagogueId} (${rec.amount}₪)`);
+        }
+        continue;
+      }
+
       const beforeCount = (rec.history || []).filter((h) => h.ok).length;
-      rec = await syncRecurringItem(rec);
-      rec = await syncPaymentsFromSumit(rec);
+      const pulled = await pullFromSumit(rec, { force: true });
+      rec = pulled.rec;
       const afterCount = (rec.history || []).filter((h) => h.ok).length;
       const newPayments = afterCount - beforeCount;
 
       if (newPayments > 0) {
-        await saveSubscription(rec);
-        // Extend license once per newly discovered payment
-        for (let i = 0; i < newPayments; i += 1) {
-          await extendLicense(rec.synagogueId, 1);
-        }
-        // Align paidUntil with last charge
         const lastOk = [...(rec.history || [])].reverse().find((h) => h.ok);
         if (lastOk) rec.paidUntil = addMonths(lastOk.at, 1);
         await saveSubscription(rec);
@@ -610,7 +628,7 @@ export async function runBillingCycle() {
         continue;
       }
 
-      // Already has SUMIT HOK — SUMIT will charge; we only sync
+      // Already has SUMIT HOK — SUMIT will charge; we only sync weekly
       if (rec.recurringItemId) continue;
 
       // Legacy path: no HOK — charge ourselves when due
@@ -632,7 +650,7 @@ export async function runBillingCycle() {
       );
     }
   }
-  return { charged, synced, failed, total: all.length };
+  return { charged, synced, skippedFresh, failed, total: all.length };
 }
 
 let cronTimer = null;
@@ -690,6 +708,7 @@ function publicRecord(rec) {
     paidUntil: rec.paidUntil,
     lastChargeAt: rec.lastChargeAt,
     lastError: rec.lastError,
+    lastSumitSyncAt: rec.lastSumitSyncAt || null,
     history: (rec.history || []).slice(-12).reverse(),
   };
 }
@@ -733,24 +752,45 @@ async function applyCouponToSubscription(rec, code, { redeem = false } = {}) {
   };
 }
 
+/** Whether we should hit SUMIT for this subscription (weekly throttle). */
+function shouldSyncFromSumit(rec, { force = false } = {}) {
+  if (force) return true;
+  if (!rec?.customerId) return false;
+  const last = Date.parse(rec.lastSumitSyncAt || '') || 0;
+  if (!last) return true;
+  return Date.now() - last >= SUMIT_SYNC_MIN_MS;
+}
+
+/**
+ * Pull recurring item + payments from SUMIT into our store.
+ * Skips when lastSumitSyncAt is within the weekly window (unless force).
+ */
+async function pullFromSumit(rec, { force = false } = {}) {
+  if (!billingConfigured() || !rec.customerId) return { rec, didSync: false };
+  if (!shouldSyncFromSumit(rec, { force })) {
+    return { rec, didSync: false };
+  }
+  const before = (rec.history || []).filter((h) => h.ok).length;
+  let next = await syncRecurringItem(rec);
+  next = await syncPaymentsFromSumit(next);
+  next.lastSumitSyncAt = nowIso();
+  await saveSubscription(next);
+  const after = (next.history || []).filter((h) => h.ok).length;
+  if (after > before) {
+    for (let i = 0; i < after - before; i += 1) {
+      await extendLicense(next.synagogueId, 1).catch(() => null);
+    }
+  }
+  return { rec: next, didSync: true, newPayments: after - before };
+}
+
 /** Enrich subscription from SUMIT before returning to client. */
-async function loadSubscriptionPublic(id, { sync = false } = {}) {
+async function loadSubscriptionPublic(id, { sync = false, force = false } = {}) {
   let rec = await getSubscription(id);
   if (sync && billingConfigured() && rec.customerId) {
     try {
-      const before = (rec.history || []).filter((h) => h.ok).length;
-      rec = await syncRecurringItem(rec);
-      rec = await syncPaymentsFromSumit(rec);
-      const after = (rec.history || []).filter((h) => h.ok).length;
-      if (after !== before || rec.recurringItemId) {
-        await saveSubscription(rec);
-      }
-      // If we discovered payments newer than license, extend
-      if (after > before) {
-        for (let i = 0; i < after - before; i += 1) {
-          await extendLicense(id, 1).catch(() => null);
-        }
-      }
+      const result = await pullFromSumit(rec, { force });
+      rec = result.rec;
     } catch (err) {
       console.warn('subscription sync', err);
     }
@@ -977,9 +1017,10 @@ export async function handleBilling(req, res, url) {
     const action = m[2] || '';
 
     if (req.method === 'GET' && !action) {
-      // sync=1 pulls latest invoices from SUMIT into history
+      // sync=1: pull from SUMIT only if weekly cache expired (or force=1)
       const sync = url.searchParams.get('sync') === '1';
-      sendJson(res, 200, await loadSubscriptionPublic(id, { sync }));
+      const force = url.searchParams.get('force') === '1';
+      sendJson(res, 200, await loadSubscriptionPublic(id, { sync, force }));
       return;
     }
 
@@ -1063,7 +1104,8 @@ export async function handleBilling(req, res, url) {
     }
 
     if (req.method === 'POST' && action === 'sync') {
-      sendJson(res, 200, await loadSubscriptionPublic(id, { sync: true }));
+      // Explicit refresh — bypasses weekly throttle
+      sendJson(res, 200, await loadSubscriptionPublic(id, { sync: true, force: true }));
       return;
     }
 

@@ -8,6 +8,7 @@ import {
   formatBillingDate,
   formatIls,
   subscribeBilling,
+  syncSubscription,
   tokenizeCard,
   type BillingConfig,
   type BillingSubscription,
@@ -43,12 +44,10 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    // sync=1 pulls invoices from SUMIT so history appears even if a prior save failed
+    // Local store only — SUMIT is pulled at most weekly by the server (or via refresh)
     Promise.all([
       fetchBillingConfig(),
-      fetchSubscription(synagogueId, { sync: true }).catch(() =>
-        fetchSubscription(synagogueId).catch(() => null),
-      ),
+      fetchSubscription(synagogueId).catch(() => null),
     ])
       .then(([cfg, s]) => {
         if (cancelled) return;
@@ -68,6 +67,20 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
       cancelled = true;
     };
   }, [synagogueId]);
+
+  async function onRefreshFromSumit() {
+    setBusy(true);
+    setMsg('');
+    try {
+      const next = await syncSubscription(synagogueId);
+      setSub(next);
+      setMsg(t('billing.syncedOk'));
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t('billing.syncFail'));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function statusLabel(status: string | undefined) {
     if (status === 'active') return t('billing.statusActive');
@@ -217,6 +230,11 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
           ) : (
             <p className="hint">{t('billing.noCard')}</p>
           )}
+          {sub?.lastSumitSyncAt ? (
+            <p className="hint">
+              {t('billing.lastSynced', { date: formatBillingDate(sub.lastSumitSyncAt) })}
+            </p>
+          ) : null}
           {sub?.lastError ? (
             <p className="hint" style={{ color: '#a33' }}>
               {t('billing.lastError', { error: sub.lastError })}
@@ -224,9 +242,21 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
           ) : null}
 
           {!showForm ? (
-            <button type="button" className="btn primary" onClick={() => setShowForm(true)}>
-              {sub?.hasPaymentMethod ? t('panels.billingUpdateCard') : t('panels.billingEnterCard')}
-            </button>
+            <div className="billing-row">
+              <button type="button" className="btn primary" onClick={() => setShowForm(true)}>
+                {sub?.hasPaymentMethod ? t('panels.billingUpdateCard') : t('panels.billingEnterCard')}
+              </button>
+              {sub?.hasPaymentMethod ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  disabled={busy}
+                  onClick={() => void onRefreshFromSumit()}
+                >
+                  {busy ? t('billing.syncing') : t('billing.refreshSumit')}
+                </button>
+              ) : null}
+            </div>
           ) : (
             <form onSubmit={onSubmit} className="billing-form">
               <label>

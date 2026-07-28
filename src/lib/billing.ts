@@ -37,6 +37,8 @@ export interface BillingSubscription {
   paidUntil: string | null;
   lastChargeAt: string | null;
   lastError: string | null;
+  /** Last successful SUMIT pull (server throttles to ~weekly) */
+  lastSumitSyncAt?: string | null;
   history: BillingHistoryItem[];
 }
 
@@ -88,9 +90,12 @@ export function savePlatformBilling(input: {
 
 export function fetchSubscription(
   id: string,
-  opts?: { sync?: boolean },
+  opts?: { sync?: boolean; force?: boolean },
 ): Promise<BillingSubscription> {
-  const q = opts?.sync ? '?sync=1' : '';
+  const params = new URLSearchParams();
+  if (opts?.sync) params.set('sync', '1');
+  if (opts?.force) params.set('force', '1');
+  const q = params.toString() ? `?${params}` : '';
   return api<BillingSubscription>(
     `/api/billing/subscriptions/${encodeURIComponent(id)}${q}`,
   );

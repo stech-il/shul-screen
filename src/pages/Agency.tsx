@@ -376,7 +376,7 @@ export function Agency() {
       const cfg = await fetchBillingConfig();
       setBillingConfigured(cfg.configured);
       if (!cfg.configured) return;
-      const sub = await fetchSubscription(config.id, { sync: true });
+      const sub = await fetchSubscription(config.id);
       setBillingSub(sub);
       setBillingAmount(String(sub.amount > 0 ? sub.amount : 99));
       setBillingActive(sub.amount > 0 ? sub.active : true);

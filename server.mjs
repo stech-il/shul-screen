@@ -389,7 +389,7 @@ server.listen(PORT, () => {
     console.warn('Cloud API disabled');
   }
   if (billingConfigured()) {
-    console.log('SUMIT billing: enabled — recurring cycle every 6h');
+    console.log('SUMIT billing: enabled — weekly SUMIT sync per synagogue (local store between pulls)');
     startBillingCron();
   } else {
     console.log('SUMIT billing: disabled (set SUMIT_COMPANY_ID / SUMIT_API_KEY / SUMIT_API_PUBLIC_KEY)');
