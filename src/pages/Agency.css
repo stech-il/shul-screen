@@ -1,23 +1,22 @@
 .agency {
-  --ink: #163038;
-  --ink-soft: #2a4a54;
-  --muted: #5f737a;
-  --line: rgba(22, 48, 56, 0.12);
-  --accent: #9a7a32;
-  --accent-soft: #c4a45a;
+  --ink: #122033;
+  --ink-soft: #1e3348;
+  --muted: #5a6b7d;
+  --line: rgba(11, 28, 58, 0.12);
+  --accent: #c9a227;
+  --accent-soft: #e0b93a;
   --ok: #2f6b4f;
   --warn: #9a4a28;
   --danger: #8f2f2f;
-  --panel: rgba(255, 252, 247, 0.88);
-  --shadow: 0 18px 50px rgba(22, 48, 56, 0.1);
+  --panel: rgba(255, 255, 255, 0.94);
+  --shadow: 0 18px 50px rgba(11, 28, 58, 0.1);
   min-height: 100vh;
   color: var(--ink);
-  font-family: 'Rubik', system-ui, sans-serif;
+  font-family: 'Heebo', 'Rubik', system-ui, sans-serif;
   direction: rtl;
   background:
-    radial-gradient(ellipse 70% 45% at 85% 0%, rgba(154, 122, 50, 0.18), transparent 55%),
-    radial-gradient(ellipse 55% 40% at 0% 100%, rgba(47, 107, 79, 0.12), transparent 50%),
-    linear-gradient(165deg, #eef3f0 0%, #dce7e2 48%, #cfdcd6 100%);
+    radial-gradient(ellipse 50% 35% at 90% 0%, rgba(201, 162, 39, 0.14), transparent 55%),
+    linear-gradient(180deg, #f5f7fa, #fff 42%);
   padding: clamp(1.25rem, 3vw, 2.5rem);
 }
 

@@ -155,6 +155,23 @@
   border: 1px solid var(--line);
 }
 
+.guide-step-zoom {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--navy-deep);
+  cursor: zoom-in;
+  text-align: inherit;
+}
+
+.guide-step-zoom:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 .guide-step-media img {
   display: block;
   width: 100%;
@@ -163,6 +180,26 @@
   object-fit: cover;
   object-position: top center;
   background: var(--navy-deep);
+  transition: transform 0.35s ease;
+}
+
+.guide-step-zoom:hover img {
+  transform: scale(1.03);
+}
+
+.guide-zoom-hint {
+  position: absolute;
+  inset-inline-end: 0.65rem;
+  bottom: 0.65rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(11, 28, 58, 0.82);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0.92;
 }
 
 .guide-step-media figcaption {
@@ -173,6 +210,74 @@
   color: var(--muted);
   background: #f8fafc;
   border-top: 1px solid var(--line);
+}
+
+.guide-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.75rem, 3vw, 1.5rem);
+  background: rgba(6, 18, 37, 0.88);
+  backdrop-filter: blur(6px);
+  cursor: zoom-out;
+}
+
+.guide-lightbox-panel {
+  width: min(1120px, 100%);
+  max-height: min(92vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: #0b1c3a;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  cursor: default;
+}
+
+.guide-lightbox-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.guide-lightbox-caption {
+  margin: 0;
+  color: rgba(245, 247, 250, 0.9);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.guide-lightbox-close {
+  flex-shrink: 0;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  background: var(--gold);
+  color: var(--navy-deep);
+  cursor: pointer;
+}
+
+.guide-lightbox-close:hover {
+  background: var(--gold-bright);
+}
+
+.guide-lightbox-panel img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(92vh - 3.5rem);
+  object-fit: contain;
+  background: #061225;
 }
 
 .guide-tips {
