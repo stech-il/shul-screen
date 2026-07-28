@@ -26,47 +26,57 @@ export function Landing() {
       </header>
 
       <section className="landing-hero" id="top" aria-label="פתיחה">
-        <div className="landing-hero-copy">
-          <p className="landing-brand">screensmart</p>
-          <h1>המסך שבית הכנסת שלכם צריך</h1>
-          <p className="landing-lead">
-            זמני תפילה, הודעות ופיקוד העורף — על מסך אחד, מנוהל מהטלפון.
-          </p>
-          <div className="landing-cta-row">
-            <a className="landing-btn primary" href={WHATSAPP} target="_blank" rel="noreferrer">
-              התחילו בוואטסאפ
-            </a>
-            <a className="landing-btn ghost" href="#pricing">
-              מחיר חודשי
-            </a>
-          </div>
+        <div className="landing-hero-media" aria-hidden="true">
+          <img
+            src="/template-bgs/jerusalem-stone.webp"
+            alt=""
+            className="landing-hero-photo"
+          />
+          <div className="landing-hero-shade" />
         </div>
 
-        <div className="landing-hero-plane" aria-hidden="true">
-          <div className="landing-hero-glow" />
-          <div className="landing-screen">
-            <div className="landing-screen-bezel">
-              <div className="landing-screen-glass">
-                <header className="ls-top">
-                  <p className="ls-shul">קהילת מרכז</p>
-                  <p className="ls-date">כ״ב בניסן · יום ראשון</p>
-                </header>
-                <p className="ls-clock">18:42</p>
-                <ul className="ls-zmanim">
-                  <li>
-                    <span>מנחה</span>
-                    <strong>18:55</strong>
-                  </li>
-                  <li>
-                    <span>ערבית</span>
-                    <strong>19:25</strong>
-                  </li>
-                  <li>
-                    <span>שקיעה</span>
-                    <strong>19:11</strong>
-                  </li>
-                </ul>
-                <p className="ls-note">שיעור אחרי ערבית · אולם גדול</p>
+        <div className="landing-hero-inner">
+          <div className="landing-hero-copy">
+            <p className="landing-brand">screensmart</p>
+            <h1>המסך שבית הכנסת שלכם צריך</h1>
+            <p className="landing-lead">
+              זמני תפילה, הודעות ופיקוד העורף — על מסך אחד, מנוהל מהטלפון.
+            </p>
+            <div className="landing-cta-row">
+              <a className="landing-btn primary" href={WHATSAPP} target="_blank" rel="noreferrer">
+                התחילו בוואטסאפ
+              </a>
+              <a className="landing-btn ghost" href="#pricing">
+                מחיר חודשי
+              </a>
+            </div>
+          </div>
+
+          <div className="landing-hero-product" aria-hidden="true">
+            <div className="landing-screen">
+              <div className="landing-screen-bezel">
+                <div className="landing-screen-glass">
+                  <header className="ls-top">
+                    <p className="ls-shul">קהילת מרכז</p>
+                    <p className="ls-date">כ״ב בניסן</p>
+                  </header>
+                  <p className="ls-clock">18:42</p>
+                  <ul className="ls-zmanim">
+                    <li>
+                      <span>מנחה</span>
+                      <strong>18:55</strong>
+                    </li>
+                    <li>
+                      <span>ערבית</span>
+                      <strong>19:25</strong>
+                    </li>
+                    <li>
+                      <span>שקיעה</span>
+                      <strong>19:11</strong>
+                    </li>
+                  </ul>
+                  <p className="ls-note">שיעור אחרי ערבית · אולם גדול</p>
+                </div>
               </div>
             </div>
           </div>
@@ -75,9 +85,10 @@ export function Landing() {
 
       <section className="landing-section" id="what">
         <div className="landing-section-intro">
-          <h2>מה המסך מציג</h2>
+          <p className="landing-kicker">המסך באולם</p>
+          <h2>מה מופיע על המסך</h2>
           <p className="landing-section-lead">
-            תצוגה ברורה לאולם — בלי אפליקציות מסובכות ובלי תלות במחשב מקומי.
+            תצוגה ברורה לקהל — בלי אפליקציות מסובכות ובלי תלות במחשב מקומי.
           </p>
         </div>
         <ul className="landing-features">
@@ -102,6 +113,7 @@ export function Landing() {
 
       <section className="landing-section landing-how" id="how">
         <div className="landing-section-intro">
+          <p className="landing-kicker">התחלה פשוטה</p>
           <h2>איך זה עובד</h2>
           <p className="landing-section-lead">שלושה צעדים — והמסך באוויר.</p>
         </div>
@@ -136,12 +148,11 @@ export function Landing() {
         </ol>
       </section>
 
-      <section className="landing-section landing-pricing" id="pricing">
-        <div className="landing-section-intro">
+      <section className="landing-pricing" id="pricing">
+        <div className="landing-pricing-inner">
+          <p className="landing-kicker">מנוי חודשי</p>
           <h2>מחיר פשוט</h2>
-          <p className="landing-section-lead">מנוי חודשי אחד — בלי מסלולים ובלי הפתעות.</p>
-        </div>
-        <div className="landing-price-block">
+          <p className="landing-section-lead">מסלול אחד — בלי הפתעות.</p>
           <p className="landing-price">
             <strong>{MONTHLY}</strong>
             <span>₪ לחודש</span>
@@ -155,10 +166,10 @@ export function Landing() {
           <a className="landing-btn primary" href={WHATSAPP} target="_blank" rel="noreferrer">
             לשאול על התקנה
           </a>
+          <p className="landing-hardware-note">
+            החומרה (טלוויזיה / מחשב מיני) נרכשת בנפרד — נשמח לייעץ מה מתאים לאולם.
+          </p>
         </div>
-        <p className="landing-hardware-note">
-          החומרה (טלוויזיה / מחשב מיני) נרכשת בנפרד — נשמח לייעץ מה מתאים לאולם שלכם.
-        </p>
       </section>
 
       <section className="landing-section landing-contact" id="contact">
