@@ -6,11 +6,41 @@ import { LangSwitch, useI18n } from '../i18n';
 import './Guide.css';
 
 const STEPS = [
-  { titleKey: 'step1Title', textKey: 'step1Text', image: '/template-bgs/jerusalem-stone.webp', altKey: 'imgAlt1' },
-  { titleKey: 'step2Title', textKey: 'step2Text', image: '/template-bgs/gold-sanctuary.webp', altKey: 'imgAlt2' },
-  { titleKey: 'step3Title', textKey: 'step3Text', image: '/template-bgs/ark-wood.webp', altKey: 'imgAlt3' },
-  { titleKey: 'step4Title', textKey: 'step4Text', image: '/template-bgs/shabbat-night.webp', altKey: 'imgAlt4' },
-  { titleKey: 'step5Title', textKey: 'step5Text', image: '/template-bgs/gold-columns.webp', altKey: 'imgAlt5' },
+  {
+    titleKey: 'step1Title',
+    textKey: 'step1Text',
+    image: '/guide/step-1-shul-id.webp',
+    altKey: 'imgAlt1',
+    captionKey: 'imgCap1',
+  },
+  {
+    titleKey: 'step2Title',
+    textKey: 'step2Text',
+    image: '/guide/step-2-kiosk-install.webp',
+    altKey: 'imgAlt2',
+    captionKey: 'imgCap2',
+  },
+  {
+    titleKey: 'step3Title',
+    textKey: 'step3Text',
+    image: '/guide/step-3-hdmi-tv.webp',
+    altKey: 'imgAlt3',
+    captionKey: 'imgCap3',
+  },
+  {
+    titleKey: 'step4Title',
+    textKey: 'step4Text',
+    image: '/guide/step-4-first-run.webp',
+    altKey: 'imgAlt4',
+    captionKey: 'imgCap4',
+  },
+  {
+    titleKey: 'step5Title',
+    textKey: 'step5Text',
+    image: '/guide/step-5-publish.webp',
+    altKey: 'imgAlt5',
+    captionKey: 'imgCap5',
+  },
 ] as const;
 
 export function Guide() {
@@ -54,7 +84,14 @@ export function Guide() {
                 <p>{t(`guide.${step.textKey}`)}</p>
               </div>
               <figure className="guide-step-media">
-                <img src={step.image} alt={t(`guide.${step.altKey}`)} width={900} height={600} loading="lazy" />
+                <img
+                  src={step.image}
+                  alt={t(`guide.${step.altKey}`)}
+                  width={1280}
+                  height={720}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                />
+                <figcaption>{t(`guide.${step.captionKey}`)}</figcaption>
               </figure>
             </li>
           ))}

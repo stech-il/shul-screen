@@ -56,7 +56,7 @@
 }
 
 .guide-main {
-  max-width: 920px;
+  max-width: 1040px;
   margin: 0 auto;
   padding: clamp(2.5rem, 6vw, 4rem) clamp(1.25rem, 4vw, 2.5rem) 3rem;
 }
@@ -151,15 +151,28 @@
   margin: 0;
   border-radius: 10px;
   overflow: hidden;
-  aspect-ratio: 3 / 2;
-  background: var(--navy-deep);
+  background: #e8eef3;
+  border: 1px solid var(--line);
 }
 
 .guide-step-media img {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
+  object-position: top center;
+  background: var(--navy-deep);
+}
+
+.guide-step-media figcaption {
+  margin: 0;
+  padding: 0.55rem 0.75rem 0.65rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--muted);
+  background: #f8fafc;
+  border-top: 1px solid var(--line);
 }
 
 .guide-tips {
