@@ -392,6 +392,20 @@ export function ElementorWidgetPanel({
                   </label>
                 ) : null}
 
+                {selected.type === 'countdown' ? (
+                  <>
+                    <p className="cb-hint">{t('canvas.candleBoardHint')}</p>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={selected.showCandles !== false}
+                        onChange={(e) => patch({ showCandles: e.target.checked })}
+                      />
+                      {t('canvas.showCandles')}
+                    </label>
+                  </>
+                ) : null}
+
                 <label className="check">
                   <input
                     type="checkbox"

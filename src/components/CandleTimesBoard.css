@@ -1,0 +1,124 @@
+.candle-board {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.candle-board-inner {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.candle-board-title {
+  margin: 0 0 0.15rem;
+  font-size: 0.72em;
+  font-weight: 600;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.candle-board-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.candle-board-rows li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.22rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 0.95em;
+  line-height: 1.25;
+}
+
+.candle-board-rows li:last-child {
+  border-bottom: 0;
+}
+
+.candle-board-rows strong {
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.candle-board-countdown {
+  margin: 0.35rem 0 0;
+  text-align: center;
+  font-size: 0.78em;
+  opacity: 0.8;
+  font-weight: 600;
+}
+
+/* Twin candles — CSS flame ornaments flanking the times */
+.candle-ornament {
+  flex: 0 0 auto;
+  width: 0.85em;
+  align-self: center;
+  position: relative;
+  height: 2.8em;
+}
+
+.candle-ornament::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0.18em;
+  bottom: 0;
+  height: 1.55em;
+  border-radius: 0.12em 0.12em 0.08em 0.08em;
+  background: linear-gradient(180deg, #f2e6c4 0%, #d4b46a 55%, #9a7a32 100%);
+  box-shadow: 0 0 0 1px rgba(154, 122, 50, 0.25);
+}
+
+.candle-ornament::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 1.45em;
+  width: 0.55em;
+  height: 0.95em;
+  margin-left: -0.275em;
+  border-radius: 50% 50% 45% 45%;
+  background: radial-gradient(ellipse at 40% 30%, #fff6c8 0%, #ffb347 42%, #e07020 78%, transparent 100%);
+  animation: candle-flicker 2.4s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+.candle-ornament.right::after {
+  animation-delay: 0.35s;
+}
+
+@keyframes candle-flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(-2deg);
+    opacity: 0.92;
+  }
+  40% {
+    transform: scale(1.08) rotate(2deg);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(0.96) rotate(-1deg);
+    opacity: 0.88;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .candle-ornament::after {
+    animation: none;
+  }
+}

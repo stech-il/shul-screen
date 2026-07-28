@@ -147,6 +147,8 @@ export interface CanvasWidget {
   textShadow: boolean;
   opacity: number;
   radius: number;
+  /** For countdown widget — decorative candles on both sides */
+  showCandles?: boolean;
 }
 
 /**
@@ -331,12 +333,28 @@ export interface DayInfo {
   } | null;
 }
 
+export interface CandleBoard {
+  /** Candle lighting / Shabbat entry — HH:MM */
+  entry: string;
+  /** Standard exit (tzeit) — HH:MM */
+  exit: string;
+  /** Rabbeinu Tam exit — HH:MM */
+  exitRT: string;
+  entryLabel: string;
+  exitLabel: string;
+  exitRTLabel: string;
+  /** Live countdown line when approaching candle lighting */
+  countdownLabel?: string;
+}
+
 export interface ModeInfo {
   mode: DayMode;
   label: string;
   holidayName?: string;
   candleLighting?: Date;
   countdownLabel?: string;
+  /** Entry / exit / R"T times for the candle board widget */
+  candleBoard?: CandleBoard | null;
 }
 
 export interface WeatherInfo {

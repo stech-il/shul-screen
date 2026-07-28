@@ -425,6 +425,15 @@ export function Admin({ synagogueId }: Props) {
     announcementIndex: 0,
     weatherTemp: config.showWeather ? 24 : null,
     countdownLabel: t('admin.candleCountdownPreview'),
+    candleBoard: {
+      entry: '18:42',
+      exit: '19:48',
+      exitRT: '20:24',
+      entryLabel: t('admin.candleEntry'),
+      exitLabel: t('admin.candleExit'),
+      exitRTLabel: t('admin.candleExitRT'),
+      countdownLabel: t('admin.candleCountdownPreview'),
+    },
   };
 
   function update(patch: Partial<SynagogueConfig>) {

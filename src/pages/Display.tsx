@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BrandLogo } from '../components/BrandLogo';
+import { CandleTimesBoard } from '../components/CandleTimesBoard';
 import { CanvasStage } from '../components/canvas/CanvasStage';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { defaultCanvas } from '../components/canvas/widgets';
@@ -334,6 +335,7 @@ export function Display({ synagogueId }: Props) {
       : 0,
     weatherTemp: config.showWeather ? weather?.tempC ?? null : null,
     countdownLabel: modeInfo?.countdownLabel,
+    candleBoard: modeInfo?.candleBoard ?? null,
   };
 
   async function confirmExit() {
@@ -426,15 +428,23 @@ export function Display({ synagogueId }: Props) {
         </div>
       ) : null}
 
-      {modeInfo && modeInfo.mode !== 'weekday' ? (
+      {modeInfo?.candleBoard &&
+      (modeInfo.mode !== 'weekday' || modeInfo.countdownLabel) ? (
+        <div
+          className={`mode-banner mode-${modeInfo.mode !== 'weekday' ? modeInfo.mode : 'erev-shabbat'} candle-banner`}
+        >
+          {modeInfo.mode !== 'weekday' ? <strong>{modeInfo.label}</strong> : null}
+          <CandleTimesBoard
+            board={modeInfo.candleBoard}
+            showCandles
+            showTitle={false}
+            className="candle-banner-board"
+          />
+        </div>
+      ) : modeInfo && modeInfo.mode !== 'weekday' ? (
         <div className={`mode-banner mode-${modeInfo.mode}`}>
           <strong>{modeInfo.label}</strong>
           {modeInfo.countdownLabel ? <span>{modeInfo.countdownLabel}</span> : null}
-        </div>
-      ) : modeInfo?.countdownLabel ? (
-        <div className="mode-banner mode-erev-shabbat">
-          <strong>הדלקת נרות</strong>
-          <span className="time-ltr">{modeInfo.countdownLabel}</span>
         </div>
       ) : null}
 

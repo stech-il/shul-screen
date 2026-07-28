@@ -530,6 +530,29 @@
   font-size: calc(1rem * var(--body-scale));
   z-index: 2;
 }
+
+.mode-banner.candle-banner {
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.mode-banner.candle-banner > strong {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.mode-banner .candle-banner-board {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+  max-width: 28rem;
+  margin-inline-start: auto;
+  font-size: 0.95em;
+}
+
+.mode-banner .candle-board-countdown {
+  display: none;
+}
+
 .mode-banner.mode-shabbat,
 .mode-banner.mode-holiday {
   background: color-mix(in srgb, var(--accent) 28%, var(--panel));

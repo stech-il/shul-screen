@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type {
   Announcement,
+  CandleBoard,
   CanvasWidget,
   ComputedZman,
   DayInfo,
@@ -8,6 +9,7 @@ import type {
   ScheduleItem,
 } from '../../types';
 import { sanitizeRichHtml, toPlainDisplayText } from '../../lib/sanitizeHtml';
+import { CandleTimesBoard, PLACEHOLDER_CANDLE_BOARD } from '../CandleTimesBoard';
 import { WIDGET_LABELS } from './widgets';
 
 export interface CanvasData {
@@ -24,6 +26,7 @@ export interface CanvasData {
   announcementIndex: number;
   weatherTemp?: number | null;
   countdownLabel?: string;
+  candleBoard?: CandleBoard | null;
 }
 
 interface Props {
@@ -224,15 +227,20 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
       );
     }
 
-    case 'countdown':
-      return data.countdownLabel ? (
-        <div className="cw-stat">
-          {widget.showTitle ? <h3>{title || 'הדלקת נרות'}</h3> : null}
-          <p className="time-ltr">{data.countdownLabel}</p>
-        </div>
-      ) : (
-        <Placeholder label="ספירה להדלקת נרות" />
+    case 'countdown': {
+      const board = data.candleBoard ?? (placeholder ? PLACEHOLDER_CANDLE_BOARD : null);
+      if (!board) {
+        return <Placeholder label="כניסה · יציאה · יציאה ר״ת" />;
+      }
+      return (
+        <CandleTimesBoard
+          board={board}
+          showCandles={widget.showCandles !== false}
+          title={title || 'הדלקת נרות'}
+          showTitle={widget.showTitle}
+        />
       );
+    }
 
     case 'text': {
       const raw = widget.text?.trim();

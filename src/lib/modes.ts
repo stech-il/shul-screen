@@ -1,6 +1,6 @@
 import { HDate, HebrewCalendar, Location, Zmanim, flags } from '@hebcal/core';
 import { getCity } from '../data/cities';
-import type { DayMode, ModeInfo, ModeSettings } from '../types';
+import type { CandleBoard, DayMode, ModeInfo, ModeSettings } from '../types';
 
 const DEFAULT_MODES: ModeSettings = {
   autoShabbat: true,
@@ -29,7 +29,77 @@ function formatCountdown(ms: number): string {
   return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
 }
 
-/** Detect weekday / erev shabbat / shabbat / holiday + candle countdown */
+function formatHm(d: Date): string {
+  return d.toLocaleTimeString('he-IL', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+/** Friday noon of the Shabbat week that `now` belongs to (Thu noon → Motzei Shabbat). */
+function fridayOfWeek(now: Date): Date {
+  const friday = new Date(now);
+  const day = friday.getDay();
+  // Sun=0 … Fri=5 Sat=6 — go back/forward to Friday
+  const add = (5 - day + 7) % 7;
+  friday.setDate(friday.getDate() + add);
+  friday.setHours(12, 0, 0, 0);
+  return friday;
+}
+
+function buildCandleBoard(
+  cityId: string,
+  modes: ModeSettings,
+  now: Date,
+): { candleLighting?: Date; candleBoard: CandleBoard | null; countdownLabel?: string } {
+  try {
+    const city = getCity(cityId);
+    const loc = new Location(city.lat, city.lng, true, city.tzid, city.name, 'IL');
+    const friday = fridayOfWeek(now);
+    const saturday = new Date(friday);
+    saturday.setDate(saturday.getDate() + 1);
+
+    const zFri = new Zmanim(loc, friday, true);
+    const zSat = new Zmanim(loc, saturday, true);
+    const sunset = zFri.sunset();
+    const candleLighting = new Date(sunset.getTime() - modes.candleOffsetMin * 60_000);
+    const exit =
+      zSat.tzeit(7.083) ?? zSat.tzeit() ?? zSat.sunsetOffset(30, false) ?? zSat.dusk();
+    const exitRT =
+      zSat.tzeit(8.5) ?? zSat.sunsetOffset(72, false) ?? exit;
+
+    if (!candleLighting || !exit || !exitRT) {
+      return { candleBoard: null };
+    }
+
+    let countdownLabel: string | undefined;
+    const dow = now.getDay();
+    if (modes.showCandleCountdown && (dow === 5 || (dow === 4 && now.getHours() >= 12))) {
+      if (candleLighting.getTime() > now.getTime()) {
+        countdownLabel = `הדלקת נרות בעוד ${formatCountdown(candleLighting.getTime() - now.getTime())}`;
+      } else if (dow === 5) {
+        countdownLabel = 'זמן הדלקת נרות עבר';
+      }
+    }
+
+    const candleBoard: CandleBoard = {
+      entry: formatHm(candleLighting),
+      exit: formatHm(exit),
+      exitRT: formatHm(exitRT),
+      entryLabel: 'כניסה',
+      exitLabel: 'יציאה',
+      exitRTLabel: 'יציאה ר״ת',
+      countdownLabel,
+    };
+
+    return { candleLighting, candleBoard, countdownLabel };
+  } catch {
+    return { candleBoard: null };
+  }
+}
+
+/** Detect weekday / erev shabbat / shabbat / holiday + candle board */
 export function getModeInfo(
   cityId: string,
   modes: ModeSettings = DEFAULT_MODES,
@@ -73,33 +143,33 @@ export function getModeInfo(
     label = 'ערב שבת';
   }
 
-  let candleLighting: Date | undefined;
-  let countdownLabel: string | undefined;
+  const { candleLighting, candleBoard, countdownLabel: boardCountdown } = buildCandleBoard(
+    cityId,
+    modes,
+    now,
+  );
 
-  if (modes.showCandleCountdown && (dow === 5 || (dow === 4 && now.getHours() >= 12))) {
-    try {
-      const loc = new Location(city.lat, city.lng, true, city.tzid, city.name, 'IL');
-      const friday = new Date(now);
-      const day = friday.getDay();
-      const add = (5 - day + 7) % 7;
-      friday.setDate(friday.getDate() + add);
-      friday.setHours(12, 0, 0, 0);
-      const z = new Zmanim(loc, friday, true);
-      const sunset = z.sunset();
-      candleLighting = new Date(sunset.getTime() - modes.candleOffsetMin * 60_000);
-      if (candleLighting.getTime() > now.getTime()) {
-        countdownLabel = `הדלקת נרות בעוד ${formatCountdown(candleLighting.getTime() - now.getTime())}`;
-      } else if (dow === 5) {
-        countdownLabel = 'זמן הדלקת נרות עבר';
-      }
-    } catch {
-      /* ignore */
+  let countdownLabel = boardCountdown;
+  if (mode === 'shabbat' && !countdownLabel) {
+    countdownLabel = 'שבת שלום';
+    if (candleBoard && !candleBoard.countdownLabel) {
+      candleBoard.countdownLabel = countdownLabel;
     }
   }
 
-  if (mode === 'shabbat' && !countdownLabel) {
-    countdownLabel = 'שבת שלום';
+  // Attach live countdown onto the board when present
+  if (candleBoard && boardCountdown) {
+    candleBoard.countdownLabel = boardCountdown;
   }
 
-  return { mode, label, holidayName, candleLighting, countdownLabel };
+  void city;
+
+  return {
+    mode,
+    label,
+    holidayName,
+    candleLighting,
+    countdownLabel,
+    candleBoard,
+  };
 }

@@ -16,7 +16,7 @@ export const WIDGET_LABELS: Record<CanvasWidgetType, string> = {
   announcements: 'הודעות',
   yahrzeit: 'יארצייט',
   calendar: 'חגים וזיכרון',
-  countdown: 'הדלקת נרות',
+  countdown: 'הדלקת נרות · כניסה ויציאה',
   omer: 'ספירת העומר',
   text: 'עורך טקסט',
   heading: 'כותרת',
@@ -40,7 +40,7 @@ const SIZE_DEFAULTS: Partial<Record<CanvasWidgetType, { w: number; h: number }>>
   announcements: { w: 46, h: 18 },
   yahrzeit: { w: 26, h: 14 },
   calendar: { w: 26, h: 14 },
-  countdown: { w: 30, h: 12 },
+  countdown: { w: 36, h: 22 },
   omer: { w: 34, h: 16 },
   text: { w: 36, h: 14 },
   heading: { w: 40, h: 10 },
@@ -65,12 +65,12 @@ export function createWidget(
     h: size.h,
     z,
     visible: true,
-    showTitle: type === 'zmanim' || type === 'block' || type === 'announcements' || type === 'zman',
+    showTitle: type === 'zmanim' || type === 'block' || type === 'announcements' || type === 'zman' || type === 'countdown',
     titleLayout: type === 'zman' ? 'above' : 'above',
-    align: type === 'zmanim' || type === 'block' ? 'right' : 'center',
+    align: type === 'zmanim' || type === 'block' || type === 'countdown' ? 'right' : 'center',
     fontScale: type === 'heading' ? 1.35 : 1,
     titleScale: 0.55,
-    fontWeight: type === 'zman' || type === 'clock' || type === 'heading' || type === 'button' ? 'bold' : 'normal',
+    fontWeight: type === 'zman' || type === 'clock' || type === 'heading' || type === 'button' || type === 'countdown' ? 'bold' : 'normal',
     bg:
       type === 'text' ||
       type === 'heading' ||
@@ -91,6 +91,8 @@ export function createWidget(
     htmlTag: type === 'heading' ? 'h2' : undefined,
     text: type === 'heading' ? 'כותרת לדוגמה' : type === 'text' ? 'כתבו כאן טקסט…' : undefined,
     buttonLabel: type === 'button' ? 'לחצו כאן' : undefined,
+    showCandles: type === 'countdown' ? true : undefined,
+    title: type === 'countdown' ? 'הדלקת נרות' : undefined,
     ...extras,
   };
 }
@@ -212,6 +214,10 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
     textShadow: w.textShadow ?? fallback.textShadow,
     opacity: w.opacity ?? 1,
     radius: w.radius ?? fallback.radius,
+    showCandles:
+      w.type === 'countdown' || fallback.type === 'countdown'
+        ? w.showCandles ?? fallback.showCandles ?? true
+        : w.showCandles,
   };
 }
 
