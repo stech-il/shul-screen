@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   DEFAULT_SERVER,
+  goToLiveDisplay,
   loadAndroidKioskConfig,
   probeAndroidConnection,
   saveAndroidKioskConfig,
@@ -22,7 +22,6 @@ function configMessage(detail: string, ok: boolean): string {
 }
 
 export function KioskSetup() {
-  const navigate = useNavigate();
   const [shulId, setShulId] = useState('');
   const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER);
   const [err, setErr] = useState('');
@@ -81,10 +80,9 @@ export function KioskSetup() {
       const id = shulId.trim();
       const server = serverUrl.trim().replace(/\/$/, '');
       await saveAndroidKioskConfig({ shulId: id, serverUrl: server });
-      navigate(`/display/${encodeURIComponent(id)}?kiosk=1`, { replace: true });
+      goToLiveDisplay(id, server);
     } catch (ex) {
       setErr(ex instanceof Error ? ex.message : 'שגיאה');
-    } finally {
       setBusy(false);
     }
   }

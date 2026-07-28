@@ -1,14 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { bootstrapAndroidKioskRoute } from './lib/androidKiosk';
+import { bootstrapAndroidKioskRoute, isAndroidKiosk } from './lib/androidKiosk';
 import { purgeLegacyDesignTemplateStorage } from './lib/designTemplates';
 import './index.css';
 
 // Free localStorage quota left by older template saves (before IndexedDB migration).
 purgeLegacyDesignTemplateStorage();
-
-void bootstrapAndroidKioskRoute();
 
 /**
  * HashRouter lives under /#/… — map plain paths like /admin → /#/admin
@@ -45,20 +43,44 @@ function isLiveDisplayRoute(): boolean {
 }
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (isLiveDisplayRoute()) return;
-    window.location.reload();
-  });
-  void navigator.serviceWorker.getRegistration().then((reg) => {
-    if (!reg) return;
-    void reg.update();
-    // Hourly is enough; kiosk startup script already clears stale caches.
-    window.setInterval(() => void reg.update(), 60 * 60_000);
-  });
+  // Native APK should not register a SW over the bundled shell (can blank the WebView).
+  if (!isAndroidKiosk()) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (isLiveDisplayRoute()) return;
+      window.location.reload();
+    });
+    void navigator.serviceWorker.getRegistration().then((reg) => {
+      if (!reg) return;
+      void reg.update();
+      window.setInterval(() => void reg.update(), 60 * 60_000);
+    });
+  } else {
+    void navigator.serviceWorker.getRegistrations().then((regs) => {
+      for (const reg of regs) void reg.unregister();
+    });
+  }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+async function start() {
+  if (isAndroidKiosk()) {
+    try {
+      await bootstrapAndroidKioskRoute();
+    } catch {
+      const hash = window.location.hash || '';
+      if (!hash.includes('/kiosk-setup') && !hash.includes('/display/')) {
+        window.location.replace('/#/kiosk-setup');
+        return;
+      }
+    }
+  }
+
+  const root = document.getElementById('root');
+  if (!root) return;
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}
+
+void start();

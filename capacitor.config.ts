@@ -1,18 +1,26 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Android kiosk shell around the live web app (same idea as Electron).
- * Default: load production so /api/* and cloud updates work same-origin.
- * Override with CAP_SERVER_URL (empty string = bundled dist only).
+ * Android kiosk shell: always boot from bundled `dist` so the app never opens blank
+ * while waiting on a remote host. After setup we navigate to the live server display.
+ * Optional: CAP_SERVER_URL=https://… forces remote WebView (debug only).
  */
-const rawServer = process.env.CAP_SERVER_URL;
-const useRemote = rawServer !== '';
-const serverUrl = (rawServer || 'https://shul-screen.onrender.com').replace(/\/$/, '');
+const remoteOverride = String(process.env.CAP_SERVER_URL || '').trim();
 
 const config: CapacitorConfig = {
   appId: 'il.screensmart.app',
   appName: 'screensmart',
   webDir: 'dist',
+  server: {
+    androidScheme: 'https',
+    // Allow leaving the local shell to the live display host after setup.
+    allowNavigation: [
+      'shul-screen.onrender.com',
+      '*.onrender.com',
+      'localhost',
+      '127.0.0.1',
+    ],
+  },
   android: {
     backgroundColor: '#0f1c22',
     allowMixedContent: false,
@@ -26,11 +34,11 @@ const config: CapacitorConfig = {
   },
 };
 
-if (useRemote) {
+if (remoteOverride) {
   config.server = {
-    url: serverUrl,
+    ...config.server,
+    url: remoteOverride.replace(/\/$/, ''),
     cleartext: false,
-    androidScheme: 'https',
   };
 }
 

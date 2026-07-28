@@ -17,6 +17,8 @@ const orefProxy = {
 };
 
 export default defineConfig({
+  // Relative base so Capacitor Android (and file:// Electron offline) can load assets.
+  base: './',
   plugins: [
     react(),
     cloudApiPlugin(),

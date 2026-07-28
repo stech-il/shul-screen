@@ -39,12 +39,12 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
 | רכיב | התנהגות |
 |------|---------|
-| `capacitor.config.ts` | טוען כברירת מחדל את `https://shul-screen.onrender.com` (אפשר לשנות ב־`CAP_SERVER_URL`) |
-| `/#/kiosk-setup` | מסך רישום: מזהה בית כנסת + כתובת שרת (Preferences) |
-| `/#/display/{id}?kiosk=1` | מסך חי אחרי רישום |
+| `capacitor.config.ts` | טוען את `dist` מה־APK (לא מסתמך על Render בפתיחה) |
+| `/#/kiosk-setup` | מסך רישום: מזהה בית כנסת + כתובת שרת |
+| אחרי שמירה | מעבר לכתובת התצוגה החיה בשרת |
 | MainActivity | Immersive + `KEEP_SCREEN_ON` + landscape |
 
-בפתיחה: אם יש מזהה שמור — נכנסים ישירות לתצוגה; אחרת — למסך הרישום.
+בפתיחה: אם אין מזהה שמור — מסך הרישום מיד (גם בלי אינטרנט). אם יש מזהה — מעבר למסך החי בשרת.
 
 ## סקריפטים ב־package.json
 

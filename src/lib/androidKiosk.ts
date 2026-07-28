@@ -5,25 +5,57 @@ import { KeepAwake } from '@capacitor-community/keep-awake';
 
 const KEY_SHUL = 'screensmart.kiosk.shulId';
 const KEY_SERVER = 'screensmart.kiosk.serverUrl';
+const LS_SHUL = 'screensmart.kiosk.shulId';
+const LS_SERVER = 'screensmart.kiosk.serverUrl';
 export const DEFAULT_SERVER = 'https://shul-screen.onrender.com';
 
 export function isAndroidKiosk(): boolean {
-  return Capacitor.isNativePlatform();
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
+function readLocal(key: string): string {
+  try {
+    return String(localStorage.getItem(key) || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function writeLocal(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function loadAndroidKioskConfig(): Promise<{
   shulId: string;
   serverUrl: string;
 }> {
-  const [shul, server] = await Promise.all([
-    Preferences.get({ key: KEY_SHUL }),
-    Preferences.get({ key: KEY_SERVER }),
-  ]);
+  let shulId = readLocal(LS_SHUL);
+  let serverUrl = readLocal(LS_SERVER) || DEFAULT_SERVER;
+
+  if (isAndroidKiosk()) {
+    try {
+      const [shul, server] = await Promise.all([
+        Preferences.get({ key: KEY_SHUL }),
+        Preferences.get({ key: KEY_SERVER }),
+      ]);
+      if (shul.value) shulId = String(shul.value).trim();
+      if (server.value) serverUrl = String(server.value).trim();
+    } catch {
+      /* Preferences may fail before bridge is ready — localStorage fallback */
+    }
+  }
+
   return {
-    shulId: String(shul.value || '').trim(),
-    serverUrl: String(server.value || DEFAULT_SERVER)
-      .trim()
-      .replace(/\/$/, ''),
+    shulId,
+    serverUrl: serverUrl.replace(/\/$/, '') || DEFAULT_SERVER,
   };
 }
 
@@ -35,8 +67,23 @@ export async function saveAndroidKioskConfig(input: {
   const serverUrl = String(input.serverUrl || DEFAULT_SERVER)
     .trim()
     .replace(/\/$/, '');
-  await Preferences.set({ key: KEY_SHUL, value: shulId });
-  await Preferences.set({ key: KEY_SERVER, value: serverUrl });
+  writeLocal(LS_SHUL, shulId);
+  writeLocal(LS_SERVER, serverUrl);
+  if (!isAndroidKiosk()) return;
+  try {
+    await Preferences.set({ key: KEY_SHUL, value: shulId });
+    await Preferences.set({ key: KEY_SERVER, value: serverUrl });
+  } catch {
+    /* localStorage already saved */
+  }
+}
+
+export function displayUrlFor(shulId: string, serverUrl: string): string {
+  const server = String(serverUrl || DEFAULT_SERVER)
+    .trim()
+    .replace(/\/$/, '');
+  const id = encodeURIComponent(String(shulId || '').trim());
+  return `${server}/#/display/${id}?kiosk=1`;
 }
 
 export async function probeAndroidConnection(input: {
@@ -98,7 +145,7 @@ export async function applyAndroidKioskChrome(): Promise<void> {
     await StatusBar.hide();
     await StatusBar.setStyle({ style: Style.Dark });
   } catch {
-    /* plugin may be unavailable in browser preview */
+    /* plugin may be unavailable */
   }
   try {
     await KeepAwake.keepAwake();
@@ -108,20 +155,41 @@ export async function applyAndroidKioskChrome(): Promise<void> {
 }
 
 /**
- * On cold start: if native + saved shulId, open live display;
- * if native + no shulId, open setup (unless already on setup).
+ * Cold start on native:
+ * - no shulId → local /#/kiosk-setup (always available offline from APK)
+ * - has shulId → live server display URL
  */
 export async function bootstrapAndroidKioskRoute(): Promise<void> {
   if (!isAndroidKiosk()) return;
-  await applyAndroidKioskChrome();
+
+  void applyAndroidKioskChrome();
 
   const hash = window.location.hash || '';
-  if (hash.includes('/kiosk-setup') || hash.includes('/display/')) return;
+  if (hash.includes('/kiosk-setup')) return;
 
-  const { shulId } = await loadAndroidKioskConfig();
+  let shulId = '';
+  let serverUrl = DEFAULT_SERVER;
+  try {
+    const cfg = await loadAndroidKioskConfig();
+    shulId = cfg.shulId;
+    serverUrl = cfg.serverUrl;
+  } catch {
+    shulId = '';
+  }
+
   if (shulId) {
-    window.location.replace(`/#/display/${encodeURIComponent(shulId)}?kiosk=1`);
+    // Already on the right live display — stay.
+    if (hash.includes(`/display/${encodeURIComponent(shulId)}`) || hash.includes(`/display/${shulId}`)) {
+      return;
+    }
+    window.location.replace(displayUrlFor(shulId, serverUrl));
     return;
   }
+
   window.location.replace('/#/kiosk-setup');
+}
+
+/** Open live display after successful setup (leaves local shell for remote host). */
+export function goToLiveDisplay(shulId: string, serverUrl: string): void {
+  window.location.replace(displayUrlFor(shulId, serverUrl));
 }
