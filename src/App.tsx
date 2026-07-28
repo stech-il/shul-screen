@@ -4,6 +4,7 @@ import { Admin } from './pages/Admin';
 import { Agency } from './pages/Agency';
 import { Display } from './pages/Display';
 import { Guide } from './pages/Guide';
+import { KioskSetup } from './pages/KioskSetup';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { PlatformLogin } from './pages/PlatformLogin';
@@ -37,6 +38,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/guide" element={<Guide />} />
+          <Route path="/kiosk-setup" element={<KioskSetup />} />
           <Route path="/display/:id" element={<DisplayRoute />} />
           <Route path="/screen/:id" element={<DisplayRoute />} />
           {/* Platform super-admin gate — must be before /admin/:id */}

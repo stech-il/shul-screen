@@ -4,7 +4,7 @@
 
 ## יכולות עיקריות
 
-- מסך תצוגה (דפדפן / PWA / Electron קיוסק + installer)
+- מסך תצוגה (דפדפן / PWA / Electron קיוסק / Android APK)
 - ניהול עם **שם משתמש וסיסמה** (salted hash)
 - **רישיון מסך** לכל בית כנסת (נעילת תצוגה בלי מפתח תקף)
 - **מנהל מערכת** חובה ליצירת בתי כנסת חדשים
@@ -68,6 +68,17 @@ npm run dist
 | יציאה | `Ctrl+Shift+Q` |
 
 פירוט: [`electron/UPDATES.md`](electron/UPDATES.md)
+
+### Android קיוסק (Capacitor)
+
+```bash
+npm run android:sync
+npm run android:open
+# או: npm run android:apk
+```
+
+פרטים: [android/README.md](android/README.md). בפתיחה ראשונה — רישום מזהה ב־`/#/kiosk-setup`.
+
 ## חיבור Supabase
 
 1. צור פרויקט ב־[supabase.com](https://supabase.com)

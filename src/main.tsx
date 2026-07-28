@@ -1,11 +1,14 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { bootstrapAndroidKioskRoute } from './lib/androidKiosk';
 import { purgeLegacyDesignTemplateStorage } from './lib/designTemplates';
 import './index.css';
 
 // Free localStorage quota left by older template saves (before IndexedDB migration).
 purgeLegacyDesignTemplateStorage();
+
+void bootstrapAndroidKioskRoute();
 
 /**
  * HashRouter lives under /#/… — map plain paths like /admin → /#/admin

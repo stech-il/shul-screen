@@ -1,9 +1,18 @@
-# Android kiosk wrapper
+# Android kiosk (Capacitor)
 
-The live synagogue screen is a HashRouter web app. Point a WebView / TWA / Capacitor shell at:
+Native Android shell for the live HashRouter web app.
 
 ```text
 https://YOUR-HOST/#/display/{shulId}?kiosk=1
 ```
 
-See [android/README.md](../android/README.md) (Hebrew) for Capacitor and Bubblewrap steps. Full native scaffolding can be added later; CI does not need the Android SDK for the web app.
+Full Hebrew build steps: [android/README.md](../android/README.md).
+
+Quick start:
+
+```bash
+npm run android:sync
+npm run android:open
+```
+
+Then Build APK in Android Studio. First launch opens `/#/kiosk-setup` to save synagogue id on device.

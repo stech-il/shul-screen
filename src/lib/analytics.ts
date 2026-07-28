@@ -42,13 +42,22 @@ export function listEvents(synagogueId?: string): AnalyticsEvent[] {
   return synagogueId ? all.filter((e) => e.synagogueId === synagogueId) : all;
 }
 
-/** Absolute origin for cloud API — needed on Electron file:// offline shell. */
+/** Absolute origin for cloud API — needed on Electron file:// / Capacitor shells. */
 async function resolveCloudOrigin(): Promise<string> {
   try {
     if (typeof window !== 'undefined' && window.shulKiosk?.getConfig) {
       const cfg = await window.shulKiosk.getConfig();
       const url = String(cfg?.serverUrl || '').trim().replace(/\/$/, '');
       if (/^https?:\/\//i.test(url)) return url;
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const { isAndroidKiosk, loadAndroidKioskConfig } = await import('./androidKiosk');
+    if (isAndroidKiosk()) {
+      const cfg = await loadAndroidKioskConfig();
+      if (/^https?:\/\//i.test(cfg.serverUrl)) return cfg.serverUrl;
     }
   } catch {
     /* ignore */

@@ -35,3 +35,15 @@ release
 data/
 .cloud-token
 *.token
+
+# Capacitor / Android
+android/.gradle/
+android/app/build/
+android/build/
+android/captures/
+android/local.properties
+android/.idea/
+*.apk
+*.aab
+*.ap_
+*.dex

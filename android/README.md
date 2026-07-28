@@ -1,67 +1,72 @@
-# אפליקציית Android למסך בית כנסת
+# אפליקציית Android (Capacitor) — screensmart
 
-המסך החי הוא אתר Web (React) בכתובת התצוגה. באנדרואיד ממליצים לעטוף אותו ב־**WebView** או ב־**Trusted Web Activity (TWA)** — בלי לשכתב את לוגיקת הזמנים.
+מעטפת WebView סביב האתר החי (כמו Electron ב־Windows): מסך מלא, landscape, מסך לא נרדם, ורישום מזהה בית כנסת במכשיר.
 
-## גישות מומלצות
+## דרישות
 
-1. **Capacitor** — פרויקט native קל סביב ה־URL של production, עם WebView במסך מלא (קיוסק).
-2. **Trusted Web Activity / Bubblewrap** — אפליקציה שמציגה את האתר ב־Chrome Custom Tabs במצב דמוי־אפליקציה (מתאים כשהאתר כבר ב־HTTPS).
+1. **Node 20+** (כבר בפרויקט)
+2. **Android Studio** (Ladybug / חדש יותר) עם Android SDK + JDK 17 מומלץ
+3. אחרי התקנת Studio: הגדירו `ANDROID_HOME` (או פתחו פרויקטים מתוך Studio בלבד)
 
-בשלב זה אין פרויקט Capacitor מלא בריפו; אפשר להוסיף אותו בהמשך בלי לשבור את ה־CI (אין חובת Android SDK ב־pipeline).
+## בניית APK (מקומי)
 
-## כתובת התצוגה
-
-החליפו `{shulId}` במזהה בית הכנסת מהסוכנות:
-
-```text
-https://YOUR-PRODUCTION-HOST/#/display/{shulId}?kiosk=1
-```
-
-דוגמה:
-
-```text
-https://shul-screen.onrender.com/#/display/amishav?kiosk=1
-```
-
-`kiosk=1` מסמן מצב מסך מלא / קיוסק בצד האפליקציה.
-
-## בניית APK (Capacitor — סקיצה)
-
-לאחר התקנת Node ו־Android Studio מקומית (לא ב־CI אלא אם תרצו במפורש):
+משורש הריפו:
 
 ```bash
-npm create @capacitor/app@latest screensmart-android
-cd screensmart-android
-npm install @capacitor/android
-npx cap add android
+npm run android:sync
+npm run android:open
 ```
 
-ב־`capacitor.config` הגדירו `server.url` לכתובת ה־production עם `#/display/{shulId}?kiosk=1`, או טענו `index.html` שמפנה לכתובת הזו.
+ב־Android Studio: **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
+
+או מ־CLI (אחרי ש־SDK מותקן):
 
 ```bash
-npx cap sync android
-npx cap open android
+npm run android:apk
 ```
 
-ב־Android Studio: Build → Build Bundle(s) / APK(s).
+קובץ Debug יופיע בערך ב:
 
-### TWA עם Bubblewrap
+`android/app/build/outputs/apk/debug/app-debug.apk`
+
+להתקנה על מכשיר מחובר ב־USB:
 
 ```bash
-npm i -g @bubblewrap/cli
-bubblewrap init --manifest https://YOUR-PRODUCTION-HOST/manifest.webmanifest
-bubblewrap build
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-ודאו שיש PWA manifest + service worker אם נדרש ל־TWA מלא. לחלופין WebView פשוט מספיק לקיוסק באולם.
+## איך זה עובד
+
+| רכיב | התנהגות |
+|------|---------|
+| `capacitor.config.ts` | טוען כברירת מחדל את `https://shul-screen.onrender.com` (אפשר לשנות ב־`CAP_SERVER_URL`) |
+| `/#/kiosk-setup` | מסך רישום: מזהה בית כנסת + כתובת שרת (Preferences) |
+| `/#/display/{id}?kiosk=1` | מסך חי אחרי רישום |
+| MainActivity | Immersive + `KEEP_SCREEN_ON` + landscape |
+
+בפתיחה: אם יש מזהה שמור — נכנסים ישירות לתצוגה; אחרת — למסך הרישום.
+
+## סקריפטים ב־package.json
+
+- `npm run android:sync` — build של האתר + `cap sync android`
+- `npm run android:open` — פתיחה ב־Android Studio
+- `npm run android:apk` — sync + `gradlew assembleDebug`
+
+## מצב ללא שרת מרוחק (bundled)
+
+```bash
+# Windows PowerShell
+$env:CAP_SERVER_URL=""; npm run android:sync
+```
+
+אז האפליקציה רצה מקבצי `dist` שב־APK. קריאות API צריכות עדיין רשת לשרת הענן (דרך הלוגיקה ב־`androidKiosk` / analytics).
 
 ## טיפים לקיוסק באולם
 
-- נעלו את המכשיר ל־kiosk / pinned app כדי שלא ייצאו מהמסך.
-- השאירו את המסך דולק (אל תנו לישון אוטומטית בשעות פעילות).
-- חיבור רשת יציב חובה לעדכוני ענן והתראות.
-- מדריך התקנה כללי באתר: `/#/guide`.
+- נעלו את האפליקציה (pin / kiosk mode) כדי שלא ייצאו מהמסך
+- חיבור רשת יציב לעדכוני ענן והתראות
+- מדריך כללי באתר: `/#/guide`
 
-## מה הלאה
+## TWA (חלופה)
 
-אפשר להוסיף תיקיית `android/` מלאה עם Capacitor, אייקון, ו־intent לפתיחה אוטומטית של מזהה בית כנסת שנשמר בהגדרות המכשיר.
+ראה גם [docs/android-kiosk.md](../docs/android-kiosk.md) ל־Bubblewrap / Trusted Web Activity אם מעדיפים מעטפת Chrome בלי Capacitor.

@@ -1,0 +1,202 @@
+.kiosk-setup {
+  --ink: #163038;
+  --muted: #5f737a;
+  --line: rgba(22, 48, 56, 0.14);
+  --accent: #9a7a32;
+  --bg1: #eef3f0;
+  --bg2: #dce7e2;
+  --ok: #2f7a45;
+  --bad: #8f2f2f;
+  --warn: #8a6a20;
+
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse 70% 45% at 85% 0%, rgba(154, 122, 50, 0.18), transparent 55%),
+    linear-gradient(165deg, var(--bg1), var(--bg2));
+}
+
+.kiosk-setup-card {
+  width: min(460px, 100%);
+  background: rgba(255, 252, 247, 0.94);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.5rem 1.4rem 1.35rem;
+  box-shadow: 0 18px 48px rgba(22, 48, 56, 0.12);
+}
+
+.kiosk-setup-brand {
+  margin: 0 0 0.75rem;
+  line-height: 0;
+}
+
+.kiosk-setup-brand img {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(22, 48, 56, 0.14);
+}
+
+.kiosk-setup h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.45rem;
+}
+
+.kiosk-setup-lead {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.kiosk-setup label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.kiosk-setup input {
+  font: inherit;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+}
+
+.kiosk-setup input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.kiosk-setup .ltr {
+  direction: ltr;
+  text-align: left;
+}
+
+.kiosk-setup-checks {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.kiosk-setup-checks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.kiosk-setup-checks li + li {
+  margin-top: 0.55rem;
+}
+
+.kiosk-setup .dot {
+  flex-shrink: 0;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.2rem;
+  border-radius: 50%;
+  background: #c5ced1;
+  border: 1px solid rgba(22, 48, 56, 0.18);
+}
+
+.kiosk-setup .dot.checking {
+  background: var(--accent);
+  animation: kiosk-pulse 0.9s ease-in-out infinite;
+}
+
+.kiosk-setup .dot.ok {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+
+.kiosk-setup .dot.bad {
+  background: var(--bad);
+  border-color: var(--bad);
+}
+
+.kiosk-setup .dot.warn {
+  background: var(--warn);
+  border-color: var(--warn);
+}
+
+@keyframes kiosk-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.kiosk-setup .check-detail {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.kiosk-setup-tips {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: rgba(154, 122, 50, 0.08);
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.kiosk-setup-tips strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--ink);
+  font-size: 0.88rem;
+}
+
+.kiosk-setup-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.kiosk-setup-actions button {
+  font: inherit;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 0.7rem 1.1rem;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
+.kiosk-setup-actions button.primary {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
+.kiosk-setup-actions button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.kiosk-setup-err {
+  color: var(--bad);
+  font-size: 0.88rem;
+  margin: 0 0 0.75rem;
+  min-height: 1.2em;
+}

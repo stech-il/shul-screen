@@ -19,6 +19,7 @@ import {
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
 import { disableKiosk, enableKiosk, isFullscreen, watchWakeLock } from '../lib/kiosk';
+import { isAndroidKiosk } from '../lib/androidKiosk';
 import { verifyPin } from '../lib/auth';
 import { getModeInfo } from '../lib/modes';
 import {
@@ -47,6 +48,7 @@ interface Props {
 export function Display({ synagogueId }: Props) {
   const [params] = useSearchParams();
   const autoKiosk = params.get('kiosk') === '1';
+  const isAndroidNative = isAndroidKiosk();
   const rootRef = useRef<HTMLDivElement>(null);
 
   const [config, setConfig] = useState<SynagogueConfig | null>(null);
@@ -214,7 +216,7 @@ export function Display({ synagogueId }: Props) {
   useEffect(() => {
     const stopWake = watchWakeLock();
     async function maybeKiosk() {
-      if (autoKiosk || window.shulKiosk?.isElectron) {
+      if (autoKiosk || window.shulKiosk?.isElectron || isAndroidNative) {
         const r = await enableKiosk(rootRef.current ?? undefined);
         setKioskOn(r.fullscreen || r.wake);
       }
@@ -224,7 +226,10 @@ export function Display({ synagogueId }: Props) {
     document.addEventListener('fullscreenchange', onFs);
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && (kioskOn || autoKiosk || window.shulKiosk?.isElectron)) {
+      if (
+        e.key === 'Escape' &&
+        (kioskOn || autoKiosk || window.shulKiosk?.isElectron || isAndroidNative)
+      ) {
         e.preventDefault();
         setShowExit(true);
       }
@@ -236,7 +241,7 @@ export function Display({ synagogueId }: Props) {
       document.removeEventListener('fullscreenchange', onFs);
       window.removeEventListener('keydown', onKey);
     };
-  }, [autoKiosk, kioskOn]);
+  }, [autoKiosk, kioskOn, isAndroidNative]);
 
   if (!config) {
     return (

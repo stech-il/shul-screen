@@ -16,12 +16,21 @@
     "electron": "electron .",
     "electron:dev": "cross-env ELECTRON_START_URL=http://localhost:5173 electron .",
     "dist": "npm run build && electron-builder --win",
-    "dist:dir": "npm run build && electron-builder --win --dir"
+    "dist:dir": "npm run build && electron-builder --win --dir",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:add": "npx cap add android",
+    "android:apk": "npm run android:sync && cd android && .\\gradlew.bat assembleDebug"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.3",
     "@hebcal/core": "^5.10.1",
     "@hebcal/learning": "^6.9.5",
     "@supabase/supabase-js": "^2.50.0",
@@ -31,6 +40,8 @@
     "react-router-dom": "^7.6.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
