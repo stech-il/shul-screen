@@ -1455,6 +1455,7 @@ export function Admin({ synagogueId }: Props) {
                   type="button"
                   className={`preset-card ${config.nusach === nusachTpl.id ? 'active' : ''}`}
                   onClick={() => {
+                    if (!confirm(t('admin.confirmNusach'))) return;
                     setConfig((c) => (c ? applyNusachTemplate(c, nusachTpl.id) : c));
                     setStatus(t('admin.nusachApplied', { name: nusachTpl.name }));
                   }}
