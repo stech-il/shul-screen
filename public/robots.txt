@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://shul-screen.onrender.com/sitemap.xml

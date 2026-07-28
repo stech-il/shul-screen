@@ -62,7 +62,7 @@
   padding-bottom: 0.12rem;
 }
 
-/* —— Hero: full-bleed atmosphere + brand composition —— */
+/* —— Hero —— */
 .landing-hero {
   position: relative;
   min-height: 100svh;
@@ -92,7 +92,7 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(105deg, rgba(7, 21, 26, 0.82) 0%, rgba(7, 21, 26, 0.55) 42%, rgba(7, 21, 26, 0.28) 100%),
+    linear-gradient(105deg, rgba(7, 21, 26, 0.84) 0%, rgba(7, 21, 26, 0.58) 42%, rgba(7, 21, 26, 0.3) 100%),
     linear-gradient(180deg, rgba(7, 21, 26, 0.45) 0%, transparent 28%, rgba(7, 21, 26, 0.55) 100%);
 }
 
@@ -109,14 +109,14 @@
 }
 
 .landing-hero-copy {
-  max-width: 34rem;
+  max-width: 36rem;
   animation: landing-rise 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
 }
 
 .landing-brand {
-  margin: 0 0 0.9rem;
+  margin: 0 0 0.85rem;
   font-family: 'Secular One', 'Frank Ruhl Libre', serif;
-  font-size: clamp(3rem, 11vw, 5.2rem);
+  font-size: clamp(2.85rem, 10vw, 5rem);
   line-height: 0.92;
   letter-spacing: 0.01em;
   color: #fff;
@@ -125,19 +125,19 @@
 .landing-hero h1 {
   margin: 0;
   font-family: 'Frank Ruhl Libre', 'David Libre', serif;
-  font-size: clamp(1.45rem, 3.6vw, 2.05rem);
+  font-size: clamp(1.4rem, 3.4vw, 2rem);
   font-weight: 700;
-  line-height: 1.3;
-  color: rgba(244, 247, 245, 0.92);
-  max-width: 16ch;
+  line-height: 1.28;
+  color: rgba(244, 247, 245, 0.94);
+  max-width: 18ch;
 }
 
 .landing-lead {
-  margin: 1.1rem 0 0;
-  font-size: clamp(1.05rem, 2.2vw, 1.2rem);
+  margin: 1.05rem 0 0;
+  font-size: clamp(1.05rem, 2.2vw, 1.18rem);
   line-height: 1.55;
-  color: rgba(244, 247, 245, 0.72);
-  max-width: 28rem;
+  color: rgba(244, 247, 245, 0.74);
+  max-width: 30rem;
 }
 
 .landing-cta-row {
@@ -200,14 +200,14 @@
 }
 
 .landing-section .landing-btn.primary,
-.landing-pricing .landing-btn.primary,
+.landing-split .landing-btn.primary,
 .landing-contact .landing-btn.primary {
   background: var(--ink);
   color: #f3f8f5;
 }
 
 .landing-section .landing-btn.primary:hover,
-.landing-pricing .landing-btn.primary:hover,
+.landing-split .landing-btn.primary:hover,
 .landing-contact .landing-btn.primary:hover {
   background: var(--deep);
 }
@@ -334,7 +334,7 @@
 
 /* —— Sections —— */
 .landing-section {
-  padding: clamp(3.75rem, 9vw, 6.75rem) clamp(1.25rem, 4vw, 3.5rem);
+  padding: clamp(3.75rem, 9vw, 6.5rem) clamp(1.25rem, 4vw, 3.5rem);
   max-width: 860px;
   margin: 0 auto;
 }
@@ -349,15 +349,17 @@
 }
 
 .landing-section-intro {
-  max-width: 34rem;
+  max-width: 36rem;
 }
 
 .landing-section h2,
+.landing-band h2,
+.landing-split h2,
 .landing-pricing h2 {
   margin: 0;
   font-family: 'Frank Ruhl Libre', serif;
-  font-size: clamp(2.05rem, 4.6vw, 2.85rem);
-  line-height: 1.12;
+  font-size: clamp(1.95rem, 4.4vw, 2.75rem);
+  line-height: 1.15;
   letter-spacing: -0.015em;
 }
 
@@ -366,6 +368,82 @@
   color: var(--muted);
   font-size: 1.12rem;
   line-height: 1.55;
+}
+
+.landing-prose {
+  margin-top: 1.75rem;
+  display: grid;
+  gap: 1.15rem;
+  max-width: 42rem;
+}
+
+.landing-prose p {
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+
+.landing-prose strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Feature checklist band */
+.landing-band {
+  padding: clamp(3.75rem, 9vw, 6.5rem) clamp(1.25rem, 4vw, 3.5rem);
+  background:
+    linear-gradient(180deg, #e8f0ec 0%, #dfeae4 100%);
+  border-block: 1px solid var(--line);
+}
+
+.landing-band-inner {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.landing-checklist {
+  list-style: none;
+  margin: 2.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem 1.5rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .landing-checklist {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.landing-checklist li {
+  position: relative;
+  padding: 0.85rem 0 0.85rem 0;
+  padding-inline-start: 1.65rem;
+  border-bottom: 1px solid rgba(16, 38, 46, 0.1);
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  animation: landing-rise 0.7s ease both;
+}
+
+.landing-checklist li::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 1.15rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 1px;
+  background: var(--gold-deep);
+}
+
+.landing-checklist li:nth-child(odd) {
+  animation-delay: 0.04s;
+}
+.landing-checklist li:nth-child(even) {
+  animation-delay: 0.08s;
 }
 
 .landing-features {
@@ -399,74 +477,78 @@
 }
 
 .landing-features strong {
-  font-size: 1.32rem;
+  font-size: 1.28rem;
   font-family: 'Frank Ruhl Libre', serif;
   font-weight: 700;
 }
 
 .landing-features span {
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.6;
   font-size: 1.04rem;
+  max-width: 38rem;
+}
+
+/* Split: image + management copy */
+.landing-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: min(70vh, 560px);
+}
+
+.landing-split-media {
+  min-height: 240px;
+  overflow: hidden;
+}
+
+.landing-split-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  min-height: 240px;
+  animation: landing-ken 22s ease-in-out alternate both;
+}
+
+.landing-split-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+  padding: clamp(2.75rem, 7vw, 4.5rem) clamp(1.25rem, 4vw, 3.5rem);
+  background: #fff;
   max-width: 36rem;
 }
 
-.landing-how {
-  max-width: none;
-  background:
-    linear-gradient(180deg, #e8f0ec 0%, #dfeae4 100%);
-  border-block: 1px solid var(--line);
-}
-
-.landing-how .landing-section-intro,
-.landing-how .landing-steps {
-  max-width: 860px;
-  margin-right: auto;
-  margin-left: auto;
-}
-
-.landing-steps {
-  list-style: none;
-  margin: 2.75rem 0 0;
-  padding: 0;
-  display: grid;
-  gap: 1.85rem;
-}
-
-@media (min-width: 800px) {
-  .landing-steps {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2.25rem;
-  }
-}
-
-.landing-steps li {
-  display: grid;
-  gap: 0.9rem;
-  align-content: start;
-}
-
-.landing-step-num {
-  font-family: 'Secular One', sans-serif;
-  font-size: 2rem;
-  letter-spacing: 0.04em;
-  color: var(--gold-deep);
-  line-height: 1;
-}
-
-.landing-steps strong {
-  display: block;
-  font-family: 'Frank Ruhl Libre', serif;
-  font-size: 1.32rem;
-  margin-bottom: 0.35rem;
-  line-height: 1.25;
-}
-
-.landing-steps p {
+.landing-split-copy p:not(.landing-kicker) {
   margin: 0;
   color: var(--muted);
-  line-height: 1.55;
-  font-size: 1.04rem;
+  font-size: 1.08rem;
+  line-height: 1.65;
+}
+
+.landing-split-copy .landing-btn {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 900px) {
+  .landing-split {
+    grid-template-columns: 1.05fr 0.95fr;
+  }
+
+  .landing-split-media {
+    min-height: 100%;
+  }
+
+  .landing-split-photo {
+    min-height: 100%;
+  }
+
+  .landing-split-copy {
+    max-width: none;
+  }
 }
 
 /* Pricing band */
@@ -632,8 +714,10 @@
   .landing-hero-product,
   .landing-cta-row,
   .landing-features li,
+  .landing-checklist li,
   .landing-screen,
-  .landing-hero-photo {
+  .landing-hero-photo,
+  .landing-split-photo {
     animation: none;
   }
 
