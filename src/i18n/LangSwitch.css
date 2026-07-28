@@ -3,53 +3,100 @@
   align-items: stretch;
   border-radius: 4px;
   overflow: hidden;
-  border: 1px solid transparent;
+  border: 1px solid var(--line, rgba(16, 38, 46, 0.18));
   flex-shrink: 0;
+  background: #fff;
+  height: 2.35rem;
+  box-sizing: border-box;
 }
 
 .lang-switch button {
   appearance: none;
   margin: 0;
   border: 0;
-  padding: 0.35rem 0.55rem;
+  padding: 0 0.7rem;
+  min-width: 2.4rem;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   cursor: pointer;
   background: transparent;
-  color: inherit;
-  line-height: 1.2;
+  color: var(--ink, #163038);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
-.lang-switch--dark {
-  border-color: rgba(255, 255, 255, 0.22);
-  color: rgba(255, 255, 255, 0.7);
+.lang-switch button + button {
+  border-inline-start: 1px solid var(--line, rgba(16, 38, 46, 0.18));
 }
 
-.lang-switch--dark button.on {
-  background: rgba(255, 255, 255, 0.16);
+.lang-switch button:hover:not(.on) {
+  background: color-mix(in srgb, var(--ink, #163038) 6%, #fff);
+}
+
+.lang-switch button.on {
+  background: var(--ink, #163038);
   color: #fff;
+}
+
+/* Dark top bars (landing navy) */
+.lang-switch--dark {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.lang-switch--dark button {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.lang-switch--dark button + button {
+  border-inline-start-color: rgba(255, 255, 255, 0.28);
 }
 
 .lang-switch--dark button:hover:not(.on) {
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
 
+.lang-switch--dark button.on {
+  background: #c9a227;
+  color: #061225;
+}
+
+/* Light surfaces — same as admin ghost buttons */
 .lang-switch--light {
-  border-color: rgba(11, 28, 58, 0.18);
-  color: rgba(11, 28, 58, 0.55);
+  background: #fff;
+  border-color: var(--line, rgba(16, 38, 46, 0.18));
+}
+
+.lang-switch--light button {
+  color: var(--ink, #163038);
 }
 
 .lang-switch--light button.on {
-  background: #0b1c3a;
+  background: var(--ink, #163038);
   color: #fff;
 }
 
+/* Hero overlays */
 .lang-switch--hero {
-  border-color: rgba(255, 255, 255, 0.35);
-  color: rgba(255, 255, 255, 0.75);
+  background: rgba(6, 18, 37, 0.45);
+  border-color: rgba(255, 255, 255, 0.4);
   backdrop-filter: blur(6px);
+}
+
+.lang-switch--hero button {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.lang-switch--hero button + button {
+  border-inline-start-color: rgba(255, 255, 255, 0.28);
 }
 
 .lang-switch--hero button.on {
@@ -59,4 +106,17 @@
 
 .lang-switch--hero button:hover:not(.on) {
   color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Admin sticky bar — match .btn height/feel */
+.admin-actions .lang-switch {
+  height: auto;
+  min-height: calc(0.55rem * 2 + 1.2em);
+  align-self: stretch;
+}
+
+.admin-actions .lang-switch button {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
 }
