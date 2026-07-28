@@ -787,6 +787,7 @@ export function Admin({ synagogueId }: Props) {
 
   async function onSave(summary = t('admin.saveSummary')) {
     if (!config) return;
+    if (!confirm(t('admin.confirmPublish'))) return;
     setSaving(true);
     let toSave = config;
     // Bootstrap owner if members empty after first owner login

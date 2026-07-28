@@ -276,6 +276,10 @@ export const en: DeepString<typeof he> = {
     pinUpdated: 'Kiosk exit PIN updated — click Save',
     confirmRestore: 'Restore revision {rev} from {date}?',
     restoredDraft: 'Draft restored — click Save to apply to the screen',
+    confirmPublish:
+      'Publishing will overwrite what is currently shown on the live screen with this version. Confirm publish?',
+    confirmNusach:
+      'Applying a nusach template will overwrite existing prayer blocks and times. Continue?',
     confirmLeave: 'You have unsaved changes. Leave anyway?',
     canvasTitle: 'Free screen builder',
     saveAsTemplate: 'Save as template',
