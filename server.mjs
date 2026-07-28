@@ -30,6 +30,7 @@ import {
 } from './server/notifications.mjs';
 import { handleInquiries } from './server/inquiries.mjs';
 import { handleDiskFiles } from './server/diskFiles.mjs';
+import { handlePasswordReset } from './server/passwordReset.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, 'dist');
@@ -369,6 +370,12 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname.startsWith('/api/inquiries')) {
     void handleInquiries(req, res, url);
+    return;
+  }
+  if (url.pathname.startsWith('/api/auth')) {
+    void handlePasswordReset(req, res, url).then((handled) => {
+      if (!handled) sendJson(res, 404, { error: 'not found' });
+    });
     return;
   }
   serveStatic(url.pathname, res);

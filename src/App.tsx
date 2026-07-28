@@ -9,6 +9,7 @@ import { KioskSetup } from './pages/KioskSetup';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { PlatformLogin } from './pages/PlatformLogin';
+import { ResetPassword } from './pages/ResetPassword';
 
 /** Native APK: never show marketing landing — go straight to registration. */
 function HomeRoute() {
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/" element={<HomeRoute />} />
           <Route path="/guide" element={<Guide />} />
           <Route path="/kiosk-setup" element={<KioskSetup />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/display/:id" element={<DisplayRoute />} />
           <Route path="/screen/:id" element={<DisplayRoute />} />
           {/* Platform super-admin gate — must be before /admin/:id */}

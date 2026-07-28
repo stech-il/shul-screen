@@ -160,8 +160,22 @@ export async function loginPlatformAdmin(
   password: string,
   remember = true,
 ): Promise<{ ok: true; session: PlatformSession } | { ok: false; error: string }> {
-  const store = await loadStore();
   const u = normalizeUsername(username);
+
+  try {
+    const { platformLoginRemote } = await import('./passwordReset');
+    const remote = await platformLoginRemote(u, password);
+    if (remote.ok) {
+      return { ok: true, session: savePlatformSession(remote.username, remember) };
+    }
+    if (!remote.missing) {
+      return { ok: false, error: remote.error };
+    }
+  } catch {
+    /* fall through to local */
+  }
+
+  const store = await loadStore();
   const account = store.accounts.find((a) => normalizeUsername(a.username) === u);
   if (!account) {
     return { ok: false, error: 'שם משתמש או סיסמה שגויים' };
