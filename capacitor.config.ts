@@ -1,9 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Android kiosk shell: always boot from bundled `dist` so the app never opens blank
- * while waiting on a remote host. After setup we navigate to the live server display.
- * Optional: CAP_SERVER_URL=https://… forces remote WebView (debug only).
+ * Android kiosk: bundled WebView only (never opens Chrome).
+ * Cloud data is fetched from the saved server URL via JS (see apiOrigin.ts).
+ * Optional CAP_SERVER_URL is for debug remote WebView only.
  */
 const remoteOverride = String(process.env.CAP_SERVER_URL || '').trim();
 
@@ -13,13 +13,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    // Allow leaving the local shell to the live display host after setup.
-    allowNavigation: [
-      'shul-screen.onrender.com',
-      '*.onrender.com',
-      'localhost',
-      '127.0.0.1',
-    ],
+    // Do not list external hosts — keeps all navigation inside the app WebView.
   },
   android: {
     backgroundColor: '#0f1c22',

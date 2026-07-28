@@ -3,6 +3,7 @@ import { normalizeCanvas } from '../components/canvas/widgets';
 import { normalizeGallery } from './gallery';
 import { DEFAULT_DESIGN } from '../data/designPresets';
 import { normalizeZmanKey, type ZmanKey } from '../data/zmanim';
+import { cloudUrl } from './apiOrigin';
 import { pushHistory } from './history';
 import { publishLiveUpdate } from './liveBus';
 import { compactConfigMedia, expandConfigMedia } from './mediaPersist';
@@ -322,7 +323,7 @@ export async function isServerCloudAvailable(): Promise<boolean> {
     return false;
   }
   try {
-    const res = await fetch('/api/cloud/status', { cache: 'no-store' });
+    const res = await fetch(cloudUrl('/api/cloud/status'), { cache: 'no-store' });
     serverCloudChecked = res.ok;
   } catch {
     serverCloudChecked = false;
@@ -333,7 +334,7 @@ export async function isServerCloudAvailable(): Promise<boolean> {
 async function pullServerCloud(id: string): Promise<CachedBundle | null> {
   try {
     const res = await fetch(
-      `/api/cloud/synagogues/${encodeURIComponent(id)}?_=${Date.now()}`,
+      cloudUrl(`/api/cloud/synagogues/${encodeURIComponent(id)}?_=${Date.now()}`),
       { cache: 'no-store' },
     );
     if (res.status === 404) return null;
@@ -351,7 +352,7 @@ async function pullServerCloud(id: string): Promise<CachedBundle | null> {
 
 async function pushServerCloud(bundle: CachedBundle): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(`/api/cloud/synagogues/${encodeURIComponent(bundle.config.id)}`, {
+    const res = await fetch(cloudUrl(`/api/cloud/synagogues/${encodeURIComponent(bundle.config.id)}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bundle),
@@ -368,7 +369,7 @@ async function pushServerCloud(bundle: CachedBundle): Promise<{ ok: boolean; err
 
 async function listServerCloud(): Promise<CachedBundle[]> {
   try {
-    const res = await fetch('/api/cloud/synagogues', { cache: 'no-store' });
+    const res = await fetch(cloudUrl('/api/cloud/synagogues'), { cache: 'no-store' });
     if (!res.ok) return [];
     const body = (await res.json()) as {
       items?: Array<{ config: SynagogueConfig; syncedAt?: string }>;
@@ -757,7 +758,7 @@ export async function deleteSynagogue(
   // Always purge Render/disk cloud when available (media, backups, HOK, inquiries…)
   if (await isServerCloudAvailable()) {
     try {
-      const res = await fetch(`/api/cloud/synagogues/${encodeURIComponent(id)}`, {
+      const res = await fetch(cloudUrl(`/api/cloud/synagogues/${encodeURIComponent(id)}`), {
         method: 'DELETE',
       });
       const body = (await res.json().catch(() => ({}))) as {

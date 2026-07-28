@@ -5,6 +5,8 @@
  * Electron: fetch via main process (no CORS).
  */
 
+import { cloudUrl } from './apiOrigin';
+
 export interface OrefAlert {
   id: string;
   cat: string;
@@ -20,7 +22,7 @@ export interface MatchedOrefAlert {
 }
 
 const OREF_URL = 'https://www.oref.org.il/WarningMessages/alert/alerts.json';
-const PROXY_URL = '/api/oref/alerts';
+const PROXY_PATH = '/api/oref/alerts';
 
 const CAT_LABELS: Record<string, string> = {
   '1': 'ירי רקטות וטילים',
@@ -122,9 +124,9 @@ async function fetchText(): Promise<string> {
     Accept: 'application/json',
   };
 
-  // Prefer same-origin proxy (Vite / nginx)
+  // Prefer same-origin proxy (Vite / nginx) or absolute cloud URL on Android APK
   try {
-    const res = await fetch(PROXY_URL, { headers, cache: 'no-store' });
+    const res = await fetch(cloudUrl(PROXY_PATH), { headers, cache: 'no-store' });
     if (res.ok) return await res.text();
   } catch {
     /* fall through */

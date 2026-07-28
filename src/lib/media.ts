@@ -1,5 +1,6 @@
 /** Media helpers — prefer Supabase Storage when configured, else local data URL */
 
+import { cloudUrl } from './apiOrigin';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -293,7 +294,7 @@ async function uploadToServerCloud(
   const base = safeName(file.name.replace(/\.[^.]+$/, '')) || 'file';
   const fileName = `${folder}-${Date.now()}-${base}.${ext}`;
 
-  const res = await fetch(`/api/cloud/media/${encodeURIComponent(synagogueId)}`, {
+  const res = await fetch(cloudUrl(`/api/cloud/media/${encodeURIComponent(synagogueId)}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fileName, contentType, dataBase64 }),
@@ -366,7 +367,7 @@ export async function uploadDataUrlToCloud(
               ? 'woff2'
               : 'jpg';
     const fileName = `migrated-${Date.now()}-${safeName(fileNameHint)}.${ext}`;
-    const res = await fetch(`/api/cloud/media/${encodeURIComponent(synagogueId)}`, {
+    const res = await fetch(cloudUrl(`/api/cloud/media/${encodeURIComponent(synagogueId)}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileName, contentType, dataBase64: b64 }),

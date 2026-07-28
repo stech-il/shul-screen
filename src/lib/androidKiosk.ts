@@ -78,12 +78,10 @@ export async function saveAndroidKioskConfig(input: {
   }
 }
 
-export function displayUrlFor(shulId: string, serverUrl: string): string {
-  const server = String(serverUrl || DEFAULT_SERVER)
-    .trim()
-    .replace(/\/$/, '');
+/** In-app hash route only — never open an external browser. */
+export function inAppDisplayHash(shulId: string): string {
   const id = encodeURIComponent(String(shulId || '').trim());
-  return `${server}/#/display/${id}?kiosk=1`;
+  return `/#/display/${id}?kiosk=1`;
 }
 
 export async function probeAndroidConnection(input: {
@@ -155,9 +153,9 @@ export async function applyAndroidKioskChrome(): Promise<void> {
 }
 
 /**
- * Cold start on native:
- * - no shulId → local /#/kiosk-setup (always available offline from APK)
- * - has shulId → live server display URL
+ * Cold start on native — stay inside the APK WebView (never open Chrome).
+ * - no shulId → /#/kiosk-setup
+ * - has shulId → /#/display/…?kiosk=1 (cloud API via saved server URL)
  */
 export async function bootstrapAndroidKioskRoute(): Promise<void> {
   if (!isAndroidKiosk()) return;
@@ -168,28 +166,29 @@ export async function bootstrapAndroidKioskRoute(): Promise<void> {
   if (hash.includes('/kiosk-setup')) return;
 
   let shulId = '';
-  let serverUrl = DEFAULT_SERVER;
   try {
     const cfg = await loadAndroidKioskConfig();
     shulId = cfg.shulId;
-    serverUrl = cfg.serverUrl;
   } catch {
     shulId = '';
   }
 
   if (shulId) {
-    // Already on the right live display — stay.
-    if (hash.includes(`/display/${encodeURIComponent(shulId)}`) || hash.includes(`/display/${shulId}`)) {
+    if (
+      hash.includes(`/display/${encodeURIComponent(shulId)}`) ||
+      hash.includes(`/display/${shulId}`)
+    ) {
       return;
     }
-    window.location.replace(displayUrlFor(shulId, serverUrl));
+    window.location.replace(inAppDisplayHash(shulId));
     return;
   }
 
   window.location.replace('/#/kiosk-setup');
 }
 
-/** Open live display after successful setup (leaves local shell for remote host). */
-export function goToLiveDisplay(shulId: string, serverUrl: string): void {
-  window.location.replace(displayUrlFor(shulId, serverUrl));
+/** Open live display inside the same WebView (fullscreen app, no browser). */
+export function goToLiveDisplay(shulId: string, _serverUrl?: string): void {
+  void applyAndroidKioskChrome();
+  window.location.replace(inAppDisplayHash(shulId));
 }

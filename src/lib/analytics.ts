@@ -54,17 +54,17 @@ async function resolveCloudOrigin(): Promise<string> {
     /* ignore */
   }
   try {
-    const { isAndroidKiosk, loadAndroidKioskConfig } = await import('./androidKiosk');
-    if (isAndroidKiosk()) {
-      const cfg = await loadAndroidKioskConfig();
-      if (/^https?:\/\//i.test(cfg.serverUrl)) return cfg.serverUrl;
-    }
+    const { getCloudOrigin } = await import('./apiOrigin');
+    const origin = getCloudOrigin();
+    if (origin) return origin;
   } catch {
     /* ignore */
   }
   try {
     if (typeof window !== 'undefined' && /^https?:$/i.test(window.location.protocol)) {
-      return ''; // same-origin relative paths
+      const host = window.location.hostname;
+      // Capacitor WebView uses https://localhost — never treat as same-origin API.
+      if (host && host !== 'localhost' && host !== '127.0.0.1') return '';
     }
   } catch {
     /* ignore */
@@ -129,7 +129,10 @@ export function listHeartbeats(): ScreenHeartbeat[] {
 /** Server-backed heartbeats — works across kiosk vs admin browsers. */
 export async function fetchHeartbeatsFromCloud(): Promise<ScreenHeartbeat[]> {
   try {
-    const res = await fetch(`/api/cloud/heartbeats?_=${Date.now()}`, { cache: 'no-store' });
+    const { cloudUrl } = await import('./apiOrigin');
+    const res = await fetch(cloudUrl(`/api/cloud/heartbeats?_=${Date.now()}`), {
+      cache: 'no-store',
+    });
     if (!res.ok) return listHeartbeats();
     const data = (await res.json()) as { items?: ScreenHeartbeat[] };
     const items = Array.isArray(data.items) ? data.items : [];
