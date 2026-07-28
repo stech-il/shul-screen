@@ -25,7 +25,14 @@ const FEATURE_KEYS = [
   'feature12',
 ] as const;
 
-const SHOWCASE_KEYS = [
+type ShowcaseId = 'weekday' | 'holidays' | 'community' | 'oref';
+
+const SHOWCASE_KEYS: {
+  id: ShowcaseId;
+  titleKey: string;
+  textKey: string;
+  image: string;
+}[] = [
   {
     id: 'weekday',
     titleKey: 'scWeekdayTitle',
@@ -50,7 +57,94 @@ const SHOWCASE_KEYS = [
     textKey: 'scOrefText',
     image: '/template-bgs/shabbat-night.webp',
   },
-] as const;
+];
+
+function ShowcaseMock({ id, t }: { id: ShowcaseId; t: (key: string) => string }) {
+  if (id === 'weekday') {
+    return (
+      <div className="landing-mock landing-mock--weekday">
+        <div className="landing-mock-top">
+          <span>{t('landing.mockShul')}</span>
+          <span>{t('landing.mockDate')}</span>
+        </div>
+        <p className="landing-mock-clock">07:42</p>
+        <ul className="landing-mock-rows">
+          <li>
+            <span>{t('landing.mockAlot')}</span>
+            <strong>05:18</strong>
+          </li>
+          <li>
+            <span>{t('landing.mockShacharit')}</span>
+            <strong>06:30</strong>
+          </li>
+          <li>
+            <span>{t('landing.mockMincha')}</span>
+            <strong>18:55</strong>
+          </li>
+          <li>
+            <span>{t('landing.mockMaariv')}</span>
+            <strong>19:25</strong>
+          </li>
+          <li>
+            <span>{t('landing.mockSunset')}</span>
+            <strong>19:11</strong>
+          </li>
+        </ul>
+      </div>
+    );
+  }
+
+  if (id === 'holidays') {
+    return (
+      <div className="landing-mock landing-mock--holidays">
+        <p className="landing-mock-badge">{t('landing.mockHolidayLabel')}</p>
+        <p className="landing-mock-clock soft">18:05</p>
+        <ul className="landing-mock-rows">
+          <li>
+            <span>{t('landing.mockCandle')}</span>
+            <strong>18:42</strong>
+          </li>
+          <li>
+            <span>{t('landing.mockHolidayIn')}</span>
+            <strong>19:01</strong>
+          </li>
+          <li>
+            <span>{t('landing.mockHolidayOut')}</span>
+            <strong>20:08</strong>
+          </li>
+        </ul>
+        <p className="landing-mock-foot">{t('landing.mockOmer')}</p>
+      </div>
+    );
+  }
+
+  if (id === 'community') {
+    return (
+      <div className="landing-mock landing-mock--community">
+        <div className="landing-mock-block">
+          <p className="landing-mock-label">{t('landing.mockParsha')}</p>
+          <p className="landing-mock-value">{t('landing.mockParshaName')}</p>
+        </div>
+        <div className="landing-mock-block">
+          <p className="landing-mock-label">{t('landing.mockAnnounce')}</p>
+          <p className="landing-mock-value">{t('landing.mockAnnounceLine')}</p>
+        </div>
+        <div className="landing-mock-block memorial">
+          <p className="landing-mock-label">{t('landing.mockYahrzeit')}</p>
+          <p className="landing-mock-value">{t('landing.mockYahrzeitName')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="landing-mock landing-mock--oref">
+      <p className="landing-mock-alert-title">{t('landing.mockAlertTitle')}</p>
+      <p className="landing-mock-alert-area">{t('landing.mockAlertArea')}</p>
+      <p className="landing-mock-alert-action">{t('landing.mockAlertAction')}</p>
+    </div>
+  );
+}
 
 export function Landing() {
   const { t, dir, locale } = useI18n();
@@ -191,6 +285,10 @@ export function Landing() {
             >
               <div className="landing-showcase-media" aria-hidden="true">
                 <img src={item.image} alt="" width={1200} height={800} loading="lazy" />
+                <div className="landing-showcase-shade" />
+                <div className="landing-showcase-stage">
+                  <ShowcaseMock id={item.id} t={t} />
+                </div>
               </div>
               <div className="landing-showcase-copy">
                 <h3 id={`${item.id}-title`}>{t(`landing.${item.titleKey}`)}</h3>
