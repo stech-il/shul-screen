@@ -1,0 +1,62 @@
+.lang-switch {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.lang-switch button {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  padding: 0.35rem 0.55rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  line-height: 1.2;
+}
+
+.lang-switch--dark {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.lang-switch--dark button.on {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.lang-switch--dark button:hover:not(.on) {
+  color: #fff;
+}
+
+.lang-switch--light {
+  border-color: rgba(11, 28, 58, 0.18);
+  color: rgba(11, 28, 58, 0.55);
+}
+
+.lang-switch--light button.on {
+  background: #0b1c3a;
+  color: #fff;
+}
+
+.lang-switch--hero {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(6px);
+}
+
+.lang-switch--hero button.on {
+  background: #c9a227;
+  color: #061225;
+}
+
+.lang-switch--hero button:hover:not(.on) {
+  color: #fff;
+}

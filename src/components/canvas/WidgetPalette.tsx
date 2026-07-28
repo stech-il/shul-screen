@@ -1,25 +1,25 @@
 import type { CanvasWidgetType } from '../../types';
-import { WIDGET_LABELS } from './widgets';
+import { useI18n } from '../../i18n';
 
 /** Elementor-like basic + shul widgets for the add panel */
-export const PALETTE_SECTIONS: {
+const PALETTE_SECTION_DEFS: {
   id: string;
-  label: string;
+  labelKey: string;
   types: CanvasWidgetType[];
 }[] = [
   {
     id: 'basic',
-    label: 'בסיסי',
+    labelKey: 'panels.paletteBasic',
     types: ['heading', 'text', 'image', 'video', 'button', 'divider'],
   },
   {
     id: 'main',
-    label: 'מסך בית כנסת',
+    labelKey: 'panels.paletteMain',
     types: ['title', 'logo', 'clock', 'hebrewDate', 'zmanim', 'zman', 'block', 'announcements'],
   },
   {
     id: 'extra',
-    label: 'נוסף',
+    labelKey: 'panels.paletteExtra',
     types: ['parasha', 'dafYomi', 'weather', 'yahrzeit', 'calendar', 'countdown'],
   },
 ];
@@ -53,15 +53,16 @@ interface Props {
 }
 
 export function WidgetPalette({ onAdd, onExplodeZmanim }: Props) {
+  const { t, dir } = useI18n();
   return (
-    <div className="cb-el-palette" dir="rtl">
+    <div className="cb-el-palette" dir={dir}>
       <div className="cb-el-palette-head">
-        <strong>רכיבים</strong>
-        <em>לחצו להוספה למסך</em>
+        <strong>{t('panels.canvasWidgets')}</strong>
+        <em>{t('panels.canvasWidgetsHint')}</em>
       </div>
-      {PALETTE_SECTIONS.map((section) => (
+      {PALETTE_SECTION_DEFS.map((section) => (
         <div key={section.id} className="cb-el-palette-sec">
-          <div className="cb-el-palette-sec-title">{section.label}</div>
+          <div className="cb-el-palette-sec-title">{t(section.labelKey)}</div>
           <div className="cb-el-palette-grid">
             {section.types.map((type) => (
               <button
@@ -69,12 +70,12 @@ export function WidgetPalette({ onAdd, onExplodeZmanim }: Props) {
                 type="button"
                 className="cb-el-tile"
                 onClick={() => onAdd(type)}
-                title={WIDGET_LABELS[type]}
+                title={t(`widgets.${type}`)}
               >
                 <span className="cb-el-tile-icon" aria-hidden>
                   {ICONS[type]}
                 </span>
-                <span className="cb-el-tile-label">{WIDGET_LABELS[type]}</span>
+                <span className="cb-el-tile-label">{t(`widgets.${type}`)}</span>
               </button>
             ))}
           </div>
@@ -82,7 +83,7 @@ export function WidgetPalette({ onAdd, onExplodeZmanim }: Props) {
       ))}
       {onExplodeZmanim ? (
         <button type="button" className="btn ghost cb-el-palette-extra" onClick={onExplodeZmanim}>
-          פצל זמנים לבלוקים נפרדים
+          {t('panels.explodeZmanim')}
         </button>
       ) : null}
     </div>

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useI18n } from '../i18n';
 import {
   fetchInquiries,
   INQUIRY_MAX_ATTACHMENTS,
-  INQUIRY_STATUS_LABELS,
-  INQUIRY_TOPIC_LABELS,
   inquiryAttachAccept,
   replyToInquiry,
   submitInquiry,
@@ -15,6 +14,24 @@ import {
   type InquiryTopic,
 } from '../lib/inquiries';
 import './InquiriesPanel.css';
+
+const TOPIC_KEYS: Record<InquiryTopic, string> = {
+  fault: 'inquiries.topicFault',
+  support: 'inquiries.topicSupport',
+  content: 'inquiries.topicContent',
+  custom_design: 'inquiries.topicCustomDesign',
+  billing: 'inquiries.topicBilling',
+  feature: 'inquiries.topicFeature',
+  other: 'inquiries.topicOther',
+  general: 'inquiries.topicGeneral',
+  demo: 'inquiries.topicDemo',
+};
+
+const STATUS_KEYS: Record<InquiryStatus, string> = {
+  new: 'inquiries.statusNew',
+  read: 'inquiries.statusRead',
+  done: 'inquiries.statusDone',
+};
 
 type Mode = 'admin' | 'agency';
 
@@ -37,6 +54,7 @@ function AttachmentList({
   items: InquiryAttachment[];
   onRemove?: (id: string) => void;
 }) {
+  const { t } = useI18n();
   if (!items.length) return null;
   return (
     <ul className="inq-attach-list">
@@ -47,7 +65,7 @@ function AttachmentList({
           </a>
           {onRemove ? (
             <button type="button" className="inq-attach-remove" onClick={() => onRemove(a.id)}>
-              הסר
+              {t('inquiries.remove')}
             </button>
           ) : null}
         </li>
@@ -67,6 +85,7 @@ export function InquiriesPanel({
   initialTopic = null,
   onPrefillConsumed,
 }: Props) {
+  const { t, dateTag } = useI18n();
   const [items, setItems] = useState<Inquiry[]>([]);
   const [unread, setUnread] = useState(0);
   const [unreadCustomer, setUnreadCustomer] = useState(0);
@@ -104,7 +123,7 @@ export function InquiriesPanel({
       setMessage((prev) =>
         prev.trim()
           ? prev
-          : 'מעוניינים בעיצוב מיוחד / תבנית מותאמת אישית לבית הכנסת. מצורפים קבצים / השראה אם יש.',
+          : t('inquiries.prefillDesign'),
       );
     }
     onPrefillConsumed?.();
@@ -124,7 +143,7 @@ export function InquiriesPanel({
       setUnread(data.unread);
       setUnreadCustomer(data.unreadCustomer || 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'טעינת פניות נכשלה');
+      setError(err instanceof Error ? err.message : t('inquiries.loadFail'));
     } finally {
       setLoading(false);
     }
@@ -154,7 +173,7 @@ export function InquiriesPanel({
       }
       setAttachments(next);
     } catch (err) {
-      setFormMsg(err instanceof Error ? err.message : 'העלאת קובץ נכשלה');
+      setFormMsg(err instanceof Error ? err.message : t('inquiries.uploadFail'));
     } finally {
       setUploading(false);
     }
@@ -177,7 +196,7 @@ export function InquiriesPanel({
       }
       setReplyAttachments((d) => ({ ...d, [inqId]: next }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'העלאת קובץ נכשלה');
+      setError(err instanceof Error ? err.message : t('inquiries.uploadFail'));
     } finally {
       setReplyUploading(null);
     }
@@ -186,7 +205,7 @@ export function InquiriesPanel({
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!synagogueId) {
-      setFormMsg('חסר מזהה בית כנסת');
+      setFormMsg(t('inquiries.missingShul'));
       return;
     }
     setSending(true);
@@ -205,11 +224,11 @@ export function InquiriesPanel({
       setMessage('');
       setAttachments([]);
       setTopic('fault');
-      setFormMsg('הפנייה נשלחה — התשובות יופיעו כאן במערכת.');
+      setFormMsg(t('inquiries.sentOk'));
       await reload();
       if (result.id) setOpenId(result.id);
     } catch (err) {
-      setFormMsg(err instanceof Error ? err.message : 'שליחה נכשלה');
+      setFormMsg(err instanceof Error ? err.message : t('inquiries.sendFail'));
     } finally {
       setSending(false);
     }
@@ -221,7 +240,7 @@ export function InquiriesPanel({
       await updateInquiryStatus(id, status);
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'עדכון נכשל');
+      setError(err instanceof Error ? err.message : t('inquiries.updateFail'));
     } finally {
       setBusyId(null);
     }
@@ -235,7 +254,7 @@ export function InquiriesPanel({
     try {
       const author = mode === 'agency' ? 'support' : 'customer';
       const replyName =
-        mode === 'agency' ? 'תמיכת screensmart' : name || defaultName || inq.name;
+        mode === 'agency' ? t('inquiries.supportName') : name || defaultName || inq.name;
       await replyToInquiry({
         id: inq.id,
         text,
@@ -248,13 +267,13 @@ export function InquiriesPanel({
       await reload();
       setOpenId(inq.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'שליחת התשובה נכשלה');
+      setError(err instanceof Error ? err.message : t('inquiries.replyFail'));
     } finally {
       setBusyId(null);
     }
   }
 
-  const topicOptions = (Object.keys(INQUIRY_TOPIC_LABELS) as InquiryTopic[]).filter((id) =>
+  const topicOptions = (Object.keys(TOPIC_KEYS) as InquiryTopic[]).filter((id) =>
     mode === 'admin'
       ? ['fault', 'support', 'content', 'custom_design', 'billing', 'feature', 'other'].includes(id)
       : true,
@@ -267,11 +286,11 @@ export function InquiriesPanel({
     <div className={`inq-panel mode-${mode}`}>
       {mode === 'admin' ? (
         <section className="inq-compose card" id="inq-compose">
-          <h2>פתיחת פנייה</h2>
+          <h2>{t('panels.inquiriesOpen')}</h2>
           <form className="inq-form" onSubmit={(e) => void onSubmit(e)}>
             <div className="inq-form-grid">
               <label>
-                שם
+                {t('inquiries.name')}
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -281,7 +300,7 @@ export function InquiriesPanel({
                 />
               </label>
               <label>
-                מייל להתראות
+                {t('inquiries.emailNotify')}
                 <input
                   type="email"
                   value={email}
@@ -292,7 +311,7 @@ export function InquiriesPanel({
                 />
               </label>
               <label>
-                טלפון
+                {t('inquiries.phone')}
                 <input
                   type="tel"
                   value={phone}
@@ -302,18 +321,18 @@ export function InquiriesPanel({
                 />
               </label>
               <label>
-                סוג פנייה
+                {t('inquiries.topic')}
                 <select value={topic} onChange={(e) => setTopic(e.target.value as InquiryTopic)}>
                   {topicOptions.map((id) => (
                     <option key={id} value={id}>
-                      {INQUIRY_TOPIC_LABELS[id]}
+                      {t(TOPIC_KEYS[id])}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
             <label>
-              פירוט
+              {t('inquiries.details')}
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -323,14 +342,14 @@ export function InquiriesPanel({
                 rows={5}
                 placeholder={
                   topic === 'custom_design'
-                    ? 'תארו את העיצוב הרצוי, צבעים, לוגו, השראה…'
-                    : 'תארו את התקלה או הבקשה…'
+                    ? t('inquiries.placeholderDesign')
+                    : t('inquiries.placeholderDefault')
                 }
               />
             </label>
             <div className="inq-attach-field">
               <label className="inq-attach-label">
-                צירוף קבצים
+                {t('inquiries.attachFiles')}
                 <input
                   type="file"
                   multiple
@@ -343,8 +362,8 @@ export function InquiriesPanel({
                 />
               </label>
               <p className="hint">
-                עד {INQUIRY_MAX_ATTACHMENTS} קבצים · תמונות, PDF ומסמכים · עד 8MB לקובץ
-                {uploading ? ' · מעלה…' : ''}
+                {t('inquiries.attachHint', { n: INQUIRY_MAX_ATTACHMENTS })}
+                {uploading ? t('inquiries.uploading') : ''}
               </p>
               <AttachmentList
                 items={attachments}
@@ -353,7 +372,7 @@ export function InquiriesPanel({
             </div>
             <div className="inq-form-actions">
               <button type="submit" className="btn primary" disabled={sending || uploading}>
-                {sending ? 'שולח…' : 'שלחו פנייה'}
+                {sending ? t('panels.inquiriesSending') : t('panels.inquiriesSend')}
               </button>
               {formMsg ? <p className="hint inq-form-msg">{formMsg}</p> : null}
             </div>
@@ -365,56 +384,54 @@ export function InquiriesPanel({
         <div className="inq-inbox-head">
           <div>
             <h2>
-              {mode === 'agency' ? 'תיבת פניות' : 'הפניות והתשובות'}
+              {mode === 'agency' ? t('panels.inquiriesAgencyInbox') : t('panels.inquiriesInbox')}
               {badgeCount > 0 ? (
                 <span className="inq-badge">
-                  {badgeCount} {mode === 'agency' ? 'ממתינות' : 'תשובות חדשות'}
+                  {badgeCount} {mode === 'agency' ? t('inquiries.badgeWaiting') : t('inquiries.badgeNewReplies')}
                 </span>
               ) : null}
             </h2>
             <p className="hint">
-              {mode === 'agency'
-                ? 'השיבו כאן במערכת — הלקוח רואה את התשובה בניהול המסך.'
-                : 'כאן מופיעות תשובות התמיכה. אפשר להמשיך את השיחה מהמערכת.'}
+              {mode === 'agency' ? t('inquiries.hintAgency') : t('inquiries.hintAdmin')}
             </p>
           </div>
           <div className="inq-inbox-tools">
-            <div className="inq-filters" role="group" aria-label="סינון">
+            <div className="inq-filters" role="group" aria-label={t('inquiries.filterAria')}>
               {(
                 [
-                  ['all', 'הכל'],
-                  ['new', 'חדשות'],
-                  ['read', 'בטיפול'],
-                  ['done', 'טופלו'],
+                  ['all', 'inquiries.filterAll'],
+                  ['new', 'inquiries.filterNew'],
+                  ['read', 'inquiries.filterRead'],
+                  ['done', 'inquiries.filterDone'],
                 ] as const
-              ).map(([id, label]) => (
+              ).map(([id, labelKey]) => (
                 <button
                   key={id}
                   type="button"
                   className={filter === id ? 'on' : ''}
                   onClick={() => setFilter(id)}
                 >
-                  {label}
+                  {t(labelKey)}
                 </button>
               ))}
             </div>
             <button type="button" className="btn ghost" onClick={() => void reload()}>
-              רענן
+              {t('inquiries.refresh')}
             </button>
           </div>
         </div>
 
         {error ? <p className="hint warn">{error}</p> : null}
-        {loading && items.length === 0 ? <p className="hint">טוען…</p> : null}
+        {loading && items.length === 0 ? <p className="hint">{t('inquiries.loading')}</p> : null}
         {!loading && visible.length === 0 ? (
-          <p className="hint">{mode === 'admin' ? 'עדיין לא נשלחו פניות.' : 'אין פניות להצגה.'}</p>
+          <p className="hint">{mode === 'admin' ? t('panels.inquiriesEmptyAdmin') : t('panels.inquiriesEmptyAgency')}</p>
         ) : (
           <ul className="inq-list">
             {visible.map((inq) => {
-              const topicLabel =
-                INQUIRY_TOPIC_LABELS[inq.topic as InquiryTopic] || inq.topic;
-              const statusLabel =
-                INQUIRY_STATUS_LABELS[inq.status as InquiryStatus] || inq.status;
+              const topicKey = TOPIC_KEYS[inq.topic as InquiryTopic];
+              const topicLabel = topicKey ? t(topicKey) : inq.topic;
+              const statusKey = STATUS_KEYS[inq.status as InquiryStatus];
+              const statusLabel = statusKey ? t(statusKey) : inq.status;
               const open = openId === inq.id;
               const messages = inq.messages?.length
                 ? inq.messages
@@ -448,9 +465,9 @@ export function InquiriesPanel({
                       <strong>{inq.name}</strong>
                       <span className="inq-topic">{topicLabel}</span>
                       <span className={`inq-status status-${inq.status}`}>{statusLabel}</span>
-                      {waitingForMe ? <span className="inq-await">ממתין לתשובה</span> : null}
+                      {waitingForMe ? <span className="inq-await">{t('inquiries.awaitingReply')}</span> : null}
                       <time dateTime={inq.updatedAt || inq.createdAt}>
-                        {new Date(inq.updatedAt || inq.createdAt).toLocaleString('he-IL')}
+                        {new Date(inq.updatedAt || inq.createdAt).toLocaleString(dateTag)}
                       </time>
                     </div>
                     <p className="inq-preview">
@@ -458,7 +475,7 @@ export function InquiriesPanel({
                       {(messages[messages.length - 1]?.text?.length || 0) > 120 ? '…' : ''}
                     </p>
                     <span className="inq-thread-toggle">
-                      {open ? 'סגור שיחה' : `פתח שיחה (${messages.length})`}
+                      {open ? t('inquiries.closeThread') : t('inquiries.openThread', { n: messages.length })}
                     </span>
                   </button>
 
@@ -473,7 +490,7 @@ export function InquiriesPanel({
                           </>
                         ) : null}
                         {mode === 'agency' && inq.synagogueId
-                          ? ` · בית כנסת: ${inq.synagogueId}`
+                          ? ` · ${t('inquiries.synagogue', { id: inq.synagogueId })}`
                           : null}
                       </p>
 
@@ -482,11 +499,11 @@ export function InquiriesPanel({
                           <li key={m.id} className={`inq-msg author-${m.author}`}>
                             <div className="inq-msg-head">
                               <strong>
-                                {m.author === 'support' ? m.name || 'תמיכה' : m.name || inq.name}
+                                {m.author === 'support' ? m.name || t('inquiries.support') : m.name || inq.name}
                               </strong>
-                              <span>{m.author === 'support' ? 'תמיכה' : 'לקוח'}</span>
+                              <span>{m.author === 'support' ? t('inquiries.support') : t('inquiries.customer')}</span>
                               <time dateTime={m.at}>
-                                {new Date(m.at).toLocaleString('he-IL')}
+                                {new Date(m.at).toLocaleString(dateTag)}
                               </time>
                             </div>
                             <p>{m.text}</p>
@@ -498,7 +515,7 @@ export function InquiriesPanel({
                       {inq.status !== 'done' || canManage ? (
                         <div className="inq-reply-box">
                           <label>
-                            {mode === 'agency' ? 'תשובה ללקוח' : 'הודעה נוספת לתמיכה'}
+                            {mode === 'agency' ? t('inquiries.replyAgency') : t('inquiries.replyAdmin')}
                             <textarea
                               value={replyDrafts[inq.id] || ''}
                               onChange={(e) =>
@@ -508,14 +525,14 @@ export function InquiriesPanel({
                               maxLength={4000}
                               placeholder={
                                 mode === 'agency'
-                                  ? 'כתבו את התשובה כאן — הלקוח יראה אותה במערכת…'
-                                  : 'שאלה נוספת או עדכון…'
+                                  ? t('inquiries.replyPhAgency')
+                                  : t('inquiries.replyPhAdmin')
                               }
                             />
                           </label>
                           <div className="inq-attach-field">
                             <label className="inq-attach-label">
-                              צירוף קבצים
+                              {t('inquiries.attachFiles')}
                               <input
                                 type="file"
                                 multiple
@@ -532,7 +549,7 @@ export function InquiriesPanel({
                               />
                             </label>
                             {replyUploading === inq.id ? (
-                              <p className="hint">מעלה קבצים…</p>
+                              <p className="hint">{t('inquiries.uploadingFiles')}</p>
                             ) : null}
                             <AttachmentList
                               items={draftFiles}
@@ -555,7 +572,7 @@ export function InquiriesPanel({
                               }
                               onClick={() => void onReply(inq)}
                             >
-                              {busyId === inq.id ? 'שולח…' : 'שלחו במערכת'}
+                              {busyId === inq.id ? t('inquiries.sending') : t('inquiries.sendInSystem')}
                             </button>
                             {canManage ? (
                               <>
@@ -566,7 +583,7 @@ export function InquiriesPanel({
                                     disabled={busyId === inq.id}
                                     onClick={() => void onStatus(inq.id, 'read')}
                                   >
-                                    בטיפול
+                                    {t('inquiries.markInProgress')}
                                   </button>
                                 ) : null}
                                 {inq.status !== 'done' ? (
@@ -576,7 +593,7 @@ export function InquiriesPanel({
                                     disabled={busyId === inq.id}
                                     onClick={() => void onStatus(inq.id, 'done')}
                                   >
-                                    סמן כטופל
+                                    {t('inquiries.markDone')}
                                   </button>
                                 ) : (
                                   <button
@@ -585,7 +602,7 @@ export function InquiriesPanel({
                                     disabled={busyId === inq.id}
                                     onClick={() => void onStatus(inq.id, 'read')}
                                   >
-                                    פתח מחדש
+                                    {t('inquiries.reopen')}
                                   </button>
                                 )}
                               </>

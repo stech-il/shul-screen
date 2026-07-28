@@ -12,6 +12,7 @@ import type {
 import { CANVAS_REF_WIDTH } from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { fontSelectOptions } from '../../lib/customFonts';
+import { useI18n } from '../../i18n';
 import { MediaGalleryModal } from '../MediaPicker';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ElementorWidgetPanel, type ElementorTab } from './ElementorWidgetPanel';
@@ -19,7 +20,6 @@ import { WidgetPalette } from './WidgetPalette';
 import { widgetStyle } from './CanvasStage';
 import {
   ASPECT_RATIOS,
-  WIDGET_LABELS,
   clamp,
   createWidget,
   createZmanWidgets,
@@ -132,6 +132,8 @@ export function CanvasBuilder({
   onStatus,
   onInteractionEnd,
 }: Props) {
+  const { t, dir } = useI18n();
+  const widgetLabel = (type: CanvasWidgetType) => t(`widgets.${type}`);
   const stageRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -187,7 +189,7 @@ export function CanvasBuilder({
       const next = { w: Math.max(1, Math.floor(w)), h: Math.max(1, Math.floor(h)) };
       setStageBox((prev) => (prev.w === next.w && prev.h === next.h ? prev : next));
       const pct = Math.round((next.w / refWidth) * 100);
-      setFitLabel(`${refWidth}×${refHeight} · תצוגה ${next.w}×${next.h} (${pct}%)`);
+      setFitLabel(t('canvas.fitPreview', { refW: refWidth, refH: refHeight, w: next.w, h: next.h, pct }));
     }
 
     fit();
@@ -202,7 +204,7 @@ export function CanvasBuilder({
       ro.disconnect();
       window.removeEventListener('resize', fit);
     };
-  }, [ratio, refWidth, refHeight]);
+  }, [ratio, refWidth, refHeight, t]);
 
   const patchWidget = useCallback(
     (id: string, patch: Partial<CanvasWidget>) => {
@@ -302,7 +304,7 @@ export function CanvasBuilder({
     }
     onChange({ ...canvas, widgets: [...canvas.widgets, widget] });
     setSelectedId(widget.id);
-    onStatus?.(`נוסף ווידג׳ט: ${WIDGET_LABELS[type]}`);
+    onStatus?.(t('canvas.addedWidget', { label: widgetLabel(type) }));
   }
 
   function explodeZmanim() {
@@ -315,7 +317,7 @@ export function CanvasBuilder({
     const withoutList = canvas.widgets.filter((w) => w.type !== 'zmanim' && w.type !== 'zman');
     onChange({ ...canvas, widgets: [...withoutList, ...created] });
     setSelectedId(created[0]?.id ?? null);
-    onStatus?.(`פוצלו ${created.length} זמנים לבלוקים נפרדים`);
+    onStatus?.(t('canvas.explodedZmanim', { n: created.length }));
   }
 
   function removeWidget(id: string) {
@@ -407,18 +409,18 @@ export function CanvasBuilder({
             target="_blank"
             rel="noreferrer"
           >
-            מסך חי ↗
+            {t('panels.liveScreen')}
           </Link>
-          <span className="cb-fit-meta" title="גדלים ב־px יחסית למסך 1920 — נשמרים מדויק בטלוויזיה">
+          <span className="cb-fit-meta" title={t('canvas.fitTitle')}>
             {fitLabel || `${refWidth}×${refHeight}`}
           </span>
         </div>
 
         <details className="cb-stage-settings-wrap">
-          <summary>הגדרות מסך ורקע</summary>
+          <summary>{t('panels.screenBgSettings')}</summary>
           <div className="cb-stage-settings">
           <label>
-            יחס מסך
+            {t('canvas.aspect')}
             <select
               value={canvas.aspect}
               onChange={(e) =>
@@ -432,12 +434,12 @@ export function CanvasBuilder({
             </select>
           </label>
           <label>
-            רשת הצמדה
+            {t('canvas.snapGrid')}
             <select
               value={canvas.gridSize}
               onChange={(e) => onChange({ ...canvas, gridSize: Number(e.target.value) })}
             >
-              <option value={0}>ללא</option>
+              <option value={0}>{t('canvas.none')}</option>
               <option value={0.5}>0.5%</option>
               <option value={1}>1%</option>
               <option value={2}>2%</option>
@@ -445,7 +447,7 @@ export function CanvasBuilder({
             </select>
           </label>
           <label>
-            כהות רקע ({canvas.overlayOpacity.toFixed(2)})
+            {t('canvas.overlayDarkness', { n: canvas.overlayOpacity.toFixed(2) })}
             <input
               type="range"
               min={0}
@@ -456,7 +458,7 @@ export function CanvasBuilder({
             />
           </label>
           <label>
-            התאמת רקע
+            {t('canvas.bgFit')}
             <select
               value={canvas.backgroundFit}
               onChange={(e) =>
@@ -466,8 +468,8 @@ export function CanvasBuilder({
                 })
               }
             >
-              <option value="cover">מילוי</option>
-              <option value="contain">התאמה מלאה</option>
+              <option value="cover">{t('canvas.bgCover')}</option>
+              <option value="contain">{t('canvas.bgContain')}</option>
             </select>
           </label>
           <div className="cb-stage-actions">
@@ -476,7 +478,7 @@ export function CanvasBuilder({
               className="btn primary"
               onClick={() => setPicker({ kind: 'background' })}
             >
-              רקע מהגלריה / העלה
+              {t('canvas.bgFromGallery')}
             </button>
             {canvas.backgroundUrl ? (
               <button
@@ -484,22 +486,22 @@ export function CanvasBuilder({
                 className="btn ghost"
                 onClick={() => onChange({ ...canvas, backgroundUrl: '' })}
               >
-                הסר רקע
+                {t('canvas.removeBg')}
               </button>
             ) : null}
             <button
               type="button"
               className="btn ghost"
               onClick={() => {
-                if (!confirm('לאפס את כל פריסת הבונה לברירת מחדל? הפעולה לא ניתנת לביטול.')) {
+                if (!confirm(t('canvas.confirmReset'))) {
                   return;
                 }
                 onChange(defaultCanvas());
                 setSelectedId(null);
-                onStatus?.('הפריסה אופסה לברירת מחדל');
+                onStatus?.(t('canvas.resetDone'));
               }}
             >
-              אפס פריסה
+              {t('canvas.resetLayout')}
             </button>
           </div>
           </div>
@@ -526,7 +528,7 @@ export function CanvasBuilder({
                 }
               : {}),
           }}
-          dir="rtl"
+          dir={dir}
           tabIndex={0}
           onKeyDown={onStageKeyDown}
           onPointerDown={() => setSelectedId(null)}
@@ -550,7 +552,7 @@ export function CanvasBuilder({
               onContextMenu={(e) => openMenu(e, w)}
             >
               <CanvasWidgetContent widget={w} data={data} placeholder />
-              <span className="cb-tag">{WIDGET_LABELS[w.type]}</span>
+              <span className="cb-tag">{widgetLabel(w.type)}</span>
               <span
                 className="cb-resize"
                 onPointerDown={(e) => startDrag(e, w, 'resize')}
@@ -569,8 +571,8 @@ export function CanvasBuilder({
               onPointerDown={(e) => e.stopPropagation()}
               onContextMenu={(e) => e.preventDefault()}
             >
-              <span className="cb-float-label">{WIDGET_LABELS[selected.type]}</span>
-              <div className="cb-float-group" title="גודל">
+              <span className="cb-float-label">{widgetLabel(selected.type)}</span>
+              <div className="cb-float-group" title={t('canvas.size')}>
                 {SIZE_PRESETS.map((p) => (
                   <button
                     key={p.id}
@@ -587,37 +589,37 @@ export function CanvasBuilder({
                 className={`cb-float-action ${editTab === 'content' ? 'on' : ''}`}
                 onClick={() => setEditTab('content')}
               >
-                תוכן
+                {t('canvas.tabContent')}
               </button>
               <button
                 type="button"
                 className={`cb-float-action ${editTab === 'style' ? 'on' : ''}`}
                 onClick={() => setEditTab('style')}
               >
-                עיצוב
+                {t('canvas.tabStyle')}
               </button>
               <button
                 type="button"
                 className={`cb-float-action ${editTab === 'advanced' ? 'on' : ''}`}
                 onClick={() => setEditTab('advanced')}
               >
-                מתקדם
+                {t('canvas.tabAdvanced')}
               </button>
               <button
                 type="button"
                 className="cb-float-action"
-                title="שכפל"
+                title={t('canvas.duplicate')}
                 onClick={() => duplicateWidget(selected)}
               >
-                שכפל
+                {t('canvas.duplicate')}
               </button>
               <button
                 type="button"
                 className="cb-float-action danger"
-                title="מחק"
+                title={t('canvas.delete')}
                 onClick={() => removeWidget(selected.id)}
               >
-                מחק
+                {t('canvas.delete')}
               </button>
             </div>
           ) : null}
@@ -629,7 +631,7 @@ export function CanvasBuilder({
               onPointerDown={(e) => e.stopPropagation()}
               onContextMenu={(e) => e.preventDefault()}
             >
-              <div className="cb-context-title">{WIDGET_LABELS[menuWidget.type]}</div>
+              <div className="cb-context-title">{widgetLabel(menuWidget.type)}</div>
               <button
                 type="button"
                 onClick={() => {
@@ -638,7 +640,7 @@ export function CanvasBuilder({
                   setMenu(null);
                 }}
               >
-                ערוך רכיב
+                {t('canvas.editWidget')}
               </button>
               <button
                 type="button"
@@ -647,7 +649,7 @@ export function CanvasBuilder({
                   setMenu(null);
                 }}
               >
-                שכפל
+                {t('canvas.duplicate')}
               </button>
               <button
                 type="button"
@@ -656,7 +658,7 @@ export function CanvasBuilder({
                   setMenu(null);
                 }}
               >
-                {menuWidget.visible ? 'הסתר' : 'הצג'}
+                {menuWidget.visible ? t('canvas.hide') : t('canvas.show')}
               </button>
               <button
                 type="button"
@@ -665,7 +667,7 @@ export function CanvasBuilder({
                   setMenu(null);
                 }}
               >
-                הבא לחזית
+                {t('canvas.bringFront')}
               </button>
               <button
                 type="button"
@@ -674,11 +676,11 @@ export function CanvasBuilder({
                   setMenu(null);
                 }}
               >
-                שלח לרקע
+                {t('canvas.sendBack')}
               </button>
               <div className="cb-context-sep" />
               <button type="button" className="danger" onClick={() => removeWidget(menuWidget.id)}>
-                מחק אלמנט
+                {t('canvas.deleteElement')}
               </button>
             </div>
           ) : null}
@@ -686,7 +688,7 @@ export function CanvasBuilder({
         </div>
         </div>
 
-        <aside className="cb-inspector cb-inspector-el" dir="rtl">
+        <aside className="cb-inspector cb-inspector-el" dir={dir}>
           {selected ? (
             <ElementorWidgetPanel
               selected={selected}
@@ -709,7 +711,7 @@ export function CanvasBuilder({
               onSendBack={() => sendToBack(selected.id)}
               alignSelected={alignSelected}
               onClose={() => setSelectedId(null)}
-              label={WIDGET_LABELS[selected.type]}
+              label={widgetLabel(selected.type)}
             />
           ) : (
             <WidgetPalette onAdd={addWidget} onExplodeZmanim={explodeZmanim} />
@@ -719,7 +721,7 @@ export function CanvasBuilder({
 
       <MediaGalleryModal
         open={Boolean(picker)}
-        title={picker?.kind === 'widget' ? 'תמונת ווידג׳ט' : 'רקע המסך'}
+        title={picker?.kind === 'widget' ? t('canvas.pickWidgetImage') : t('canvas.pickScreenBg')}
         synagogueId={synagogueId}
         gallery={gallery}
         kind="image"

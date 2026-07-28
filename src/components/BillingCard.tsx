@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { LicenseInfo } from '../types';
+import { useI18n } from '../i18n';
 import {
   applyBillingCoupon,
   fetchBillingConfig,
@@ -20,6 +21,7 @@ interface Props {
 
 /** Synagogue-side recurring payment (הוראת קבע) via SUMIT. */
 export function BillingCard({ synagogueId, onRenewed }: Props) {
+  const { t } = useI18n();
   const [config, setConfig] = useState<BillingConfig | null>(null);
   const [sub, setSub] = useState<BillingSubscription | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,6 +69,13 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
     };
   }, [synagogueId]);
 
+  function statusLabel(status: string | undefined) {
+    if (status === 'active') return t('billing.statusActive');
+    if (status === 'failed') return t('billing.statusFailed');
+    if (status === 'canceled') return t('billing.statusCanceled');
+    return t('billing.statusUnknown');
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!config) return;
@@ -95,12 +104,12 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
         : formatBillingDate(next.paidUntil);
       setMsg(
         next.hasStandingOrder === false
-          ? `התשלום בוצע והרישיון חודש עד ${until}, אך הו״ק לא נוצרה ב־SUMIT — עדכן כרטיס שוב או פנה לתמיכה.`
-          : `התשלום בוצע — הרישיון חודש עד ${until}. הוראת הקבע פעילה.`,
+          ? t('billing.paymentOkNoStanding', { until })
+          : t('billing.paymentOk', { until }),
       );
       onRenewed?.(license);
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'התשלום נכשל');
+      setMsg(err instanceof Error ? err.message : t('billing.paymentFail'));
     } finally {
       setBusy(false);
     }
@@ -109,7 +118,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
   async function onApplyCoupon() {
     const code = couponCode.trim();
     if (!code) {
-      setCouponMsg('נא להזין קוד קופון');
+      setCouponMsg(t('billing.enterCoupon'));
       return;
     }
     setCouponBusy(true);
@@ -117,9 +126,11 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
     try {
       const { subscription: next, preview } = await applyBillingCoupon(synagogueId, code);
       setSub(next);
-      setCouponMsg(preview.label || `הקופון הוחל — ${formatIls(preview.amount)} לחודש`);
+      setCouponMsg(
+        preview.label || t('billing.couponApplied', { amount: formatIls(preview.amount) }),
+      );
     } catch (err) {
-      setCouponMsg(err instanceof Error ? err.message : 'החלת הקופון נכשלה');
+      setCouponMsg(err instanceof Error ? err.message : t('billing.couponFail'));
     } finally {
       setCouponBusy(false);
     }
@@ -128,8 +139,8 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
   if (loading) {
     return (
       <section className="card">
-        <h2>תשלום ורישיון</h2>
-        <p className="hint">טוען…</p>
+        <h2>{t('panels.billingTitle')}</h2>
+        <p className="hint">{t('panels.billingLoading')}</p>
       </section>
     );
   }
@@ -137,8 +148,8 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
   if (!config?.configured) {
     return (
       <section className="card">
-        <h2>תשלום ורישיון</h2>
-        <p className="hint">סליקה עדיין לא הופעלה במערכת. פנה לספק המערכת.</p>
+        <h2>{t('panels.billingTitle')}</h2>
+        <p className="hint">{t('panels.billingNotConfigured')}</p>
       </section>
     );
   }
@@ -149,14 +160,14 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
 
   return (
     <section className="card">
-      <h2>תשלום ורישיון — הוראת קבע</h2>
+      <h2>{t('panels.billingTitleStanding')}</h2>
 
       {!amountSet ? (
-        <p className="hint">ספק המערכת עדיין לא קבע סכום חודשי לבית כנסת זה. פנה אליו להפעלה.</p>
+        <p className="hint">{t('panels.billingNoAmount')}</p>
       ) : (
         <>
           <p>
-            מנוי חודשי:{' '}
+            {t('panels.billingMonthly')}{' '}
             {listAmount ? (
               <>
                 <s>{formatIls(listAmount)}</s>{' '}
@@ -165,14 +176,14 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
             ) : (
               <strong>{formatIls(sub!.amount)}</strong>
             )}{' '}
-            — כל חיוב מוצלח מחדש את רישיון המסך לחודש נוסף.
+            {t('billing.renewNote')}
           </p>
           {sub?.discountLabel ? <p className="hint">{sub.discountLabel}</p> : null}
 
           {!sub?.hasPaymentMethod ? (
             <div className="billing-coupon">
               <label>
-                קוד קופון להנחה
+                {t('billing.couponLabel')}
                 <div className="billing-row">
                   <input
                     value={couponCode}
@@ -187,7 +198,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                     disabled={couponBusy || !couponCode.trim()}
                     onClick={() => void onApplyCoupon()}
                   >
-                    {couponBusy ? 'בודק…' : 'החל קופון'}
+                    {couponBusy ? t('billing.checking') : t('billing.applyCoupon')}
                   </button>
                 </div>
               </label>
@@ -197,37 +208,33 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
 
           {sub?.hasPaymentMethod ? (
             <p className="hint">
-              כרטיס שמור: •••• {sub.cardMask || '????'} · סטטוס:{' '}
-              {sub.status === 'active'
-                ? 'פעיל'
-                : sub.status === 'failed'
-                  ? 'חיוב אחרון נכשל'
-                  : sub.status === 'canceled'
-                    ? 'מבוטל'
-                    : '—'}{' '}
-              · שולם עד: {formatBillingDate(sub.paidUntil)}
+              {t('billing.cardSaved', {
+                mask: sub.cardMask || '????',
+                status: statusLabel(sub.status),
+                until: formatBillingDate(sub.paidUntil),
+              })}
             </p>
           ) : (
-            <p className="hint">עדיין לא הוזן כרטיס אשראי.</p>
+            <p className="hint">{t('billing.noCard')}</p>
           )}
           {sub?.lastError ? (
             <p className="hint" style={{ color: '#a33' }}>
-              שגיאה אחרונה: {sub.lastError}
+              {t('billing.lastError', { error: sub.lastError })}
             </p>
           ) : null}
 
           {!showForm ? (
             <button type="button" className="btn primary" onClick={() => setShowForm(true)}>
-              {sub?.hasPaymentMethod ? 'עדכן כרטיס אשראי' : 'הזן כרטיס אשראי והפעל'}
+              {sub?.hasPaymentMethod ? t('panels.billingUpdateCard') : t('panels.billingEnterCard')}
             </button>
           ) : (
             <form onSubmit={onSubmit} className="billing-form">
               <label>
-                שם בעל הכרטיס
+                {t('billing.payerName')}
                 <input value={payerName} onChange={(e) => setPayerName(e.target.value)} required />
               </label>
               <label>
-                אימייל לקבלת חשבונית
+                {t('billing.payerEmail')}
                 <input
                   type="email"
                   value={payerEmail}
@@ -239,7 +246,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                 />
               </label>
               <label>
-                מספר כרטיס
+                {t('billing.cardNumber')}
                 <input
                   value={cardNumber}
                   onChange={(e) => setCardNumber(e.target.value)}
@@ -253,7 +260,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
               </label>
               <div className="billing-row">
                 <label>
-                  חודש
+                  {t('billing.month')}
                   <input
                     value={expMonth}
                     onChange={(e) => setExpMonth(e.target.value)}
@@ -265,7 +272,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                   />
                 </label>
                 <label>
-                  שנה
+                  {t('billing.year')}
                   <input
                     value={expYear}
                     onChange={(e) => setExpYear(e.target.value)}
@@ -277,19 +284,19 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                   />
                 </label>
                 <label>
-                  CVV (לא חובה)
+                  {t('billing.cvvOptional')}
                   <input
                     value={cvv}
                     onChange={(e) => setCvv(e.target.value)}
                     inputMode="numeric"
                     maxLength={4}
                     dir="ltr"
-                    placeholder="אופציונלי"
+                    placeholder={t('billing.cvvPlaceholder')}
                   />
                 </label>
               </div>
               <label>
-                ת״ז בעל הכרטיס
+                {t('billing.citizenId')}
                 <input
                   value={citizenId}
                   onChange={(e) => setCitizenId(e.target.value)}
@@ -301,12 +308,13 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                 />
               </label>
               <p className="hint">
-                פרטי הכרטיס מאובטחים ונשלחים ישירות ל־SUMIT — הם לא נשמרים בשרת המערכת.
-                החיוב הראשון ({formatIls(sub!.amount)}) יתבצע מיד ויחדש רישיון לחודש.
+                {t('billing.secureHint', { amount: formatIls(sub!.amount) })}
               </p>
               <div className="billing-row">
                 <button type="submit" className="btn primary" disabled={busy}>
-                  {busy ? 'מבצע חיוב…' : `שלם ${formatIls(sub!.amount)} והפעל הו״ק`}
+                  {busy
+                    ? t('billing.charging')
+                    : t('billing.payAndActivate', { amount: formatIls(sub!.amount) })}
                 </button>
                 <button
                   type="button"
@@ -314,7 +322,7 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
                   disabled={busy}
                   onClick={() => setShowForm(false)}
                 >
-                  ביטול
+                  {t('common.cancel')}
                 </button>
               </div>
             </form>
@@ -322,29 +330,29 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
 
           {invoices.length ? (
             <div className="billing-invoices">
-              <h3>היסטוריית חיובים</h3>
+              <h3>{t('billing.historyTitle')}</h3>
               <ul>
                 {invoices.map((h, i) => (
                   <li key={`${h.at}-${i}`}>
                     <span>
                       {formatBillingDate(h.at)} · {formatIls(h.amount)}
-                      {h.ok ? '' : ' · נכשל'}
-                      {h.documentNumber ? ` · מס׳ ${h.documentNumber}` : ''}
+                      {h.ok ? '' : t('billing.failed')}
+                      {h.documentNumber ? t('billing.docNumber', { n: h.documentNumber }) : ''}
                       {h.error ? ` — ${h.error}` : ''}
                     </span>
                     {h.ok && h.documentUrl ? (
                       <a href={h.documentUrl} target="_blank" rel="noreferrer" dir="ltr">
-                        הורדה
+                        {t('billing.download')}
                       </a>
                     ) : h.ok ? (
-                      <span className="hint">נשמר בענן</span>
+                      <span className="hint">{t('billing.savedCloud')}</span>
                     ) : null}
                   </li>
                 ))}
               </ul>
             </div>
           ) : (
-            <p className="hint">אין חיובים להצגה עדיין.</p>
+            <p className="hint">{t('panels.billingEmptyHistory')}</p>
           )}
         </>
       )}

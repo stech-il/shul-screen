@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { DEFAULT_DESIGN, layoutLabel } from '../data/designPresets';
+import { DEFAULT_DESIGN } from '../data/designPresets';
 import {
   isSeedTemplateId,
   mergeGalleryTemplates,
@@ -18,6 +18,7 @@ import {
   inferFontFormat,
 } from '../lib/customFonts';
 import { uploadFont } from '../lib/media';
+import { useI18n } from '../i18n';
 import { MediaPickerField } from './MediaPicker';
 import type {
   CustomFont,
@@ -38,18 +39,31 @@ interface Props {
   onRequestCustomDesign?: () => void;
 }
 
-const LAYOUTS: { id: ScreenLayout; label: string }[] = [
-  { id: 'classic', label: 'קלאסי — 3 עמודות' },
-  { id: 'split', label: 'מפוצל' },
-  { id: 'minimal', label: 'מינימלי' },
-  { id: 'magazine', label: 'מגזין' },
-  { id: 'elegant', label: 'אלגנטי' },
-  { id: 'board', label: 'לוח מודעות' },
-  { id: 'dual', label: 'מסך כפול' },
-  { id: 'event', label: 'אירוע / חתונה' },
-  { id: 'mourning', label: 'אבל / לע״נ' },
-  { id: 'canvas', label: 'בונה חופשי (גרירה)' },
+const LAYOUT_KEYS: { id: ScreenLayout; labelKey: string }[] = [
+  { id: 'classic', labelKey: 'design.layoutClassic' },
+  { id: 'split', labelKey: 'design.layoutSplit' },
+  { id: 'minimal', labelKey: 'design.layoutMinimal' },
+  { id: 'magazine', labelKey: 'design.layoutMagazine' },
+  { id: 'elegant', labelKey: 'design.layoutElegant' },
+  { id: 'board', labelKey: 'design.layoutBoard' },
+  { id: 'dual', labelKey: 'design.layoutDual' },
+  { id: 'event', labelKey: 'design.layoutEvent' },
+  { id: 'mourning', labelKey: 'design.layoutMourning' },
+  { id: 'canvas', labelKey: 'design.layoutCanvas' },
 ];
+
+const SHORT_LAYOUT_KEYS: Record<string, string> = {
+  classic: 'design.shortClassic',
+  split: 'design.shortSplit',
+  minimal: 'design.shortMinimal',
+  magazine: 'design.shortMagazine',
+  elegant: 'design.shortElegant',
+  board: 'design.shortBoard',
+  dual: 'design.shortDual',
+  event: 'design.shortEvent',
+  mourning: 'design.shortMourning',
+  canvas: 'design.shortCanvas',
+};
 
 function parsePanelColor(input: string): { hex: string; alpha: number } {
   const rgba = input.match(
@@ -190,6 +204,7 @@ export function DesignStudio({
   onStatus,
   onRequestCustomDesign,
 }: Props) {
+  const { t, dateTag } = useI18n();
   const d = config.design;
   const customFonts = config.media?.customFonts ?? [];
   const gallery = config.media?.gallery ?? [];
@@ -227,7 +242,7 @@ export function DesignStudio({
     try {
       const uploaded = await uploadFont(config.id, file);
       const displayName =
-        fontLabel.trim() || file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'פונט מותאם';
+        fontLabel.trim() || file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || t('design.customFontDefault');
       const family = familyFromFontName(displayName, customFonts);
       const entry: CustomFont = {
         id: `font-${Date.now().toString(36)}`,
@@ -241,11 +256,11 @@ export function DesignStudio({
       setFontLabel('');
       onStatus?.(
         uploaded.warning
-          ? `הפונט «${displayName}» נוסף — ${uploaded.warning}`
-          : `הפונט «${displayName}» הועלה — בחר אותו בכותרות/גוף ולחץ שמור`,
+          ? t('design.fontAddedWarn', { name: displayName, warning: uploaded.warning })
+          : t('design.fontUploaded', { name: displayName }),
       );
     } catch (err) {
-      onStatus?.(err instanceof Error ? err.message : 'העלאת הפונט נכשלה');
+      onStatus?.(err instanceof Error ? err.message : t('design.fontUploadFail'));
     } finally {
       setFontBusy(false);
       if (fontInputRef.current) fontInputRef.current.value = '';
@@ -253,26 +268,26 @@ export function DesignStudio({
   }
 
   function onRemoveFont(font: CustomFont) {
-    if (!confirm(`למחוק את הפונט «${font.name}»?`)) return;
+    if (!confirm(t('design.confirmDeleteFont', { name: font.name }))) return;
     const next = customFonts.filter((f) => f.id !== font.id);
     setCustomFonts(next);
     const patch: Partial<DesignSettings> = {};
     if (d.fontHeading === font.family) patch.fontHeading = DEFAULT_DESIGN.fontHeading;
     if (d.fontBody === font.family) patch.fontBody = DEFAULT_DESIGN.fontBody;
     if (Object.keys(patch).length) onDesign(patch);
-    onStatus?.(`הפונט «${font.name}» הוסר`);
+    onStatus?.(t('design.fontRemoved', { name: font.name }));
   }
 
   async function pickSaved(template: SavedDesignTemplate) {
     const applied = await applyDesignTemplate(template);
     onChange(applied);
-    onStatus?.(`הוחלה התבנית «${template.name}» — לחץ שמור לעדכון המסך`);
+    onStatus?.(t('design.templateApplied', { name: template.name }));
   }
 
   async function onSaveTemplate() {
     const result = await saveDesignTemplate({
       synagogueId,
-      name: tplName || `עיצוב ${new Date().toLocaleDateString('he-IL')}`,
+      name: tplName || t('design.templateNameDefault', { date: new Date().toLocaleDateString(dateTag) }),
       description: tplDesc,
       theme: config.theme,
       layout: config.layout,
@@ -280,7 +295,7 @@ export function DesignStudio({
       canvas: config.canvas,
     });
     if (!result.ok || !result.template) {
-      onStatus?.(result.error ?? 'שמירת התבנית נכשלה');
+      onStatus?.(result.error ?? t('design.templateSaveFail'));
       return;
     }
     setSaved(await loadDesignTemplates(synagogueId));
@@ -288,20 +303,20 @@ export function DesignStudio({
     setTplDesc('');
     onStatus?.(
       result.warning
-        ? `נשמרה תבנית «${result.template.name}» — ${result.warning}`
-        : `נשמרה תבנית «${result.template.name}» למסך זה בלבד`,
+        ? t('design.templateSavedWarn', { name: result.template.name, warning: result.warning })
+        : t('design.templateSavedLocal', { name: result.template.name }),
     );
   }
 
   async function onDeleteTemplate(id: string, name: string) {
     if (isSeedTemplateId(id)) {
-      onStatus?.('לא ניתן למחוק תבנית מובנית');
+      onStatus?.(t('design.cannotDeleteSeed'));
       return;
     }
-    if (!confirm(`למחוק את התבנית «${name}»?`)) return;
+    if (!confirm(t('design.confirmDeleteTemplate', { name }))) return;
     await deleteDesignTemplate(synagogueId, id);
     setSaved(await loadDesignTemplates(synagogueId));
-    onStatus?.(`נמחקה התבנית «${name}»`);
+    onStatus?.(t('design.templateDeleted', { name }));
   }
 
   const templateGallery = useMemo(() => mergeGalleryTemplates(saved), [saved]);
@@ -309,13 +324,16 @@ export function DesignStudio({
   const filteredGallery = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return templateGallery;
-    return templateGallery.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        (t.description ?? '').toLowerCase().includes(q) ||
-        layoutLabel(t.layout).includes(query.trim()),
-    );
-  }, [templateGallery, query]);
+    return templateGallery.filter((tpl) => {
+      const shortKey = SHORT_LAYOUT_KEYS[tpl.layout];
+      const shortLabel = shortKey ? t(shortKey) : tpl.layout;
+      return (
+        tpl.name.toLowerCase().includes(q) ||
+        (tpl.description ?? '').toLowerCase().includes(q) ||
+        shortLabel.toLowerCase().includes(q)
+      );
+    });
+  }, [templateGallery, query, t]);
 
   const filteredSeeds = useMemo(
     () => filteredGallery.filter((t) => isSeedTemplateId(t.id)),
@@ -326,41 +344,41 @@ export function DesignStudio({
     [filteredGallery],
   );
 
-  function renderTemplateCard(t: SavedDesignTemplate, opts?: { seed?: boolean }) {
-    const active = d.presetId === t.design.presetId;
-    const seed = opts?.seed ?? isSeedTemplateId(t.id);
+  function renderTemplateCard(tpl: SavedDesignTemplate, opts?: { seed?: boolean }) {
+    const active = d.presetId === tpl.design.presetId;
+    const seed = opts?.seed ?? isSeedTemplateId(tpl.id);
     return (
       <div
-        key={t.id}
+        key={tpl.id}
         className={`preset-card saved-tpl tpl-card ${active ? 'active' : ''} ${seed ? 'is-seed' : ''}`}
         style={{
-          ['--p1' as string]: t.design.primaryColor,
-          ['--p2' as string]: t.design.accentColor,
-          ['--pb' as string]: t.design.backgroundColor,
+          ['--p1' as string]: tpl.design.primaryColor,
+          ['--p2' as string]: tpl.design.accentColor,
+          ['--pb' as string]: tpl.design.backgroundColor,
         }}
       >
-        <button type="button" className="preset-card-main" onClick={() => void pickSaved(t)}>
-          <TemplatePreview template={t} />
+        <button type="button" className="preset-card-main" onClick={() => void pickSaved(tpl)}>
+          <TemplatePreview template={tpl} />
           <div className="tpl-card-body">
             <strong>
-              {t.name}
-              {seed ? <span className="tpl-badge">מובנית</span> : null}
+              {tpl.name}
+              {seed ? <span className="tpl-badge">{t('design.badgeSeed')}</span> : null}
             </strong>
             <em>
-              {t.description}
-              {t.layout === 'canvas' ? ' · כולל בונה מסך' : ''}
+              {tpl.description}
+              {tpl.layout === 'canvas' ? t('design.includesCanvas') : ''}
             </em>
-            <span className="tpl-meta">{layoutLabel(t.layout)}</span>
-            <span className="tpl-apply">{active ? 'פעילה כעת' : 'החל תבנית'}</span>
+            <span className="tpl-meta">{t(SHORT_LAYOUT_KEYS[tpl.layout] ?? 'design.shortClassic')}</span>
+            <span className="tpl-apply">{active ? t('design.activeNow') : t('design.applyTemplate')}</span>
           </div>
         </button>
         {!seed ? (
           <button
             type="button"
             className="tpl-delete"
-            onClick={() => void onDeleteTemplate(t.id, t.name)}
+            onClick={() => void onDeleteTemplate(tpl.id, tpl.name)}
           >
-            מחק
+            {t('common.delete')}
           </button>
         ) : null}
       </div>
@@ -372,54 +390,53 @@ export function DesignStudio({
       <section className="card wide tpl-gallery">
         <div className="tpl-custom-banner">
           <div>
-            <strong>רוצים עיצוב מיוחד לבית הכנסת?</strong>
-            <p>אפשר להזמין תבנית מותאמת אישית — פתחו פנייה וצרפו קבצים או השראה.</p>
+            <strong>{t('design.customBannerTitle')}</strong>
+            <p>{t('design.customBannerText')}</p>
           </div>
           <button
             type="button"
             className="btn primary"
             onClick={() => onRequestCustomDesign?.()}
           >
-            פתיחת פנייה — עיצוב מיוחד
+            {t('design.customBannerCta')}
           </button>
         </div>
         <div className="tpl-gallery-head">
           <div>
-            <h2>תבניות ({SEED_DESIGN_TEMPLATES.length + saved.length})</h2>
+            <h2>{t('panels.designTemplates', { n: SEED_DESIGN_TEMPLATES.length + saved.length })}</h2>
             <p className="hint">
-              {SEED_DESIGN_TEMPLATES.length} תבניות מוכנות עם תצוגה מקדימה — לחצו להחלה. התבניות
-              שתשמרו כאן שייכות למסך זה בלבד.
+              {t('design.galleryHint', { n: SEED_DESIGN_TEMPLATES.length })}
             </p>
           </div>
           <input
             className="tpl-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="חיפוש תבנית…"
+            placeholder={t('design.searchPlaceholder')}
           />
         </div>
 
         {filteredGallery.length === 0 ? (
-          <p className="hint">לא נמצאו תבניות לחיפוש הנוכחי.</p>
+          <p className="hint">{t('design.noSearchResults')}</p>
         ) : (
           <>
             {filteredSeeds.length > 0 ? (
               <div className="tpl-group">
-                <h3 className="tpl-group-title">תבניות מוכנות ({filteredSeeds.length})</h3>
+                <h3 className="tpl-group-title">{t('design.readyTemplates', { n: filteredSeeds.length })}</h3>
                 <div className="preset-grid tpl-grid">
-                  {filteredSeeds.map((t) => renderTemplateCard(t, { seed: true }))}
+                  {filteredSeeds.map((tpl) => renderTemplateCard(tpl, { seed: true }))}
                 </div>
               </div>
             ) : null}
             <div className="tpl-group">
-              <h3 className="tpl-group-title">התבניות שלי ({filteredUser.length})</h3>
+              <h3 className="tpl-group-title">{t('design.myTemplates', { n: filteredUser.length })}</h3>
               {filteredUser.length === 0 ? (
                 <p className="hint">
-                  עדיין אין תבניות שמורות — כוונו עיצוב ושמרו אותו למטה כתבנית.
+                  {t('design.noSavedTemplates')}
                 </p>
               ) : (
                 <div className="preset-grid tpl-grid">
-                  {filteredUser.map((t) => renderTemplateCard(t, { seed: false }))}
+                  {filteredUser.map((tpl) => renderTemplateCard(tpl, { seed: false }))}
                 </div>
               )}
             </div>
@@ -428,102 +445,102 @@ export function DesignStudio({
       </section>
 
       <section className="card wide">
-        <h2>שמירה כתבנית שלי</h2>
+        <h2>{t('panels.designSaveAsMine')}</h2>
         <p className="hint">
-          כוונו עיצוב במסך הזה ושמרו אותו — התבנית נשמרת בענן ואפשר להחיל אותה על כל מסך
+          {t('design.saveHint')}
         </p>
         <div className="tpl-save-row">
           <label>
-            שם התבנית
+            {t('design.templateName')}
             <input
               value={tplName}
               onChange={(e) => setTplName(e.target.value)}
-              placeholder="לדוגמה: עיצוב שבת / חתונה"
+              placeholder={t('design.templateNamePh')}
             />
           </label>
           <label>
-            תיאור (אופציונלי)
+            {t('design.templateDesc')}
             <input
               value={tplDesc}
               onChange={(e) => setTplDesc(e.target.value)}
-              placeholder="מה מיוחד בתבנית הזו"
+              placeholder={t('design.templateDescPh')}
             />
           </label>
           <button type="button" className="btn primary" onClick={() => void onSaveTemplate()}>
-            שמור כתבנית
+            {t('design.saveAsTemplate')}
           </button>
         </div>
       </section>
 
-      <StudioSection title="פריסה">
+      <StudioSection title={t('panels.designSectionLayout')}>
         <label>
-          מבנה מסך
+          {t('design.screenLayout')}
           <select
             value={config.layout}
             onChange={(e) => onChange({ layout: e.target.value as ScreenLayout })}
           >
-            {LAYOUTS.map((l) => (
+            {LAYOUT_KEYS.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.label}
+                {t(l.labelKey)}
               </option>
             ))}
           </select>
         </label>
         <label>
-          סגנון כותרת
+          {t('design.headerStyle')}
           <select
             value={d.headerStyle}
             onChange={(e) =>
               onDesign({ headerStyle: e.target.value as DesignSettings['headerStyle'] })
             }
           >
-            <option value="split">מפוצל (שם | שעון)</option>
-            <option value="centered">ממורכז</option>
-            <option value="banner">באנר</option>
+            <option value="split">{t('design.headerSplit')}</option>
+            <option value="centered">{t('design.headerCentered')}</option>
+            <option value="banner">{t('design.headerBanner')}</option>
           </select>
         </label>
         <label>
-          סגנון שעון
+          {t('design.clockStyle')}
           <select
             value={d.clockStyle}
             onChange={(e) =>
               onDesign({ clockStyle: e.target.value as DesignSettings['clockStyle'] })
             }
           >
-            <option value="bold">בולט</option>
-            <option value="elegant">אלגנטי</option>
-            <option value="minimal">מינימלי</option>
+            <option value="bold">{t('design.styleBold')}</option>
+            <option value="elegant">{t('design.styleElegant')}</option>
+            <option value="minimal">{t('design.styleMinimal')}</option>
           </select>
         </label>
         <label>
-          סגנון פאנלים
+          {t('design.panelStyle')}
           <select
             value={d.panelStyle}
             onChange={(e) =>
               onDesign({ panelStyle: e.target.value as DesignSettings['panelStyle'] })
             }
           >
-            <option value="glass">זכוכית</option>
-            <option value="solid">אטום</option>
-            <option value="outlined">מסגרת בלבד</option>
-            <option value="soft">רך ללא מסגרת</option>
+            <option value="glass">{t('design.panelGlass')}</option>
+            <option value="solid">{t('design.panelSolid')}</option>
+            <option value="outlined">{t('design.panelOutlined')}</option>
+            <option value="soft">{t('design.panelSoft')}</option>
           </select>
         </label>
       </StudioSection>
 
-      <StudioSection title="צבעים">
+      <StudioSection title={t('panels.designSectionColors')}>
         <div className="color-grid">
           {(
             [
-              ['primaryColor', 'טקסט ראשי'],
-              ['accentColor', 'הדגשה'],
-              ['backgroundColor', 'רקע 1'],
-              ['backgroundColor2', 'רקע 2'],
-              ['mutedColor', 'טקסט משני'],
+              ['primaryColor', 'design.colorPrimary'],
+              ['accentColor', 'design.colorAccent'],
+              ['backgroundColor', 'design.colorBg1'],
+              ['backgroundColor2', 'design.colorBg2'],
+              ['mutedColor', 'design.colorMuted'],
             ] as const
-          ).map(([key, label]) => (
+          ).map(([key, labelKey]) => (
             <label key={key}>
-              {label}
+              {t(labelKey)}
               <input
                 type="color"
                 value={d[key].startsWith('#') ? d[key].slice(0, 7) : '#888888'}
@@ -534,7 +551,7 @@ export function DesignStudio({
         </div>
         <div className="panel-color-row">
           <label>
-            צבע פאנל
+            {t('design.panelColor')}
             <input
               type="color"
               value={panel.hex}
@@ -542,7 +559,7 @@ export function DesignStudio({
             />
           </label>
           <label>
-            שקיפות פאנל ({panel.alpha.toFixed(2)})
+            {t('design.panelOpacity', { alpha: panel.alpha.toFixed(2) })}
             <input
               type="range"
               min={0.05}
@@ -556,20 +573,20 @@ export function DesignStudio({
           </label>
         </div>
         <label>
-          ערכת נושא כללית
+          {t('design.themeOverall')}
           <select
             value={config.theme}
             onChange={(e) => onChange({ theme: e.target.value as 'light' | 'dark' })}
           >
-            <option value="light">בהיר</option>
-            <option value="dark">כהה</option>
+            <option value="light">{t('design.themeLight')}</option>
+            <option value="dark">{t('design.themeDark')}</option>
           </select>
         </label>
       </StudioSection>
 
-      <StudioSection title="טיפוגרפיה וגודל">
+      <StudioSection title={t('panels.designSectionType')}>
         <label>
-          גופן כותרות
+          {t('design.fontHeading')}
           <select
             value={d.fontHeading}
             onChange={(e) => onDesign({ fontHeading: e.target.value })}
@@ -582,7 +599,7 @@ export function DesignStudio({
           </select>
         </label>
         <label>
-          גופן גוף
+          {t('design.fontBody')}
           <select value={d.fontBody} onChange={(e) => onDesign({ fontBody: e.target.value })}>
             {fontOptions.map((f) => (
               <option key={f.id} value={f.id} style={{ fontFamily: `'${f.id}', sans-serif` }}>
@@ -593,16 +610,16 @@ export function DesignStudio({
         </label>
 
         <div className="custom-fonts-box">
-          <h3>פונטים שנרכשו</h3>
+          <h3>{t('design.purchasedFonts')}</h3>
           <p className="hint">
-            העלה קובץ פונט שרכשת (WOFF2 מומלץ, גם WOFF / TTF / OTF — עד 4MB) ואז בחר אותו למעלה.
+            {t('design.fontsHint')}
           </p>
           <label>
-            שם לתצוגה (אופציונלי)
+            {t('design.fontDisplayName')}
             <input
               value={fontLabel}
               onChange={(e) => setFontLabel(e.target.value)}
-              placeholder="למשל: פונט בית הכנסת"
+              placeholder={t('design.fontDisplayPh')}
               disabled={fontBusy}
             />
           </label>
@@ -620,7 +637,7 @@ export function DesignStudio({
               disabled={fontBusy}
               onClick={() => fontInputRef.current?.click()}
             >
-              {fontBusy ? 'מעלה…' : 'העלה פונט'}
+              {fontBusy ? t('design.uploading') : t('design.uploadFont')}
             </button>
           </div>
           {customFonts.length ? (
@@ -629,18 +646,18 @@ export function DesignStudio({
                 <li key={f.id}>
                   <span style={{ fontFamily: `'${f.family}', sans-serif` }}>{f.name}</span>
                   <button type="button" className="btn ghost" onClick={() => onRemoveFont(f)}>
-                    מחק
+                    {t('common.delete')}
                   </button>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="hint">עדיין לא הועלו פונטים מותאמים.</p>
+            <p className="hint">{t('design.noCustomFonts')}</p>
           )}
         </div>
 
         <label>
-          גודל כותרת ({d.titleScale.toFixed(2)})
+          {t('design.titleScale', { n: d.titleScale.toFixed(2) })}
           <input
             type="range"
             min={0.7}
@@ -651,7 +668,7 @@ export function DesignStudio({
           />
         </label>
         <label>
-          גודל שעון ({d.clockScale.toFixed(2)})
+          {t('design.clockScale', { n: d.clockScale.toFixed(2) })}
           <input
             type="range"
             min={0.7}
@@ -662,7 +679,7 @@ export function DesignStudio({
           />
         </label>
         <label>
-          גודל טקסט ({d.bodyScale.toFixed(2)})
+          {t('design.bodyScale', { n: d.bodyScale.toFixed(2) })}
           <input
             type="range"
             min={0.8}
@@ -674,9 +691,9 @@ export function DesignStudio({
         </label>
       </StudioSection>
 
-      <StudioSection title="לוגו ורקע">
+      <StudioSection title={t('panels.designSectionLogo')}>
         <MediaPickerField
-          label="לוגו"
+          label={t('design.logo')}
           value={d.logoUrl}
           synagogueId={synagogueId}
           gallery={gallery}
@@ -686,7 +703,7 @@ export function DesignStudio({
           onStatus={onStatus}
         />
         <MediaPickerField
-          label="תמונת רקע"
+          label={t('design.bgImage')}
           value={d.backgroundImageUrl}
           synagogueId={synagogueId}
           gallery={gallery}
@@ -696,7 +713,7 @@ export function DesignStudio({
           onStatus={onStatus}
         />
         <label>
-          כהות שכבת רקע ({d.overlayOpacity.toFixed(2)})
+          {t('design.overlayDarkness', { n: d.overlayOpacity.toFixed(2) })}
           <input
             type="range"
             min={0}
@@ -708,31 +725,31 @@ export function DesignStudio({
         </label>
       </StudioSection>
 
-      <StudioSection title="אווירה ופרטים" defaultOpen={false}>
+      <StudioSection title={t('panels.designSectionMood')} defaultOpen={false}>
         <label>
-          צפיפות
+          {t('design.density')}
           <select
             value={d.density}
             onChange={(e) => onDesign({ density: e.target.value as DesignSettings['density'] })}
           >
-            <option value="compact">דחוס</option>
-            <option value="comfortable">נוח</option>
-            <option value="spacious">מרווח</option>
+            <option value="compact">{t('design.densityCompact')}</option>
+            <option value="comfortable">{t('design.densityComfortable')}</option>
+            <option value="spacious">{t('design.densitySpacious')}</option>
           </select>
         </label>
         <label>
-          תנועה
+          {t('design.motion')}
           <select
             value={d.motion}
             onChange={(e) => onDesign({ motion: e.target.value as DesignSettings['motion'] })}
           >
-            <option value="off">כבוי</option>
-            <option value="subtle">עדין</option>
-            <option value="rich">עשיר</option>
+            <option value="off">{t('design.motionOff')}</option>
+            <option value="subtle">{t('design.motionSubtle')}</option>
+            <option value="rich">{t('design.motionRich')}</option>
           </select>
         </label>
         <label>
-          עיגול פינות ({d.panelRadius}px)
+          {t('design.panelRadius', { n: d.panelRadius })}
           <input
             type="range"
             min={0}
@@ -748,7 +765,7 @@ export function DesignStudio({
             checked={d.showShadows}
             onChange={(e) => onDesign({ showShadows: e.target.checked })}
           />
-          צללים
+          {t('design.shadows')}
         </label>
         <label className="check">
           <input
@@ -756,10 +773,10 @@ export function DesignStudio({
             checked={d.showOrnaments}
             onChange={(e) => onDesign({ showOrnaments: e.target.checked })}
           />
-          קו קישוט תחת הכותרת
+          {t('design.ornaments')}
         </label>
         <label>
-          גודל לטלוויזיה ({(d.accessibilityScale ?? 1).toFixed(2)}×)
+          {t('design.tvScale', { n: (d.accessibilityScale ?? 1).toFixed(2) })}
           <input
             type="range"
             min={0.85}
@@ -775,7 +792,7 @@ export function DesignStudio({
             checked={Boolean(d.highContrast)}
             onChange={(e) => onDesign({ highContrast: e.target.checked })}
           />
-          ניגודיות גבוהה
+          {t('design.highContrast')}
         </label>
       </StudioSection>
     </div>

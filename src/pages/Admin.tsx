@@ -12,6 +12,7 @@ import { CITIES } from '../data/cities';
 import { NUSACH_TEMPLATES, applyNusachTemplate } from '../data/nusach';
 import { ZMAN_DEFS, type ZmanKey } from '../data/zmanim';
 import { createDefaultConfig } from '../data/defaults';
+import { useI18n, LangSwitch } from '../i18n';
 import {
   canEditContent,
   canEditSettings,
@@ -81,27 +82,27 @@ type TabId =
 
 type TabGroup = 'daily' | 'studio' | 'system';
 
-const TAB_GROUPS: { id: TabGroup; label: string }[] = [
-  { id: 'daily', label: 'יומי' },
-  { id: 'studio', label: 'עיצוב' },
-  { id: 'system', label: 'מערכת' },
+const TAB_GROUP_DEFS: { id: TabGroup; labelKey: string }[] = [
+  { id: 'daily', labelKey: 'admin.groupDaily' },
+  { id: 'studio', labelKey: 'admin.groupStudio' },
+  { id: 'system', labelKey: 'admin.groupSystem' },
 ];
 
-const TABS: { id: TabId; label: string; ownerOnly?: boolean; group: TabGroup }[] = [
-  { id: 'content', label: 'תפילות', group: 'daily' },
-  { id: 'announce', label: 'הודעות', group: 'daily' },
-  { id: 'zmanim', label: 'זמנים', group: 'daily' },
-  { id: 'yahrzeit', label: 'יארצייט', group: 'daily' },
-  { id: 'modes', label: 'שבת ואירוע', group: 'daily' },
-  { id: 'live', label: 'תצוגה מקדימה', group: 'daily' },
-  { id: 'design', label: 'עיצוב', ownerOnly: true, group: 'studio' },
-  { id: 'canvas', label: 'בונה מסך', ownerOnly: true, group: 'studio' },
-  { id: 'media', label: 'מדיה', ownerOnly: true, group: 'studio' },
-  { id: 'nusach', label: 'נוסח', ownerOnly: true, group: 'studio' },
-  { id: 'settings', label: 'הגדרות', group: 'system' },
-  { id: 'users', label: 'משתמשים', ownerOnly: true, group: 'system' },
-  { id: 'support', label: 'פניות', group: 'system' },
-  { id: 'history', label: 'היסטוריה', ownerOnly: true, group: 'system' },
+const TAB_DEFS: { id: TabId; labelKey: string; ownerOnly?: boolean; group: TabGroup }[] = [
+  { id: 'content', labelKey: 'admin.tabContent', group: 'daily' },
+  { id: 'announce', labelKey: 'admin.tabAnnounce', group: 'daily' },
+  { id: 'zmanim', labelKey: 'admin.tabZmanim', group: 'daily' },
+  { id: 'yahrzeit', labelKey: 'admin.tabYahrzeit', group: 'daily' },
+  { id: 'modes', labelKey: 'admin.tabModes', group: 'daily' },
+  { id: 'live', labelKey: 'admin.tabLive', group: 'daily' },
+  { id: 'design', labelKey: 'admin.tabDesign', ownerOnly: true, group: 'studio' },
+  { id: 'canvas', labelKey: 'admin.tabCanvas', ownerOnly: true, group: 'studio' },
+  { id: 'media', labelKey: 'admin.tabMedia', ownerOnly: true, group: 'studio' },
+  { id: 'nusach', labelKey: 'admin.tabNusach', ownerOnly: true, group: 'studio' },
+  { id: 'settings', labelKey: 'admin.tabSettings', group: 'system' },
+  { id: 'users', labelKey: 'admin.tabUsers', ownerOnly: true, group: 'system' },
+  { id: 'support', labelKey: 'admin.tabSupport', group: 'system' },
+  { id: 'history', labelKey: 'admin.tabHistory', ownerOnly: true, group: 'system' },
 ];
 
 interface Props {
@@ -113,6 +114,7 @@ function uid() {
 }
 
 export function Admin({ synagogueId }: Props) {
+  const { t, dir, locale, dateTag } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [config, setConfigRaw] = useState<SynagogueConfig | null>(null);
@@ -146,12 +148,26 @@ export function Admin({ synagogueId }: Props) {
     }
     try {
       const saved = localStorage.getItem(`screensmart:admin-tab:${synagogueId}`) as TabId | null;
-      if (saved && TABS.some((t) => t.id === saved)) return saved;
+      if (saved && TAB_DEFS.some((def) => def.id === saved)) return saved;
     } catch {
       /* ignore */
     }
     return 'content';
   });
+  const tabGroups = useMemo(
+    () => TAB_GROUP_DEFS.map((g) => ({ id: g.id, label: t(g.labelKey) })),
+    [t],
+  );
+  const tabs = useMemo(
+    () =>
+      TAB_DEFS.map((def) => ({
+        id: def.id,
+        label: t(def.labelKey),
+        ownerOnly: def.ownerOnly,
+        group: def.group,
+      })),
+    [t],
+  );
   const [toast, setToast] = useState<string | null>(null);
   const [collapsedBlocks, setCollapsedBlocks] = useState<Record<string, boolean>>({});
   const [kioskPin, setKioskPin] = useState('');
@@ -182,7 +198,7 @@ export function Admin({ synagogueId }: Props) {
     setConfigRaw((c) => {
       if (!c) return c;
       const prev = undo.undo(c);
-      if (prev) queueMicrotask(() => setStatus('בוטל שינוי אחרון (Ctrl+Z)'));
+      if (prev) queueMicrotask(() => setStatus(t('admin.statusUndone')));
       return prev ?? c;
     });
   }
@@ -191,7 +207,7 @@ export function Admin({ synagogueId }: Props) {
     setConfigRaw((c) => {
       if (!c) return c;
       const next = undo.redo(c);
-      if (next) queueMicrotask(() => setStatus('שוחזר שינוי (Ctrl+Y)'));
+      if (next) queueMicrotask(() => setStatus(t('admin.statusRedone')));
       return next ?? c;
     });
   }
@@ -203,8 +219,8 @@ export function Admin({ synagogueId }: Props) {
 
   useEffect(() => {
     setSession(loadSession());
-    const stop = startAutoSync((n) => setStatus(`סונכרנו ${n} שינויים לענן`));
-    createDefaultConfig(synagogueId, 'בית כנסת חדש').then((fallback) =>
+    const stop = startAutoSync((n) => setStatus(t('admin.statusSynced', { n })));
+    createDefaultConfig(synagogueId, t('admin.newShulName')).then((fallback) =>
       syncConfig(synagogueId, fallback).then((r) => {
         setConfigRaw(r.bundle.config);
         undo.reset();
@@ -213,18 +229,18 @@ export function Admin({ synagogueId }: Props) {
           r.cloudMode === 'supabase'
             ? 'Supabase'
             : r.cloudMode === 'server'
-              ? 'ענן שרת'
-              : 'סנכרון מקומי';
+              ? t('admin.cloudServer')
+              : t('admin.cloudLocal');
         setStatus(
           r.online
-            ? `נטען (${r.source}) · ${mode}`
-            : `אופליין — מטמון מקומי · יסונכרן אוטומטית`,
+            ? t('admin.statusLoaded', { source: r.source, mode })
+            : t('admin.statusOffline'),
         );
         setHistory(loadHistory(synagogueId));
       }),
     );
     return stop;
-  }, [synagogueId]);
+  }, [synagogueId, t]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -275,8 +291,8 @@ export function Admin({ synagogueId }: Props) {
 
   useEffect(() => {
     if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 3200);
-    return () => window.clearTimeout(t);
+    const toastTimer = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(toastTimer);
   }, [toast]);
 
   useEffect(() => {
@@ -293,7 +309,7 @@ export function Admin({ synagogueId }: Props) {
           target.isContentEditable);
       if (key === 's') {
         e.preventDefault();
-        void onSave('פרסום למסך (Ctrl+S)');
+        void onSave(t('admin.publishCtrlS'));
         return;
       }
       if (typing) return;
@@ -319,10 +335,10 @@ export function Admin({ synagogueId }: Props) {
     if (searchParams.get('billing') !== '1') return;
     if (!canEditSettings(session?.role ?? 'editor')) return;
     setTab('settings');
-    const t = window.setTimeout(() => {
+    const billingTimer = window.setTimeout(() => {
       document.getElementById('billing-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 120);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(billingTimer);
   }, [searchParams, session?.role]);
 
   useSessionKeepAlive(
@@ -360,10 +376,8 @@ export function Admin({ synagogueId }: Props) {
     if (!session || !canEditSettings(session.role)) return;
     if (config.layout === 'canvas') return;
     setConfig((c) => (c && c.layout !== 'canvas' ? { ...c, layout: 'canvas' } : c));
-    setStatus(
-      'מבנה המסך הוגדר לבונה חופשי — לחצו «פרסם למסך» כדי לעדכן את הטלוויזיה',
-    );
-  }, [tab, session?.role, config?.layout]);
+    setStatus(t('admin.canvasLayoutHint'));
+  }, [tab, session?.role, config?.layout, t]);
 
   if (!session || session.synagogueId !== synagogueId || !canEditContent(session.role)) {
     return <Navigate to={`/login/${synagogueId}`} replace />;
@@ -371,8 +385,8 @@ export function Admin({ synagogueId }: Props) {
 
   if (!config) {
     return (
-      <div className="admin loading" dir="rtl">
-        טוען...
+      <div className="admin loading" dir={dir} lang={locale}>
+        {t('common.loading')}
       </div>
     );
   }
@@ -388,7 +402,7 @@ export function Admin({ synagogueId }: Props) {
     name: config.name,
     dedication: config.dedication,
     logoSrc: config.media?.logoDataUrl || config.design.logoUrl || config.branding?.logoUrl,
-    clock: new Date().toLocaleTimeString('he-IL', {
+    clock: new Date().toLocaleTimeString(dateTag, {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
@@ -410,7 +424,7 @@ export function Admin({ synagogueId }: Props) {
     announcementCount: config.announcements.filter((a) => a.enabled && a.text.trim()).length,
     announcementIndex: 0,
     weatherTemp: config.showWeather ? 24 : null,
-    countdownLabel: 'הדלקת נרות בעוד 02:14:00',
+    countdownLabel: t('admin.candleCountdownPreview'),
   };
 
   function update(patch: Partial<SynagogueConfig>) {
@@ -463,8 +477,8 @@ export function Admin({ synagogueId }: Props) {
     setConfig((c) => {
       if (!c) return c;
       const newItem: ScheduleItem = noTime
-        ? { id: uid(), title: 'כותרת / הערה', time: '', noTime: true }
-        : { id: uid(), title: 'פריט חדש', time: '18:00' };
+        ? { id: uid(), title: t('admin.itemTitle'), time: '', noTime: true }
+        : { id: uid(), title: t('admin.itemNew'), time: '18:00' };
       return {
         ...c,
         blocks: c.blocks.map((b) =>
@@ -484,7 +498,11 @@ export function Admin({ synagogueId }: Props) {
           const idx = b.items.findIndex((it) => it.id === itemId);
           if (idx < 0) return b;
           const src = b.items[idx]!;
-          const copy: ScheduleItem = { ...src, id: uid(), title: `${src.title} (העתק)` };
+          const copy: ScheduleItem = {
+            ...src,
+            id: uid(),
+            title: t('admin.itemCopy', { title: src.title }),
+          };
           const items = [...b.items];
           items.splice(idx + 1, 0, copy);
           return { ...b, items };
@@ -533,7 +551,7 @@ export function Admin({ synagogueId }: Props) {
       if (!c) return c;
       return {
         ...c,
-        blocks: [...c.blocks, { id: uid(), title: 'בלוק חדש', enabled: true, items: [] }],
+        blocks: [...c.blocks, { id: uid(), title: t('admin.blockNew'), enabled: true, items: [] }],
       };
     });
   }
@@ -564,7 +582,7 @@ export function Admin({ synagogueId }: Props) {
   async function addMember(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!isOwner || !config) {
-      setStatus('אין הרשאה להוספת משתמשים');
+      setStatus(t('admin.noUserPerm'));
       return;
     }
     const form = e.currentTarget;
@@ -576,16 +594,16 @@ export function Admin({ synagogueId }: Props) {
     const password = String(data.get('memberPassword') ?? '');
     const role = (String(data.get('memberRole') ?? newMember.role) || 'editor') as UserRole;
     if (!name || !username || !password) {
-      setStatus('יש למלא שם לתצוגה, שם משתמש וסיסמה');
+      setStatus(t('admin.fillUserFields'));
       return;
     }
     if (password.trim().length < 4) {
-      setStatus('סיסמה קצרה מדי (לפחות 4 תווים)');
+      setStatus(t('admin.passTooShort'));
       return;
     }
     const members = config.members ?? [];
     if (members.some((m) => (m.username || m.name).toLowerCase() === username)) {
-      setStatus('שם המשתמש כבר קיים');
+      setStatus(t('admin.userExists'));
       return;
     }
     try {
@@ -602,19 +620,19 @@ export function Admin({ synagogueId }: Props) {
       setConfig(nextConfig);
       setNewMember({ name: '', username: '', password: '', role: 'editor' });
       form.reset();
-      setStatus(`שומר את «${username}» בענן…`);
+      setStatus(t('admin.savingUser', { username }));
       const result = await saveConfig(nextConfig, undefined, {
         by: memberName,
-        summary: `הוספת משתמש ${username}`,
+        summary: t('admin.addUserSummary', { username }),
       });
       if (!result.ok) {
-        setStatus(result.error ?? 'המשתמש נוסף מקומית אך השמירה לענן נכשלה — לחץ שמור');
+        setStatus(result.error ?? t('admin.userSavedLocalFail'));
       } else {
-        setStatus(`המשתמש «${username}» נשמר — אפשר להתחבר ב־/#/login/...`);
+        setStatus(t('admin.userSaved', { username }));
       }
       refreshHistory();
     } catch (err) {
-      setStatus(`הוספת משתמש נכשלה: ${String((err as Error)?.message || err)}`);
+      setStatus(t('admin.addUserFail', { error: String((err as Error)?.message || err) }));
     }
   }
 
@@ -634,11 +652,11 @@ export function Admin({ synagogueId }: Props) {
     e.preventDefault();
     if (!isOwner || !config || !passwordReset) return;
     if (passwordReset.pass.trim().length < 4) {
-      setStatus('סיסמה קצרה מדי (לפחות 4 תווים)');
+      setStatus(t('admin.passTooShort'));
       return;
     }
     if (passwordReset.pass !== passwordReset.pass2) {
-      setStatus('הסיסמאות אינן תואמות');
+      setStatus(t('admin.passMismatch'));
       return;
     }
     const passwordHash = await hashPassword(passwordReset.pass.trim());
@@ -650,16 +668,16 @@ export function Admin({ synagogueId }: Props) {
     };
     setConfig(nextConfig);
     setPasswordReset(null);
-    setStatus(`שומר סיסמה חדשה ל־${passwordReset.label}…`);
+    setStatus(t('admin.savingPass', { label: passwordReset.label }));
     const result = await saveConfig(nextConfig, undefined, {
       by: memberName,
-      summary: `איפוס סיסמה ל־${passwordReset.label}`,
+      summary: t('admin.resetPassSummary', { label: passwordReset.label }),
     });
     if (result.ok) setDirty(false);
     setStatus(
       result.ok
-        ? `סיסמה עודכנה ל־${passwordReset.label}`
-        : result.error ?? 'הסיסמה עודכנה מקומית — לחץ שמור',
+        ? t('admin.passUpdated', { label: passwordReset.label })
+        : result.error ?? t('admin.passUpdatedLocal'),
     );
     refreshHistory();
   }
@@ -679,14 +697,14 @@ export function Admin({ synagogueId }: Props) {
     const name = editMember.name.trim();
     const username = editMember.username.trim().toLowerCase();
     if (!name || !username) {
-      setStatus('יש למלא שם ושם משתמש');
+      setStatus(t('admin.fillNameUser'));
       return;
     }
     const taken = config.members.some(
       (m) => m.id !== editMemberId && (m.username || m.name).toLowerCase() === username,
     );
     if (taken) {
-      setStatus('שם המשתמש כבר קיים');
+      setStatus(t('admin.userExists'));
       return;
     }
     const owners = config.members.filter((m) => m.role === 'owner');
@@ -696,7 +714,7 @@ export function Admin({ synagogueId }: Props) {
       editMember.role !== 'owner' &&
       owners.length <= 1
     ) {
-      setStatus('חייב להישאר לפחות מנהל אחד');
+      setStatus(t('admin.needOneOwner'));
       return;
     }
     setConfig((c) =>
@@ -710,24 +728,24 @@ export function Admin({ synagogueId }: Props) {
         : c,
     );
     setEditMemberId(null);
-    setStatus(`המשתמש עודכן — לחץ שמור`);
+    setStatus(t('admin.userUpdated'));
   }
 
   function removeMember(member: Member) {
     if (!isOwner || !config) return;
     if (member.id === session?.memberId) {
-      setStatus('אי אפשר למחוק את המשתמש שאיתו התחברת');
+      setStatus(t('admin.cantDeleteSelf'));
       return;
     }
     const owners = config.members.filter((m) => m.role === 'owner');
     if (member.role === 'owner' && owners.length <= 1) {
-      setStatus('חייב להישאר לפחות מנהל אחד');
+      setStatus(t('admin.needOneOwner'));
       return;
     }
-    if (!confirm(`למחוק את «${member.username || member.name}»?`)) return;
+    if (!confirm(t('admin.confirmDeleteUser', { name: member.username || member.name }))) return;
     if (editMemberId === member.id) setEditMemberId(null);
     update({ members: config.members.filter((x) => x.id !== member.id) });
-    setStatus(`המשתמש נמחק — לחץ שמור`);
+    setStatus(t('admin.userDeleted'));
   }
 
   function updateModes(patch: Partial<ModeSettings>) {
@@ -758,7 +776,7 @@ export function Admin({ synagogueId }: Props) {
     setHistory(loadHistory(synagogueId));
   }
 
-  async function onSave(summary = 'שמירת הגדרות') {
+  async function onSave(summary = t('admin.saveSummary')) {
     if (!config) return;
     setSaving(true);
     let toSave = config;
@@ -770,7 +788,7 @@ export function Admin({ synagogueId }: Props) {
         members: [
           {
             id: uid(),
-            name: memberName || 'מנהל',
+            name: memberName || t('admin.defaultManager'),
             username: 'admin',
             role: 'owner',
             passwordHash,
@@ -784,23 +802,23 @@ export function Admin({ synagogueId }: Props) {
     refreshHistory();
     setPreviewKey((k) => k + 1);
     if (!result.ok) {
-      setStatus(result.error ?? 'השמירה נכשלה — אחסון מלא או שגיאת מדיה');
+      setStatus(result.error ?? t('admin.saveFail'));
     } else if (!result.online) {
       setDirty(false);
-      setStatus('נשמר מקומית — יסונכרן אוטומטית כשיהיה אינטרנט');
-      setToast('נשמר במכשיר — יפורסם כשיהיה אינטרנט');
+      setStatus(t('admin.savedOffline'));
+      setToast(t('admin.toastOffline'));
     } else if (result.pending) {
       setDirty(false);
       setStatus(
         result.error
-          ? `שמירה מקומית — סנכרון נכשל: ${result.error}`
-          : 'שמירה מקומית — המתנה לסנכרון ענן',
+          ? t('admin.savedSyncFail', { error: result.error })
+          : t('admin.savedWaiting'),
       );
-      setToast('נשמר — ממתין לסנכרון');
+      setToast(t('admin.toastWaiting'));
     } else {
       setDirty(false);
-      setStatus('נשמר ופורסם למסך ✓');
-      setToast('פורסם למסך בהצלחה');
+      setStatus(t('admin.savedPublished'));
+      setToast(t('admin.toastPublished'));
     }
   }
 
@@ -810,30 +828,37 @@ export function Admin({ synagogueId }: Props) {
     const pinHash = await hashPin(kioskPin);
     update({ kioskExitPinHash: pinHash });
     setKioskPin('');
-    setStatus('PIN יציאת קיוסק עודכן — לחץ שמור');
+    setStatus(t('admin.pinUpdated'));
   }
 
   async function restoreHistory(entryId: string) {
     const entry = getHistoryEntry(synagogueId, entryId);
     if (!entry || !isOwner) return;
-    if (!confirm(`לשחזר גרסה ${entry.revision} מ־${new Date(entry.at).toLocaleString('he-IL')}?`)) {
+    if (
+      !confirm(
+        t('admin.confirmRestore', {
+          rev: entry.revision,
+          date: new Date(entry.at).toLocaleString(dateTag),
+        }),
+      )
+    ) {
       return;
     }
     const expanded = await expandConfigMedia(entry.config);
     setConfig(expanded);
-    setStatus('שוחזר טיוטה — לחץ שמור כדי להחיל על המסך');
+    setStatus(t('admin.restoredDraft'));
     setTab('settings');
   }
 
   function logout() {
-    if (dirty && !confirm('יש שינויים שלא נשמרו. לצאת בכל זאת?')) return;
+    if (dirty && !confirm(t('admin.confirmLeave'))) return;
     clearSession();
     navigate(`/login/${synagogueId}`);
   }
 
   const licenseOk = isLicenseValid(config.license);
   const licenseExpiry = config.license?.expiresAt
-    ? new Date(config.license.expiresAt).toLocaleDateString('he-IL', {
+    ? new Date(config.license.expiresAt).toLocaleDateString(dateTag, {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
@@ -842,15 +867,16 @@ export function Admin({ synagogueId }: Props) {
   const licenseDays = daysLeft(config.license);
   const licenseBanner = licenseOk ? (
     licenseExpiry ? (
-      `מערכת ברישיון עד ${licenseExpiry}${
-        licenseDays != null && licenseDays <= 30 ? ` · נותרו ${licenseDays} ימים` : ''
-      }`
+      t('admin.licenseOkUntil', { date: licenseExpiry }) +
+      (licenseDays != null && licenseDays <= 30
+        ? t('admin.licenseDaysLeft', { n: licenseDays })
+        : '')
     ) : (
-      'מערכת ברישיון פעיל'
+      t('admin.licenseActive')
     )
   ) : (
     <>
-      אין רישיון פעיל למסך זה — פנה לספק המערכת ·{' '}
+      {t('admin.licenseMissing')}{' '}
       <button
         type="button"
         className="license-pay-link"
@@ -864,18 +890,21 @@ export function Admin({ synagogueId }: Props) {
           );
         }}
       >
-        עדכן כרטיס אשראי — לחץ כאן
+        {t('admin.updateCard')}
       </button>
     </>
   );
 
   return (
-    <div className={`admin${tab === 'canvas' ? ' canvas-mode' : ''}`} dir="rtl" lang="he">
+    <div className={`admin${tab === 'canvas' ? ' canvas-mode' : ''}`} dir={dir} lang={locale}>
       <header className="admin-header sticky-bar">
         <div className="admin-title">
           <BrandLogo size="sm" className="admin-brand-logo" />
           <p className="eyebrow">
-            ניהול מסך · {memberName} ({memberRole === 'owner' ? 'מנהל' : 'עורך'})
+            {t('admin.eyebrow', {
+              name: memberName,
+              role: memberRole === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor'),
+            })}
           </p>
           <h1>{config.name}</h1>
           <div className="admin-meta">
@@ -884,8 +913,8 @@ export function Admin({ synagogueId }: Props) {
             </span>
             {session.viaPlatform ? (
               <span className="license-banner ok">
-                נכנסת כמנהל מערכת ·{' '}
-                <Link to="/agency">חזרה לפאנל העל</Link>
+                {t('admin.platformBanner')}{' '}
+                <Link to="/agency">{t('admin.backToAgency')}</Link>
               </span>
             ) : null}
             {status ? <span className="status">{status}</span> : null}
@@ -897,8 +926,8 @@ export function Admin({ synagogueId }: Props) {
               className="btn inquiry-mail-btn has-unread"
               type="button"
               onClick={() => setTab('support')}
-              title={`${inquiryUnreadMessages} הודעות חדשות מפניות`}
-              aria-label={`${inquiryUnreadMessages} הודעות חדשות בפניות`}
+              title={t('admin.inquiryMailTitle', { n: inquiryUnreadMessages })}
+              aria-label={t('admin.inquiryMailAria', { n: inquiryUnreadMessages })}
             >
               <span className="inquiry-mail-icon" aria-hidden="true">
                 ✉
@@ -906,28 +935,29 @@ export function Admin({ synagogueId }: Props) {
               <span className="inquiry-mail-badge">{inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}</span>
             </button>
           ) : null}
+          <LangSwitch variant="dark" />
           <button
             className="btn ghost"
             type="button"
             onClick={undoEdit}
             disabled={!undo.canUndo}
-            title="בטל (Ctrl+Z)"
-            aria-label="בטל שינוי אחרון"
+            title={t('admin.undoTitle')}
+            aria-label={t('admin.undoAria')}
           >
-            חזור
+            {t('admin.undo')}
           </button>
           <button
             className="btn ghost"
             type="button"
             onClick={redoEdit}
             disabled={!undo.canRedo}
-            title="קדימה (Ctrl+Y)"
-            aria-label="שחזר שינוי"
+            title={t('admin.redoTitle')}
+            aria-label={t('admin.redoAria')}
           >
-            קדימה
+            {t('admin.redo')}
           </button>
           <button className="btn ghost" type="button" onClick={logout}>
-            יציאה
+            {t('admin.logout')}
           </button>
           <button
             className={`btn primary ${dirty ? 'dirty' : ''}`}
@@ -935,7 +965,7 @@ export function Admin({ synagogueId }: Props) {
             onClick={() => void onSave()}
             disabled={saving}
           >
-            {saving ? 'שומר...' : dirty ? 'פרסם למסך · יש שינויים' : 'פרסם למסך'}
+            {saving ? t('admin.saving') : dirty ? t('admin.publishDirty') : t('admin.publish')}
           </button>
         </div>
       </header>
@@ -947,24 +977,24 @@ export function Admin({ synagogueId }: Props) {
       ) : null}
 
       <div className={`admin-body${tab === 'canvas' ? ' is-canvas' : ''}`}>
-        <nav className="admin-tabs" aria-label="ניווט ניהול">
-          {TAB_GROUPS.map((group) => {
-            const items = TABS.filter(
-              (t) => t.group === group.id && (!t.ownerOnly || isOwner),
+        <nav className="admin-tabs" aria-label={t('admin.navAria')}>
+          {tabGroups.map((group) => {
+            const items = tabs.filter(
+              (tabItem) => tabItem.group === group.id && (!tabItem.ownerOnly || isOwner),
             );
             if (!items.length) return null;
             return (
               <div key={group.id} className="tab-group">
                 <p className="tab-group-label">{group.label}</p>
-                {items.map((t) => (
+                {items.map((tabItem) => (
                   <button
-                    key={t.id}
+                    key={tabItem.id}
                     type="button"
-                    className={`tab ${tab === t.id ? 'active' : ''}`}
-                    onClick={() => setTab(t.id)}
+                    className={`tab ${tab === tabItem.id ? 'active' : ''}`}
+                    onClick={() => setTab(tabItem.id)}
                   >
-                    {t.label}
-                    {t.id === 'support' && inquiryUnreadMessages > 0 ? (
+                    {tabItem.label}
+                    {tabItem.id === 'support' && inquiryUnreadMessages > 0 ? (
                       <span className="tab-unread-badge">
                         {inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}
                       </span>
@@ -978,23 +1008,23 @@ export function Admin({ synagogueId }: Props) {
 
         <div className="admin-main">
         {tab !== 'canvas' ? (
-        <div className="admin-quick" role="navigation" aria-label="פעולות מהירות">
+        <div className="admin-quick" role="navigation" aria-label={t('admin.quickAria')}>
           <button type="button" className={tab === 'content' ? 'on' : ''} onClick={() => setTab('content')}>
-            תפילות
+            {t('admin.tabContent')}
           </button>
           <button type="button" className={tab === 'announce' ? 'on' : ''} onClick={() => setTab('announce')}>
-            הודעות
+            {t('admin.tabAnnounce')}
           </button>
           <button type="button" className={tab === 'zmanim' ? 'on' : ''} onClick={() => setTab('zmanim')}>
-            זמנים
+            {t('admin.tabZmanim')}
           </button>
           <button type="button" className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>
-            תצוגה מקדימה
+            {t('admin.tabLive')}
           </button>
           <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
-            מסך חי ↗
+            {t('admin.liveScreen')}
           </Link>
-          <span className="admin-quick-hint">Ctrl+S לפרסום</span>
+          <span className="admin-quick-hint">{t('admin.publishHint')}</span>
         </div>
         ) : null}
 
@@ -1017,36 +1047,39 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'canvas' && isOwner ? (
           <section className="card wide canvas-builder-card">
             <div className="section-head">
-              <h2>בונה מסך חופשי</h2>
+              <h2>{t('admin.canvasTitle')}</h2>
               <div className="section-head-actions">
                 <Link className="btn ghost" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
-                  מסך חי ↗
+                  {t('admin.liveScreen')}
                 </Link>
                 <button
                   type="button"
                   className="btn ghost"
                   onClick={() => {
                     void (async () => {
-                      const name = window.prompt('שם לתבנית העיצוב:', `עיצוב ${config.name}`);
+                      const name = window.prompt(
+                        t('admin.templateNamePrompt'),
+                        t('admin.templateNameDefault', { name: config.name }),
+                      );
                       if (name == null) return;
                       const result = await saveDesignTemplate({
                         synagogueId,
-                        name: name.trim() || `עיצוב ${config.name}`,
-                        description: 'נשמר מבונה המסך',
+                        name: name.trim() || t('admin.templateNameDefault', { name: config.name }),
+                        description: t('admin.templateDesc'),
                         theme: config.theme,
                         layout: 'canvas',
                         design: config.design,
                         canvas: config.canvas,
                       });
                       if (!result.ok || !result.template) {
-                        setStatus(result.error ?? 'שמירת התבנית נכשלה');
+                        setStatus(result.error ?? t('admin.templateSaveFail'));
                         return;
                       }
-                      setStatus(`נשמרה תבנית «${result.template.name}» — זמינה בלשונית עיצוב`);
+                      setStatus(t('admin.templateSaved', { name: result.template.name }));
                     })();
                   }}
                 >
-                  שמור כתבנית
+                  {t('admin.saveAsTemplate')}
                 </button>
                 {config.layout !== 'canvas' ? (
                   <button
@@ -1054,13 +1087,13 @@ export function Admin({ synagogueId }: Props) {
                     className="btn primary"
                     onClick={() => {
                       update({ layout: 'canvas' });
-                      setStatus('מבנה המסך הוגדר לבונה חופשי — לחץ שמור');
+                      setStatus(t('admin.canvasLayoutHintSave'));
                     }}
                   >
-                    הפעל במסך התצוגה
+                    {t('admin.activateOnDisplay')}
                   </button>
                 ) : (
-                  <span className="hint">פעיל במסך התצוגה ✓</span>
+                  <span className="hint">{t('admin.activeOnDisplay')}</span>
                 )}
               </div>
             </div>
@@ -1088,7 +1121,7 @@ export function Admin({ synagogueId }: Props) {
                   synagogueId={synagogueId}
                   onRenewed={(license) => {
                     if (!license) {
-                      setStatus('התשלום בוצע אך לא התקבל רישיון — פנה לתמיכה');
+                      setStatus(t('admin.paymentNoLicense'));
                       return;
                     }
                     void (async () => {
@@ -1105,32 +1138,28 @@ export function Admin({ synagogueId }: Props) {
                         setConfigRaw((prev) =>
                           prev ? { ...prev, license } : prev,
                         );
-                        setStatus(
-                          'התשלום עבר והרישיון עודכן בשרת — רענן את הדף אם המסך לא נפתח',
-                        );
+                        setStatus(t('admin.paymentLicenseServer'));
                         return;
                       }
                       const toSave = { ...current, license };
                       setConfigRaw(toSave);
                       const result = await saveConfig(toSave, undefined, {
                         by: session?.memberName ?? 'billing',
-                        summary: 'חידוש רישיון לאחר תשלום חודשי',
+                        summary: t('admin.licenseRenewSummary'),
                       });
                       if (result.ok) {
                         const refreshed = loadLocal(synagogueId)?.config ?? toSave;
                         setConfigRaw(refreshed);
                         const until = license.expiresAt
-                          ? new Date(license.expiresAt).toLocaleDateString('he-IL')
+                          ? new Date(license.expiresAt).toLocaleDateString(dateTag)
                           : '';
                         setStatus(
                           until
-                            ? `הרישיון חודש עד ${until} — תודה על התשלום`
-                            : 'הרישיון חודש — תודה על התשלום',
+                            ? t('admin.licenseRenewedUntil', { date: until })
+                            : t('admin.licenseRenewed'),
                         );
                       } else {
-                        setStatus(
-                          result.error ?? 'התשלום עבר אך שמירת הרישיון נכשלה — לחץ שמור',
-                        );
+                        setStatus(result.error ?? t('admin.paymentSaveFail'));
                       }
                     })();
                   }}
@@ -1138,9 +1167,9 @@ export function Admin({ synagogueId }: Props) {
               </div>
             ) : null}
             <section className="card">
-              <h2>פרטי בית הכנסת</h2>
+              <h2>{t('admin.settingsTitle')}</h2>
               <label>
-                שם
+                {t('common.name')}
                 <input
                   value={config.name}
                   onChange={(e) => update({ name: e.target.value })}
@@ -1148,7 +1177,7 @@ export function Admin({ synagogueId }: Props) {
                 />
               </label>
               <label>
-                עיר
+                {t('admin.city')}
                 <select
                   value={config.cityId}
                   onChange={(e) => update({ cityId: e.target.value })}
@@ -1162,7 +1191,7 @@ export function Admin({ synagogueId }: Props) {
                 </select>
               </label>
               <label>
-                הקדשה / לע״נ
+                {t('admin.dedication')}
                 <input
                   value={config.dedication ?? ''}
                   onChange={(e) => update({ dedication: e.target.value })}
@@ -1170,35 +1199,35 @@ export function Admin({ synagogueId }: Props) {
               </label>
             </section>
             <section className="card">
-              <h2>מה מוצג במסך</h2>
+              <h2>{t('admin.displayTitle')}</h2>
               {(
                 [
-                  ['showClock', 'שעון חי'],
-                  ['showHebrewDate', 'תאריך עברי'],
-                  ['showParasha', 'פרשת השבוע'],
-                  ['showDafYomi', 'הדף היומי'],
-                  ['showWeather', 'מזג אוויר'],
-                  ['showOrefAlerts', 'התראות פיקוד העורף'],
-                  ['showYahrzeit', 'יארצייט היום'],
-                  ['showCalendarExtras', 'חגים וימי זיכרון'],
+                  ['showClock', 'admin.showClock'],
+                  ['showHebrewDate', 'admin.showHebrewDate'],
+                  ['showParasha', 'admin.showParsha'],
+                  ['showDafYomi', 'admin.showDaf'],
+                  ['showWeather', 'admin.showWeather'],
+                  ['showOrefAlerts', 'admin.showOrefAlerts'],
+                  ['showYahrzeit', 'admin.showYahrzeitToday'],
+                  ['showCalendarExtras', 'admin.showCalendarExtras'],
                 ] as const
-              ).map(([key, label]) => (
+              ).map(([key, labelKey]) => (
                 <label key={key} className="check">
                   <input
                     type="checkbox"
                     checked={Boolean(config[key])}
                     onChange={(e) => update({ [key]: e.target.checked })}
                   />
-                  {label}
+                  {t(labelKey)}
                 </label>
               ))}
               {config.showOrefAlerts ? (
                 <label>
-                  אזורי התראה נוספים (מופרדים בפסיק)
+                  {t('admin.orefAreasExtra')}
                   <input
                     value={config.orefAreaExtra ?? ''}
                     onChange={(e) => update({ orefAreaExtra: e.target.value })}
-                    placeholder="לדוגמה: פתח תקווה - מערב"
+                    placeholder={t('admin.orefAreasPlaceholder')}
                   />
                 </label>
               ) : null}
@@ -1207,8 +1236,8 @@ export function Admin({ synagogueId }: Props) {
             {isOwner ? (
               <>
                 <section className="card emergency-card">
-                  <h2>שידור חירום</h2>
-                  <p className="hint">מסך מלא אדום במסך התצוגה עד כיבוי</p>
+                  <h2>{t('admin.emergencyTitle')}</h2>
+                  <p className="hint">{t('admin.emergencyHint')}</p>
                   <label className="check">
                     <input
                       type="checkbox"
@@ -1223,10 +1252,10 @@ export function Admin({ synagogueId }: Props) {
                         })
                       }
                     />
-                    הפעל הודעת חירום
+                    {t('admin.enableEmergency')}
                   </label>
                   <label>
-                    הודעה
+                    {t('admin.message')}
                     <textarea
                       rows={3}
                       value={config.emergency.message}
@@ -1239,35 +1268,39 @@ export function Admin({ synagogueId }: Props) {
                           },
                         })
                       }
-                      placeholder="לדוגמה: תפילת מנחה מוקדמת היום"
+                      placeholder={t('admin.emergencyPlaceholder')}
                     />
                   </label>
                   <button
                     type="button"
                     className="btn danger"
                     onClick={() =>
-                      void onSave(config.emergency.active ? 'הפעלת חירום' : 'כיבוי חירום')
+                      void onSave(
+                        config.emergency.active
+                          ? t('admin.emergencyOnSummary')
+                          : t('admin.emergencyOffSummary'),
+                      )
                     }
                   >
-                    שמור חירום עכשיו
+                    {t('admin.saveEmergencyNow')}
                   </button>
                 </section>
 
                 <section className="card">
-                  <h2>יציאת קיוסק</h2>
+                  <h2>{t('admin.kioskExitTitle')}</h2>
                   <p className="hint">
-                    PIN ליציאה מ־Electron / מסך מלא (Ctrl+Shift+Q).{' '}
-                    {config.kioskExitPinHash ? 'מוגדר ✓' : 'לא הוגדר'}
+                    {t('admin.kioskHint')}{' '}
+                    {config.kioskExitPinHash ? t('admin.pinSet') : t('admin.pinUnset')}
                   </p>
                   <form className="inline-form" onSubmit={setKioskExitPin}>
                     <input
                       type="password"
                       value={kioskPin}
                       onChange={(e) => setKioskPin(e.target.value)}
-                      placeholder="PIN חדש"
+                      placeholder={t('admin.newPin')}
                     />
                     <button type="submit" className="btn ghost">
-                      עדכן
+                      {t('admin.update')}
                     </button>
                   </form>
                 </section>
@@ -1279,15 +1312,15 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'modes' ? (
           <>
             <section className="card">
-              <h2>שבת וחג</h2>
-              <p className="hint">הגדרות אוטומטיות לסוף השבוע וחגים</p>
+              <h2>{t('admin.modesShabbat')}</h2>
+              <p className="hint">{t('admin.modesShabbatHint')}</p>
               <label className="check">
                 <input
                   type="checkbox"
                   checked={config.modes.autoShabbat}
                   onChange={(e) => updateModes({ autoShabbat: e.target.checked })}
                 />
-                מצב אוטומטי לשבת / ערב שבת
+                {t('admin.autoShabbat')}
               </label>
               <label className="check">
                 <input
@@ -1295,7 +1328,7 @@ export function Admin({ synagogueId }: Props) {
                   checked={config.modes.autoHoliday}
                   onChange={(e) => updateModes({ autoHoliday: e.target.checked })}
                 />
-                מצב אוטומטי לחגים
+                {t('admin.autoHoliday')}
               </label>
               <label className="check">
                 <input
@@ -1303,10 +1336,10 @@ export function Admin({ synagogueId }: Props) {
                   checked={config.modes.showCandleCountdown}
                   onChange={(e) => updateModes({ showCandleCountdown: e.target.checked })}
                 />
-                ספירה לאחור להדלקת נרות
+                {t('admin.candleCountdown')}
               </label>
               <label>
-                דקות לפני שקיעה להדלקה
+                {t('admin.candleOffset')}
                 <input
                   type="number"
                   min={0}
@@ -1317,9 +1350,9 @@ export function Admin({ synagogueId }: Props) {
               </label>
             </section>
             <section className="card">
-              <h2>קרוסלת הודעות</h2>
+              <h2>{t('admin.modesCarousel')}</h2>
               <label>
-                שניות בין הודעות
+                {t('admin.carouselSeconds')}
                 <input
                   type="number"
                   min={3}
@@ -1332,14 +1365,14 @@ export function Admin({ synagogueId }: Props) {
               </label>
             </section>
             <section className="card">
-              <h2>התראות oref</h2>
+              <h2>{t('admin.modesOref')}</h2>
               <label className="check">
                 <input
                   type="checkbox"
                   checked={config.modes.orefSound}
                   onChange={(e) => updateModes({ orefSound: e.target.checked })}
                 />
-                צליל בהתראה
+                {t('admin.orefSound')}
               </label>
               <label className="check">
                 <input
@@ -1347,36 +1380,36 @@ export function Admin({ synagogueId }: Props) {
                   checked={config.modes.muteOrefOnShabbat}
                   onChange={(e) => updateModes({ muteOrefOnShabbat: e.target.checked })}
                 />
-                השתק צליל בשבת
+                {t('admin.muteOrefOnShabbat')}
               </label>
             </section>
             <section className="card wide">
-              <h2>אירוע מיוחד / אבל</h2>
-              <p className="hint">מחליף זמנית את תצוגת המסך הרגילה</p>
+              <h2>{t('admin.modesEvent')}</h2>
+              <p className="hint">{t('admin.modesEventHint')}</p>
               <label>
-                תצוגה
+                {t('admin.displayMode')}
                 <select
                   value={config.modes.specialMode}
                   onChange={(e) =>
                     updateModes({ specialMode: e.target.value as SpecialDisplayMode })
                   }
                 >
-                  <option value="normal">רגיל</option>
-                  <option value="event">אירוע / חתונה</option>
-                  <option value="mourning">אבל / לע״נ</option>
+                  <option value="normal">{t('admin.modeNormal')}</option>
+                  <option value="event">{t('admin.modeEvent')}</option>
+                  <option value="mourning">{t('admin.modeMourning')}</option>
                 </select>
               </label>
               {config.modes.specialMode === 'event' ? (
                 <>
                   <label>
-                    כותרת אירוע
+                    {t('admin.eventTitle')}
                     <input
                       value={config.modes.eventTitle ?? ''}
                       onChange={(e) => updateModes({ eventTitle: e.target.value })}
                     />
                   </label>
                   <label>
-                    תת־כותרת
+                    {t('admin.eventSubtitle')}
                     <input
                       value={config.modes.eventSubtitle ?? ''}
                       onChange={(e) => updateModes({ eventSubtitle: e.target.value })}
@@ -1386,7 +1419,7 @@ export function Admin({ synagogueId }: Props) {
               ) : null}
               {config.modes.specialMode === 'mourning' ? (
                 <label>
-                  שם לע״נ
+                  {t('admin.mourningName')}
                   <input
                     value={config.modes.mourningName ?? ''}
                     onChange={(e) => updateModes({ mourningName: e.target.value })}
@@ -1399,21 +1432,21 @@ export function Admin({ synagogueId }: Props) {
 
         {tab === 'nusach' && isOwner ? (
           <section className="card wide">
-            <h2>תבניות נוסח</h2>
-            <p className="hint">מחליף זמנים ובלוקי תפילה לפי נוסח הקהילה</p>
+            <h2>{t('admin.nusachTitle')}</h2>
+            <p className="hint">{t('admin.nusachHint')}</p>
             <div className="preset-grid">
-              {NUSACH_TEMPLATES.map((t) => (
+              {NUSACH_TEMPLATES.map((nusachTpl) => (
                 <button
-                  key={t.id}
+                  key={nusachTpl.id}
                   type="button"
-                  className={`preset-card ${config.nusach === t.id ? 'active' : ''}`}
+                  className={`preset-card ${config.nusach === nusachTpl.id ? 'active' : ''}`}
                   onClick={() => {
-                    setConfig((c) => (c ? applyNusachTemplate(c, t.id) : c));
-                    setStatus(`נוסח ${t.name} הוחל — לחץ שמור`);
+                    setConfig((c) => (c ? applyNusachTemplate(c, nusachTpl.id) : c));
+                    setStatus(t('admin.nusachApplied', { name: nusachTpl.name }));
                   }}
                 >
-                  <strong>{t.name}</strong>
-                  <em>{t.description}</em>
+                  <strong>{nusachTpl.name}</strong>
+                  <em>{nusachTpl.description}</em>
                 </button>
               ))}
             </div>
@@ -1423,7 +1456,7 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'yahrzeit' ? (
           <section className="card wide">
             <div className="section-head">
-              <h2>יארצייט</h2>
+              <h2>{t('admin.yahrzeitTitle')}</h2>
               <button
                 type="button"
                 className="btn ghost"
@@ -1442,10 +1475,10 @@ export function Admin({ synagogueId }: Props) {
                   })
                 }
               >
-                + יארצייט
+                {t('admin.addYahrzeit')}
               </button>
             </div>
-            <p className="hint">מוצג במסך ביום העברי המתאים</p>
+            <p className="hint">{t('admin.yahrzeitHint')}</p>
             {config.yahrzeits.map((y) => (
               <div className="announce-row" key={y.id}>
                 <input
@@ -1457,7 +1490,7 @@ export function Admin({ synagogueId }: Props) {
                       ),
                     })
                   }
-                  placeholder="שם"
+                  placeholder={t('common.name')}
                 />
                 <select
                   value={y.hebrewMonth}
@@ -1500,7 +1533,7 @@ export function Admin({ synagogueId }: Props) {
                       })
                     }
                   />
-                  פעיל
+                  {t('common.enabled')}
                 </label>
                 <button
                   type="button"
@@ -1509,7 +1542,7 @@ export function Admin({ synagogueId }: Props) {
                     update({ yahrzeits: config.yahrzeits.filter((x) => x.id !== y.id) })
                   }
                 >
-                  מחק
+                  {t('common.delete')}
                 </button>
               </div>
             ))}
@@ -1519,7 +1552,7 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'media' && isOwner ? (
           <section className="card wide">
             <div className="section-head">
-              <h2>מדיה וגלריה</h2>
+              <h2>{t('admin.mediaTitle')}</h2>
               <button
                 type="button"
                 className="btn ghost"
@@ -1535,13 +1568,13 @@ export function Admin({ synagogueId }: Props) {
                   })
                 }
               >
-                נקה שיוכים
+                {t('admin.clearAssignments')}
               </button>
             </div>
 
             <div className="media-slots">
               <MediaPickerField
-                label="לוגו"
+                label={t('admin.logo')}
                 value={config.media.logoDataUrl}
                 synagogueId={synagogueId}
                 gallery={config.media.gallery ?? []}
@@ -1551,7 +1584,7 @@ export function Admin({ synagogueId }: Props) {
                 onStatus={setStatus}
               />
               <MediaPickerField
-                label="רקע מסך"
+                label={t('admin.screenBg')}
                 value={config.media.backgroundDataUrl}
                 synagogueId={synagogueId}
                 gallery={config.media.gallery ?? []}
@@ -1561,7 +1594,7 @@ export function Admin({ synagogueId }: Props) {
                 onStatus={setStatus}
               />
               <MediaPickerField
-                label="תמונת אירוע"
+                label={t('admin.eventImage')}
                 value={config.media.eventImageUrl}
                 synagogueId={synagogueId}
                 gallery={config.media.gallery ?? []}
@@ -1571,7 +1604,7 @@ export function Admin({ synagogueId }: Props) {
                 onStatus={setStatus}
               />
               <MediaPickerField
-                label="סרטון קצר (מצב אירוע)"
+                label={t('admin.loopVideo')}
                 value={config.media.loopVideoUrl}
                 synagogueId={synagogueId}
                 gallery={config.media.gallery ?? []}
@@ -1596,21 +1629,21 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'live' ? (
           <section className="card wide live-preview-card">
             <div className="section-head">
-              <h2>תצוגה מקדימה חיה</h2>
+              <h2>{t('admin.liveTitle')}</h2>
               <div className="row-actions">
                 <button type="button" className="btn ghost" onClick={() => setPreviewKey((k) => k + 1)}>
-                  רענן
+                  {t('admin.refresh')}
                 </button>
                 <Link className="btn ghost" to={`/display/${synagogueId}`} target="_blank">
-                  פתח בחלון
+                  {t('admin.openWindow')}
                 </Link>
               </div>
             </div>
-            <p className="hint">המסך מתעדכן אחרי שמירה — שמור כדי לראות שינויים</p>
+            <p className="hint">{t('admin.liveHint')}</p>
             <div className="preview-frame-wrap">
               <iframe
                 key={previewKey}
-                title="תצוגה מקדימה"
+                title={t('admin.previewIframeTitle')}
                 className="preview-frame"
                 src={previewSrc}
               />
@@ -1620,23 +1653,23 @@ export function Admin({ synagogueId }: Props) {
 
         {tab === 'history' && isOwner ? (
           <section className="card wide">
-            <h2>היסטוריית שינויים</h2>
-            <p className="hint">עד 40 גרסאות אחרונות — שחזור טוען טיוטה; יש לשמור כדי להחיל</p>
+            <h2>{t('admin.historyTitle')}</h2>
+            <p className="hint">{t('admin.historyHint')}</p>
             {history.length === 0 ? (
-              <p className="hint">אין היסטוריה עדיין</p>
+              <p className="hint">{t('admin.noHistory')}</p>
             ) : (
               <ul className="history-list">
                 {history.map((h) => (
                   <li key={h.id}>
                     <div>
-                      <strong>גרסה {h.revision}</strong>
+                      <strong>{t('admin.revision', { n: h.revision })}</strong>
                       <span>
-                        {new Date(h.at).toLocaleString('he-IL')} · {h.by}
+                        {new Date(h.at).toLocaleString(dateTag)} · {h.by}
                       </span>
                       <em>{h.summary}</em>
                     </div>
                     <button type="button" className="btn ghost" onClick={() => void restoreHistory(h.id)}>
-                      שחזר
+                      {t('admin.restore')}
                     </button>
                   </li>
                 ))}
@@ -1647,7 +1680,7 @@ export function Admin({ synagogueId }: Props) {
 
         {tab === 'zmanim' ? (
           <section className="card wide">
-            <h2>זמני היום</h2>
+            <h2>{t('admin.zmanimTitle')}</h2>
             <div className="chips">
               {ZMAN_DEFS.map((z) => (
                 <label
@@ -1669,30 +1702,35 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'content' ? (
           <section className="card wide">
             <div className="section-head">
-              <h2>תפילות וזמנים במסך</h2>
+              <h2>{t('admin.contentTitle')}</h2>
               <button type="button" className="btn ghost" onClick={addBlock}>
-                + בלוק
+                {t('admin.addBlock')}
               </button>
             </div>
             <div className="admin-today">
               <span>
-                {config.blocks.filter((b) => b.enabled).length} בלוקים פעילים ·{' '}
-                {config.blocks.reduce((n, b) => n + b.items.length, 0)} פריטים
+                {t('admin.activeBlocks', {
+                  blocks: config.blocks.filter((b) => b.enabled).length,
+                  items: config.blocks.reduce((n, b) => n + b.items.length, 0),
+                })}
               </span>
               <span>
-                {config.announcements.filter((a) => a.enabled && a.text.trim()).length} הודעות
-                פעילות
+                {t('admin.activeAnnouncements', {
+                  n: config.announcements.filter((a) => a.enabled && a.text.trim()).length,
+                })}
               </span>
-              {dirty ? <strong className="warn">שינויים ממתינים לפרסום</strong> : <em>מעודכן</em>}
+              {dirty ? (
+                <strong className="warn">{t('admin.pendingPublish')}</strong>
+              ) : (
+                <em>{t('admin.upToDate')}</em>
+              )}
             </div>
-            <p className="hint">
-              הזן כותרת ושעה. «עוד» לפתיחת הערה / זמן הלכתי. Ctrl+S מפרסם למסך.
-            </p>
+            <p className="hint">{t('admin.contentHint')}</p>
             {config.blocks.length === 0 ? (
               <div className="admin-empty">
-                <p>עדיין אין בלוקי תפילה</p>
+                <p>{t('admin.noBlocks')}</p>
                 <button type="button" className="btn primary" onClick={addBlock}>
-                  צור בלוק ראשון (למשל שחרית)
+                  {t('admin.createFirstBlock')}
                 </button>
               </div>
             ) : null}
@@ -1715,7 +1753,7 @@ export function Admin({ synagogueId }: Props) {
                     className="block-title"
                     value={block.title}
                     onChange={(e) => updateBlock(block.id, { title: e.target.value })}
-                    placeholder="שם הבלוק (למשל שחרית)"
+                    placeholder={t('admin.blockNamePlaceholder')}
                   />
                   <span className="block-count">{block.items.length}</span>
                   <label className="check">
@@ -1724,7 +1762,7 @@ export function Admin({ synagogueId }: Props) {
                       checked={block.enabled}
                       onChange={(e) => updateBlock(block.id, { enabled: e.target.checked })}
                     />
-                    פעיל
+                    {t('common.enabled')}
                   </label>
                 </div>
                 {collapsed ? null : (
@@ -1748,8 +1786,8 @@ export function Admin({ synagogueId }: Props) {
                     >
                       <span
                         className="item-drag-handle"
-                        title="גרור לשינוי סדר"
-                        aria-label="גרור לשינוי סדר"
+                        title={t('admin.dragReorder')}
+                        aria-label={t('admin.dragReorder')}
                         draggable
                         onDragStart={() => setItemDrag({ blockId: block.id, index })}
                         onDragEnd={() => setItemDrag(null)}
@@ -1761,10 +1799,10 @@ export function Admin({ synagogueId }: Props) {
                         onChange={(e) =>
                           updateItem(block.id, item.id, { title: e.target.value })
                         }
-                        placeholder={item.noTime ? 'כותרת / הערה' : 'כותרת'}
+                        placeholder={item.noTime ? t('admin.itemTitle') : t('admin.titlePlaceholder')}
                       />
                       {item.noTime ? (
-                        <span className="item-hint">בלי שעה</span>
+                        <span className="item-hint">{t('admin.noTime')}</span>
                       ) : item.fromZman ? (
                         <span className="item-hint" dir="ltr">
                           {ZMAN_DEFS.find((z) => z.key === item.fromZman)?.label ?? item.fromZman}
@@ -1786,22 +1824,22 @@ export function Admin({ synagogueId }: Props) {
                         className="btn ghost"
                         onClick={() => setExpandedItemId(open ? null : item.id)}
                       >
-                        {open ? 'סגור' : 'עוד'}
+                        {open ? t('common.close') : t('admin.more')}
                       </button>
                       <button
                         type="button"
                         className="btn ghost"
-                        title="שכפל פריט"
+                        title={t('admin.duplicateItem')}
                         onClick={() => duplicateItem(block.id, item.id)}
                       >
-                        שכפל
+                        {t('common.duplicate')}
                       </button>
                       <button
                         type="button"
                         className="btn danger"
                         onClick={() => removeItem(block.id, item.id)}
                       >
-                        מחק
+                        {t('common.delete')}
                       </button>
                       {open ? (
                         <div className="item-more">
@@ -1809,7 +1847,7 @@ export function Admin({ synagogueId }: Props) {
                             <button
                               type="button"
                               className="btn ghost item-move"
-                              aria-label="העבר למעלה"
+                              aria-label={t('admin.moveUp')}
                               disabled={index === 0}
                               onClick={() => moveItem(block.id, index, -1)}
                             >
@@ -1818,7 +1856,7 @@ export function Admin({ synagogueId }: Props) {
                             <button
                               type="button"
                               className="btn ghost item-move"
-                              aria-label="העבר למטה"
+                              aria-label={t('admin.moveDown')}
                               disabled={index >= block.items.length - 1}
                               onClick={() => moveItem(block.id, index, 1)}
                             >
@@ -1830,7 +1868,7 @@ export function Admin({ synagogueId }: Props) {
                             onChange={(e) =>
                               updateItem(block.id, item.id, { note: e.target.value })
                             }
-                            placeholder="הערה (אופציונלי)"
+                            placeholder={t('admin.noteOptional')}
                           />
                           {!item.noTime ? (
                             <>
@@ -1844,10 +1882,10 @@ export function Admin({ synagogueId }: Props) {
                                   })
                                 }
                               >
-                                <option value="">שעה קבועה</option>
+                                <option value="">{t('admin.fixedTime')}</option>
                                 {ZMAN_DEFS.map((z) => (
                                   <option key={z.key} value={z.key}>
-                                    לפי {z.label}
+                                    {t('admin.accordingTo', { label: z.label })}
                                   </option>
                                 ))}
                               </select>
@@ -1860,7 +1898,7 @@ export function Admin({ synagogueId }: Props) {
                                       offsetMinutes: Number(e.target.value),
                                     })
                                   }
-                                  placeholder="היסט בדקות"
+                                  placeholder={t('admin.offsetMinutes')}
                                 />
                               ) : null}
                             </>
@@ -1873,7 +1911,7 @@ export function Admin({ synagogueId }: Props) {
                                 updateItem(block.id, item.id, { noTime: e.target.checked })
                               }
                             />
-                            שורה בלי שעה
+                            {t('admin.rowWithoutTime')}
                           </label>
                         </div>
                       ) : null}
@@ -1882,14 +1920,14 @@ export function Admin({ synagogueId }: Props) {
                 })}
                 <div className="row-actions">
                   <button type="button" className="btn ghost" onClick={() => addItem(block.id)}>
-                    + פריט
+                    {t('admin.addItem')}
                   </button>
                   <button
                     type="button"
                     className="btn ghost"
                     onClick={() => addItem(block.id, true)}
                   >
-                    + שורה בלי שעה
+                    {t('admin.addNoTimeRow')}
                   </button>
                 </div>
                 </>
@@ -1903,7 +1941,7 @@ export function Admin({ synagogueId }: Props) {
         {tab === 'announce' ? (
           <section className="card wide">
             <div className="section-head">
-              <h2>הודעות למסך</h2>
+              <h2>{t('admin.announceTitle')}</h2>
               <button
                 type="button"
                 className="btn primary"
@@ -1921,13 +1959,13 @@ export function Admin({ synagogueId }: Props) {
                   })
                 }
               >
-                + הודעה חדשה
+                {t('admin.newAnnouncement')}
               </button>
             </div>
-            <p className="hint">ההודעה תופיע במסך רק בין התאריכים שתגדיר (אופציונלי).</p>
+            <p className="hint">{t('admin.announceHint')}</p>
             {config.announcements.length === 0 ? (
               <div className="admin-empty">
-                <p>אין הודעות עדיין</p>
+                <p>{t('admin.noAnnouncements')}</p>
                 <button
                   type="button"
                   className="btn primary"
@@ -1944,24 +1982,24 @@ export function Admin({ synagogueId }: Props) {
                     })
                   }
                 >
-                  כתוב הודעה ראשונה
+                  {t('admin.writeFirstAnnouncement')}
                 </button>
               </div>
             ) : (
               config.announcements.map((a) => (
                 <div className="announce-card" key={a.id}>
                   <label className="announce-text">
-                    טקסט ההודעה
+                    {t('admin.announceText')}
                     <textarea
                       value={a.text}
                       rows={2}
                       onChange={(e) => updateAnnouncement(a.id, { text: e.target.value })}
-                      placeholder="לדוגמה: שיעור אחרי ערבית · מניין נוסף בשבת"
+                      placeholder={t('admin.announcePlaceholder')}
                     />
                   </label>
                   <div className="announce-dates">
                     <label>
-                      מתאריך
+                      {t('admin.fromDate')}
                       <input
                         type="date"
                         value={a.startDate ?? ''}
@@ -1971,7 +2009,7 @@ export function Admin({ synagogueId }: Props) {
                       />
                     </label>
                     <label>
-                      עד תאריך
+                      {t('admin.toDate')}
                       <input
                         type="date"
                         value={a.endDate ?? ''}
@@ -1986,7 +2024,7 @@ export function Admin({ synagogueId }: Props) {
                         checked={a.enabled}
                         onChange={(e) => updateAnnouncement(a.id, { enabled: e.target.checked })}
                       />
-                      פעיל במסך
+                      {t('admin.activeOnScreen')}
                     </label>
                   </div>
                   <div className="row-actions">
@@ -2000,13 +2038,13 @@ export function Admin({ synagogueId }: Props) {
                             {
                               ...a,
                               id: uid(),
-                              text: a.text ? `${a.text} (העתק)` : '',
+                              text: a.text ? t('admin.textCopy', { text: a.text }) : '',
                             },
                           ],
                         })
                       }
                     >
-                      שכפל
+                      {t('common.duplicate')}
                     </button>
                     <button
                       type="button"
@@ -2017,7 +2055,7 @@ export function Admin({ synagogueId }: Props) {
                         })
                       }
                     >
-                      מחק
+                      {t('common.delete')}
                     </button>
                   </div>
                 </div>
@@ -2047,22 +2085,22 @@ export function Admin({ synagogueId }: Props) {
 
         {tab === 'users' && isOwner ? (
           <section className="card wide">
-            <h2>משתמשים והרשאות</h2>
-            <p className="hint">מנהל — הכל. עורך — תוכן בלבד. התחברות עם שם המשתמש (לא שם התצוגה) והסיסמה.</p>
+            <h2>{t('admin.usersTitle')}</h2>
+            <p className="hint">{t('admin.usersHint')}</p>
             <ul className="members-list">
               {config.members.map((m) =>
                 editMemberId === m.id ? (
                   <li key={m.id} className="member-editing">
                     <form className="member-form" onSubmit={saveEditMember}>
                       <input
-                        placeholder="שם לתצוגה"
+                        placeholder={t('admin.displayName')}
                         value={editMember.name}
                         onChange={(e) =>
                           setEditMember({ ...editMember, name: e.target.value })
                         }
                       />
                       <input
-                        placeholder="שם משתמש"
+                        placeholder={t('admin.username')}
                         value={editMember.username}
                         onChange={(e) =>
                           setEditMember({ ...editMember, username: e.target.value })
@@ -2077,18 +2115,18 @@ export function Admin({ synagogueId }: Props) {
                           setEditMember({ ...editMember, role: e.target.value as UserRole })
                         }
                       >
-                        <option value="editor">עורך</option>
-                        <option value="owner">מנהל</option>
+                        <option value="editor">{t('admin.roleEditor')}</option>
+                        <option value="owner">{t('admin.roleOwner')}</option>
                       </select>
                       <button type="submit" className="btn primary">
-                        שמור שינוי
+                        {t('admin.saveChange')}
                       </button>
                       <button
                         type="button"
                         className="btn ghost"
                         onClick={() => setEditMemberId(null)}
                       >
-                        ביטול
+                        {t('common.cancel')}
                       </button>
                     </form>
                   </li>
@@ -2097,7 +2135,8 @@ export function Admin({ synagogueId }: Props) {
                     <div>
                       <strong>{m.name}</strong>
                       <span>
-                        {m.username || m.name} · {m.role === 'owner' ? 'מנהל' : 'עורך'}
+                        {m.username || m.name} ·{' '}
+                        {m.role === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor')}
                       </span>
                     </div>
                     <div className="member-actions">
@@ -2106,21 +2145,21 @@ export function Admin({ synagogueId }: Props) {
                         className="btn ghost"
                         onClick={() => startEditMember(m)}
                       >
-                        ערוך
+                        {t('admin.editUser')}
                       </button>
                       <button
                         type="button"
                         className="btn ghost"
                         onClick={() => void resetMemberPassword(m.id)}
                       >
-                        אפס סיסמה
+                        {t('admin.resetPass')}
                       </button>
                       <button
                         type="button"
                         className="btn danger"
                         onClick={() => removeMember(m)}
                       >
-                        מחק
+                        {t('common.delete')}
                       </button>
                     </div>
                   </li>
@@ -2130,14 +2169,14 @@ export function Admin({ synagogueId }: Props) {
             <form className="member-form member-form-add" onSubmit={(e) => void addMember(e)}>
               <input
                 name="memberName"
-                placeholder="שם לתצוגה"
+                placeholder={t('admin.displayName')}
                 value={newMember.name}
                 onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
                 required
               />
               <input
                 name="memberUsername"
-                placeholder="שם משתמש"
+                placeholder={t('admin.username')}
                 value={newMember.username}
                 onChange={(e) => setNewMember({ ...newMember, username: e.target.value })}
                 dir="ltr"
@@ -2147,7 +2186,7 @@ export function Admin({ synagogueId }: Props) {
               />
               <input
                 name="memberPassword"
-                placeholder="סיסמה"
+                placeholder={t('admin.password')}
                 type="password"
                 dir="ltr"
                 style={{ textAlign: 'left' }}
@@ -2162,11 +2201,11 @@ export function Admin({ synagogueId }: Props) {
                   setNewMember({ ...newMember, role: e.target.value as UserRole })
                 }
               >
-                <option value="editor">עורך</option>
-                <option value="owner">מנהל</option>
+                <option value="editor">{t('admin.roleEditor')}</option>
+                <option value="owner">{t('admin.roleOwner')}</option>
               </select>
               <button type="submit" className="btn primary">
-                הוסף
+                {t('common.add')}
               </button>
             </form>
           </section>
@@ -2176,14 +2215,14 @@ export function Admin({ synagogueId }: Props) {
       </div>
 
       <div className={`admin-save-bar ${dirty ? 'show' : ''}`}>
-        <span>{dirty ? 'יש שינויים — לחץ לפרסום למסך' : 'הכל מעודכן'}</span>
+        <span>{dirty ? t('admin.dirtyBar') : t('admin.allUpdated')}</span>
         <button
           type="button"
           className="btn primary"
           disabled={saving || !dirty}
           onClick={() => void onSave()}
         >
-          {saving ? 'מפרסם…' : 'פרסם למסך'}
+          {saving ? t('admin.publishing') : t('admin.publish')}
         </button>
       </div>
 
@@ -2200,10 +2239,10 @@ export function Admin({ synagogueId }: Props) {
             onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => void confirmPasswordReset(e)}
           >
-            <h2>איפוס סיסמה</h2>
-            <p className="hint">משתמש: {passwordReset.label}</p>
+            <h2>{t('admin.resetPasswordTitle')}</h2>
+            <p className="hint">{t('admin.userLabel', { label: passwordReset.label })}</p>
             <label>
-              סיסמה חדשה
+              {t('admin.newPassword')}
               <input
                 type="password"
                 value={passwordReset.pass}
@@ -2218,7 +2257,7 @@ export function Admin({ synagogueId }: Props) {
               />
             </label>
             <label>
-              אימות סיסמה
+              {t('admin.confirmPassword')}
               <input
                 type="password"
                 value={passwordReset.pass2}
@@ -2233,10 +2272,10 @@ export function Admin({ synagogueId }: Props) {
             </label>
             <div className="modal-actions">
               <button type="button" className="btn ghost" onClick={() => setPasswordReset(null)}>
-                ביטול
+                {t('common.cancel')}
               </button>
               <button type="submit" className="btn primary">
-                עדכן סיסמה
+                {t('admin.updatePassword')}
               </button>
             </div>
           </form>

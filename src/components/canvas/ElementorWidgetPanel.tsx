@@ -1,5 +1,6 @@
 import type { CanvasHtmlTag, CanvasWidget, ScheduleBlock, ZmanKey } from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
+import { useI18n } from '../../i18n';
 import { RichTextEditor } from '../RichTextEditor';
 import { clamp } from './widgets';
 
@@ -13,7 +14,7 @@ function PxField({
   min,
   max,
   step = 1,
-  placeholder = 'אוטומטי',
+  placeholder,
   onChange,
 }: {
   label: string;
@@ -24,6 +25,8 @@ function PxField({
   placeholder?: string;
   onChange: (value: number | undefined) => void;
 }) {
+  const { t } = useI18n();
+  const ph = placeholder ?? t('canvas.auto');
   return (
     <label className="cb-el-field">
       <span>{label}</span>
@@ -34,7 +37,7 @@ function PxField({
           min={min}
           max={max}
           step={step}
-          placeholder={placeholder}
+          placeholder={ph}
           value={value ?? ''}
           onChange={(e) => {
             const raw = e.target.value.trim();
@@ -61,20 +64,21 @@ function AlignGroup({
   value: CanvasWidget['align'];
   onChange: (v: CanvasWidget['align']) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <div className="cb-el-align" role="group" aria-label="יישור">
+    <div className="cb-el-align" role="group" aria-label={t('canvas.alignAria')}>
       {(
         [
-          ['right', 'ימין'],
-          ['center', 'מרכז'],
-          ['left', 'שמאל'],
+          ['right', 'canvas.alignRight'],
+          ['center', 'canvas.alignCenter'],
+          ['left', 'canvas.alignLeft'],
         ] as const
-      ).map(([id, label]) => (
+      ).map(([id, labelKey]) => (
         <button
           key={id}
           type="button"
           className={value === id ? 'on' : ''}
-          title={label}
+          title={t(labelKey)}
           onClick={() => onChange(id)}
         >
           {id === 'right' ? '▤' : id === 'center' ? '▦' : '▥'}
@@ -131,23 +135,24 @@ export function ElementorWidgetPanel({
   onClose,
   label,
 }: Props) {
+  const { t } = useI18n();
   const id = selected.id;
   const patch = (p: Partial<CanvasWidget>) => patchWidget(id, p);
 
   return (
     <div className="cb-el-panel">
       <div className="cb-el-head">
-        <button type="button" className="cb-el-back" onClick={onClose} title="חזרה לרכיבים">
+        <button type="button" className="cb-el-back" onClick={onClose} title={t('panels.canvasBack')}>
           ←
         </button>
         <div className="cb-el-head-title">
-          <strong>עריכת {label}</strong>
+          <strong>{t('panels.canvasEdit', { label })}</strong>
         </div>
         <div className="cb-el-head-actions">
-          <button type="button" className="btn ghost" onClick={onDuplicate} title="שכפול">
+          <button type="button" className="btn ghost" onClick={onDuplicate} title={t('canvas.duplicateTitle')}>
             ⎘
           </button>
-          <button type="button" className="btn danger" onClick={onRemove} title="מחיקה">
+          <button type="button" className="btn danger" onClick={onRemove} title={t('canvas.deleteTitle')}>
             ✕
           </button>
         </div>
@@ -156,11 +161,11 @@ export function ElementorWidgetPanel({
       <div className="cb-el-tabs" role="tablist">
         {(
           [
-            ['content', 'תוכן', '✎'],
-            ['style', 'סגנון', '◐'],
-            ['advanced', 'מתקדם', '⚙'],
+            ['content', 'canvas.tabContent', '✎'],
+            ['style', 'canvas.styleTab', '◐'],
+            ['advanced', 'canvas.tabAdvanced', '⚙'],
           ] as const
-        ).map(([tid, text, icon]) => (
+        ).map(([tid, labelKey, icon]) => (
           <button
             key={tid}
             type="button"
@@ -170,7 +175,7 @@ export function ElementorWidgetPanel({
             onClick={() => onTab(tid)}
           >
             <span aria-hidden>{icon}</span>
-            {text}
+            {t(labelKey)}
           </button>
         ))}
       </div>
@@ -184,16 +189,16 @@ export function ElementorWidgetPanel({
                 {selected.type === 'heading' ? (
                   <>
                     <label className="cb-el-field">
-                      <span>כותרת</span>
+                      <span>{t('canvas.heading')}</span>
                       <textarea
                         rows={3}
                         value={selected.text ?? selected.title ?? ''}
-                        placeholder="כתבו את הכותרת כאן"
+                        placeholder={t('canvas.headingPh')}
                         onChange={(e) => patch({ text: e.target.value, title: e.target.value })}
                       />
                     </label>
                     <label className="cb-el-field">
-                      <span>קישור</span>
+                      <span>{t('canvas.link')}</span>
                       <input
                         dir="ltr"
                         style={{ textAlign: 'left' }}
@@ -203,14 +208,14 @@ export function ElementorWidgetPanel({
                       />
                     </label>
                     <label className="cb-el-field">
-                      <span>תגית HTML</span>
+                      <span>{t('canvas.htmlTag')}</span>
                       <select
                         value={selected.htmlTag ?? 'h2'}
                         onChange={(e) => patch({ htmlTag: e.target.value as CanvasHtmlTag })}
                       >
-                        {(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div'] as const).map((t) => (
-                          <option key={t} value={t}>
-                            {t.toUpperCase()}
+                        {(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div'] as const).map((tag) => (
+                          <option key={tag} value={tag}>
+                            {tag.toUpperCase()}
                           </option>
                         ))}
                       </select>
@@ -220,12 +225,12 @@ export function ElementorWidgetPanel({
 
                 {selected.type === 'text' ? (
                   <div className="cb-rich-field">
-                    <div className="cb-label">תוכן</div>
+                    <div className="cb-label">{t('canvas.content')}</div>
                     <RichTextEditor
                       value={selected.text ?? ''}
                       onChange={(html) => patch({ text: html })}
                       onFontSizePx={(px) => patch({ fontSizePx: px })}
-                      placeholder="כתבו טקסט…"
+                      placeholder={t('canvas.textPh')}
                     />
                   </div>
                 ) : null}
@@ -233,15 +238,15 @@ export function ElementorWidgetPanel({
                 {selected.type === 'button' ? (
                   <>
                     <label className="cb-el-field">
-                      <span>טקסט הכפתור</span>
+                      <span>{t('canvas.buttonText')}</span>
                       <input
                         value={selected.buttonLabel ?? ''}
-                        placeholder="לחצו כאן"
+                        placeholder={t('canvas.buttonPh')}
                         onChange={(e) => patch({ buttonLabel: e.target.value })}
                       />
                     </label>
                     <label className="cb-el-field">
-                      <span>קישור</span>
+                      <span>{t('canvas.link')}</span>
                       <input
                         dir="ltr"
                         style={{ textAlign: 'left' }}
@@ -255,12 +260,12 @@ export function ElementorWidgetPanel({
 
                 {selected.type === 'video' ? (
                   <label className="cb-el-field">
-                    <span>קישור וידאו</span>
+                    <span>{t('canvas.videoUrl')}</span>
                     <input
                       dir="ltr"
                       style={{ textAlign: 'left' }}
                       value={selected.videoUrl ?? ''}
-                      placeholder="YouTube או קובץ MP4…"
+                      placeholder={t('canvas.videoPh')}
                       onChange={(e) => patch({ videoUrl: e.target.value || undefined })}
                     />
                   </label>
@@ -268,17 +273,17 @@ export function ElementorWidgetPanel({
 
                 {selected.type === 'image' ? (
                   <div className="mg-field">
-                    <div className="mg-field-label">תמונה</div>
+                    <div className="mg-field-label">{t('canvas.image')}</div>
                     <button type="button" className="btn primary" onClick={onPickImage}>
-                      בחירה מהגלריה / העלאה
+                      {t('canvas.pickImage')}
                     </button>
                     {selected.imageUrl ? (
                       <button type="button" className="btn ghost" onClick={() => patch({ imageUrl: '' })}>
-                        הסרת תמונה
+                        {t('canvas.removeImage')}
                       </button>
                     ) : null}
                     <label className="cb-el-field">
-                      <span>קישור (אופציונלי)</span>
+                      <span>{t('canvas.linkOptional')}</span>
                       <input
                         dir="ltr"
                         style={{ textAlign: 'left' }}
@@ -291,7 +296,7 @@ export function ElementorWidgetPanel({
                 ) : null}
 
                 {selected.type === 'divider' ? (
-                  <p className="cb-hint">מפריד אופקי — עצבו צבע ועובי בלשונית סגנון.</p>
+                  <p className="cb-hint">{t('canvas.dividerHint')}</p>
                 ) : null}
 
                 {selected.type !== 'heading' &&
@@ -301,10 +306,10 @@ export function ElementorWidgetPanel({
                 selected.type !== 'image' &&
                 selected.type !== 'divider' ? (
                   <label className="cb-el-field">
-                    <span>כותרת מותאמת</span>
+                    <span>{t('canvas.customTitle')}</span>
                     <input
                       value={selected.title ?? ''}
-                      placeholder="ריק = ברירת מחדל"
+                      placeholder={t('canvas.customTitlePh')}
                       onChange={(e) => patch({ title: e.target.value })}
                     />
                   </label>
@@ -312,12 +317,12 @@ export function ElementorWidgetPanel({
 
                 {selected.type === 'block' ? (
                   <label className="cb-el-field">
-                    <span>בלוק תפילות</span>
+                    <span>{t('canvas.prayerBlock')}</span>
                     <select
                       value={selected.blockId ?? ''}
                       onChange={(e) => patch({ blockId: e.target.value })}
                     >
-                      <option value="">ראשון פעיל</option>
+                      <option value="">{t('canvas.firstActive')}</option>
                       {blocks.map((b) => (
                         <option key={b.id} value={b.id}>
                           {b.title}
@@ -330,7 +335,7 @@ export function ElementorWidgetPanel({
                 {selected.type === 'zman' ? (
                   <>
                     <label className="cb-el-field">
-                      <span>איזה זמן</span>
+                      <span>{t('canvas.whichZman')}</span>
                       <select
                         value={selected.zmanKey ?? 'sunrise'}
                         onChange={(e) => {
@@ -353,7 +358,7 @@ export function ElementorWidgetPanel({
                       </select>
                     </label>
                     <label className="cb-el-field">
-                      <span>מיקום כותרת</span>
+                      <span>{t('canvas.titlePosition')}</span>
                       <select
                         value={selected.titleLayout ?? 'above'}
                         onChange={(e) =>
@@ -362,10 +367,10 @@ export function ElementorWidgetPanel({
                           })
                         }
                       >
-                        <option value="above">מעל השעה</option>
-                        <option value="below">מתחת לשעה</option>
-                        <option value="side">בצד</option>
-                        <option value="side-reverse">בצד הפוך</option>
+                        <option value="above">{t('canvas.titleAbove')}</option>
+                        <option value="below">{t('canvas.titleBelow')}</option>
+                        <option value="side">{t('canvas.titleSide')}</option>
+                        <option value="side-reverse">{t('canvas.titleSideRev')}</option>
                       </select>
                     </label>
                   </>
@@ -383,7 +388,7 @@ export function ElementorWidgetPanel({
                       checked={selected.showTitle}
                       onChange={(e) => patch({ showTitle: e.target.checked })}
                     />
-                    הצגת כותרת
+                    {t('canvas.showTitle')}
                   </label>
                 ) : null}
 
@@ -393,7 +398,7 @@ export function ElementorWidgetPanel({
                     checked={selected.visible}
                     onChange={(e) => patch({ visible: e.target.checked })}
                   />
-                  מוצג במסך
+                  {t('canvas.visibleOnScreen')}
                 </label>
               </div>
             </details>
@@ -403,20 +408,20 @@ export function ElementorWidgetPanel({
         {tab === 'style' ? (
           <>
             <details className="cb-sec" open>
-              <summary>טיפוגרפיה וצבע</summary>
+              <summary>{t('canvas.typographyColor')}</summary>
               <div className="cb-sec-body">
                 <div className="cb-el-field">
-                  <span>יישור</span>
+                  <span>{t('canvas.alignment')}</span>
                   <AlignGroup value={selected.align} onChange={(align) => patch({ align })} />
                 </div>
 
                 <label className="cb-el-field">
-                  <span>גופן</span>
+                  <span>{t('canvas.font')}</span>
                   <select
                     value={selected.fontFamily ?? ''}
                     onChange={(e) => patch({ fontFamily: e.target.value || undefined })}
                   >
-                    <option value="">ברירת מחדל</option>
+                    <option value="">{t('canvas.fontDefault')}</option>
                     {fontOptions.map((f) => (
                       <option key={f.id} value={f.id}>
                         {f.label}
@@ -426,22 +431,22 @@ export function ElementorWidgetPanel({
                 </label>
 
                 <label className="cb-el-field">
-                  <span>משקל</span>
+                  <span>{t('canvas.weight')}</span>
                   <select
                     value={selected.fontWeight ?? 'normal'}
                     onChange={(e) =>
                       patch({ fontWeight: e.target.value as CanvasWidget['fontWeight'] })
                     }
                   >
-                    <option value="normal">רגיל</option>
-                    <option value="medium">בינוני</option>
-                    <option value="bold">מודגש</option>
+                    <option value="normal">{t('canvas.weightNormal')}</option>
+                    <option value="medium">{t('canvas.weightMedium')}</option>
+                    <option value="bold">{t('canvas.weightBold')}</option>
                   </select>
                 </label>
 
                 <div className="cb-grid-fields">
                   <label className="cb-el-field">
-                    <span>צבע</span>
+                    <span>{t('canvas.color')}</span>
                     <input
                       type="color"
                       value={selected.color ?? '#1c3140'}
@@ -449,7 +454,7 @@ export function ElementorWidgetPanel({
                     />
                   </label>
                   <label className="cb-el-field">
-                    <span>צבע כותרת</span>
+                    <span>{t('canvas.titleColor')}</span>
                     <input
                       type="color"
                       value={selected.titleColor ?? '#a8893d'}
@@ -460,21 +465,21 @@ export function ElementorWidgetPanel({
 
                 <div className="cb-grid-fields">
                   <PxField
-                    label="גודל פונט"
+                    label={t('canvas.fontSize')}
                     value={selected.fontSizePx}
                     min={8}
                     max={400}
                     onChange={(v) => patch({ fontSizePx: v })}
                   />
                   <PxField
-                    label="גובה שורה"
+                    label={t('canvas.lineHeight')}
                     value={selected.lineHeightPx}
                     min={4}
                     max={400}
                     onChange={(v) => patch({ lineHeightPx: v })}
                   />
                   <PxField
-                    label="מרווח אותיות"
+                    label={t('canvas.letterSpacing')}
                     value={selected.letterSpacingPx}
                     min={-20}
                     max={80}
@@ -483,7 +488,7 @@ export function ElementorWidgetPanel({
                     onChange={(v) => patch({ letterSpacingPx: v })}
                   />
                   <PxField
-                    label="גודל כותרת"
+                    label={t('canvas.titleSize')}
                     value={selected.titleSizePx}
                     min={6}
                     max={400}
@@ -497,16 +502,16 @@ export function ElementorWidgetPanel({
                     checked={selected.textShadow}
                     onChange={(e) => patch({ textShadow: e.target.checked })}
                   />
-                  הצללת טקסט
+                  {t('canvas.textShadow')}
                 </label>
               </div>
             </details>
 
             <details className="cb-sec" open>
-              <summary>רקע ומסגרת</summary>
+              <summary>{t('canvas.bgBorder')}</summary>
               <div className="cb-sec-body">
                 <label className="cb-el-field">
-                  <span>רקע</span>
+                                      <span>{t('canvas.background')}</span>
                   <select
                     value={selected.bg}
                     onChange={(e) => {
@@ -519,11 +524,11 @@ export function ElementorWidgetPanel({
                       });
                     }}
                   >
-                    <option value="none">שקוף</option>
-                    <option value="ghost">שקוף + צל</option>
-                    <option value="panel">זכוכית</option>
-                    <option value="solid">לבן</option>
-                    <option value="dark">כהה</option>
+                    <option value="none">{t('canvas.bgNone')}</option>
+                    <option value="ghost">{t('canvas.bgGhost')}</option>
+                    <option value="panel">{t('canvas.bgPanel')}</option>
+                    <option value="solid">{t('canvas.bgSolid')}</option>
+                    <option value="dark">{t('canvas.bgDark')}</option>
                   </select>
                 </label>
                 <label className="check">
@@ -532,10 +537,10 @@ export function ElementorWidgetPanel({
                     checked={selected.showBorder}
                     onChange={(e) => patch({ showBorder: e.target.checked })}
                   />
-                  מסגרת
+                  {t('canvas.border')}
                 </label>
                 <PxField
-                  label="עיגול פינות"
+                  label={t('canvas.radius')}
                   value={selected.radius}
                   min={0}
                   max={200}
@@ -543,14 +548,14 @@ export function ElementorWidgetPanel({
                   onChange={(v) => patch({ radius: v ?? 0 })}
                 />
                 <PxField
-                  label="ריפוד פנימי"
+                  label={t('canvas.padding')}
                   value={selected.paddingPx}
                   min={0}
                   max={200}
                   onChange={(v) => patch({ paddingPx: v })}
                 />
                 <label className="cb-el-field">
-                  <span>שקיפות ({selected.opacity.toFixed(2)})</span>
+                  <span>{t('canvas.opacity', { n: selected.opacity.toFixed(2) })}</span>
                   <input
                     type="range"
                     min={0.1}
@@ -568,31 +573,31 @@ export function ElementorWidgetPanel({
         {tab === 'advanced' ? (
           <>
             <details className="cb-sec" open>
-              <summary>פריסה</summary>
+              <summary>{t('canvas.layout')}</summary>
               <div className="cb-sec-body">
                 <div className="cb-align">
                   <button type="button" onClick={() => alignSelected('right')}>
-                    ימין
+                    {t('canvas.alignRight')}
                   </button>
                   <button type="button" onClick={() => alignSelected('h-center')}>
-                    מרכז ↔
+                    {t('canvas.alignCenter')} ↔
                   </button>
                   <button type="button" onClick={() => alignSelected('left')}>
-                    שמאל
+                    {t('canvas.alignLeft')}
                   </button>
                   <button type="button" onClick={() => alignSelected('top')}>
-                    למעלה
+                    {t('canvas.alignTop')}
                   </button>
                   <button type="button" onClick={() => alignSelected('v-center')}>
-                    מרכז ↕
+                    {t('canvas.alignCenter')} ↕
                   </button>
                   <button type="button" onClick={() => alignSelected('bottom')}>
-                    למטה
+                    {t('canvas.alignBottom')}
                   </button>
                 </div>
 
                 <div className="cb-unit-switch">
-                  <span>יחידות</span>
+                  <span>{t('canvas.units')}</span>
                   <div className="cb-unit-buttons">
                     <button
                       type="button"
@@ -616,13 +621,13 @@ export function ElementorWidgetPanel({
                     [
                       ['x', 'X', 'x'],
                       ['y', 'Y', 'y'],
-                      ['w', 'רוחב', 'x'],
-                      ['h', 'גובה', 'y'],
+                      ['w', 'canvas.width', 'x'],
+                      ['h', 'canvas.height', 'y'],
                     ] as const
                   ).map(([key, lab, axis]) => (
                     <label key={key} className="cb-el-field">
                       <span>
-                        {lab} {boxUnit === 'px' ? 'px' : '%'}
+                        {lab.startsWith('canvas.') ? t(lab) : lab} {boxUnit === 'px' ? 'px' : '%'}
                       </span>
                       <input
                         type="number"
@@ -643,21 +648,21 @@ export function ElementorWidgetPanel({
                 </div>
                 {boxUnit === 'px' ? (
                   <p className="cb-hint">
-                    יחסית למסך {refWidth}×{refHeight}
+                    {t('canvas.relativeTo', { w: refWidth, h: refHeight })}
                   </p>
                 ) : null}
               </div>
             </details>
 
             <details className="cb-sec">
-              <summary>שכבות</summary>
+              <summary>{t('canvas.layers')}</summary>
               <div className="cb-sec-body">
                 <div className="cb-row-actions">
                   <button type="button" className="btn ghost" onClick={onBringFront}>
-                    לחזית
+                    {t('canvas.toFront')}
                   </button>
                   <button type="button" className="btn ghost" onClick={onSendBack}>
-                    לרקע
+                    {t('canvas.toBack')}
                   </button>
                 </div>
               </div>

@@ -6,6 +6,7 @@ import {
   removeFromGallery,
 } from '../lib/gallery';
 import { uploadMedia, type MediaKind } from '../lib/media';
+import { useI18n } from '../i18n';
 import './MediaPicker.css';
 
 interface ModalProps {
@@ -25,7 +26,7 @@ interface ModalProps {
 
 export function MediaGalleryModal({
   open,
-  title = 'בחירה מהגלריה',
+  title,
   synagogueId,
   gallery,
   kind,
@@ -36,6 +37,8 @@ export function MediaGalleryModal({
   onGalleryChange,
   onStatus,
 }: ModalProps) {
+  const { t, dir } = useI18n();
+  const modalTitle = title ?? t('panels.pickMedia');
   const fileRef = useRef<HTMLInputElement>(null);
   const ignoreOverlayUntil = useRef(0);
   const [uploading, setUploading] = useState(false);
@@ -100,26 +103,26 @@ export function MediaGalleryModal({
           : uploadKind;
 
     if (kind === 'image' && file.type.startsWith('video/')) {
-      setError('יש לבחור תמונה, לא סרטון');
+      setError(t('media.pickImageNotVideo'));
       return;
     }
     if (kind === 'video' && file.type.startsWith('image/')) {
-      setError('יש לבחור סרטון, לא תמונה');
+      setError(t('media.pickVideoNotImage'));
       return;
     }
 
     setUploading(true);
     setProgress(0);
-    setProgressLabel('מתחיל...');
+    setProgressLabel(t('media.starting'));
     setError('');
-    onStatus?.('מעלה לגלריה...');
+    onStatus?.(t('media.uploadingGallery'));
     try {
       const r = await uploadMedia(synagogueId, file, detected, 'gallery', (pct, label) => {
         setProgress(pct);
         if (label) setProgressLabel(label);
       });
       setProgress(100);
-      setProgressLabel('הושלם');
+      setProgressLabel(t('media.done'));
       const item = createGalleryItem(r.url, detected, file.name);
       const nextGallery = [item, ...gallery.filter((g) => g.url !== item.url)];
       onGalleryChange(nextGallery);
@@ -127,8 +130,8 @@ export function MediaGalleryModal({
         onSelect(item.url);
       }
       const msg = r.remote
-        ? 'הועלה לגלריה ולשרת — לחץ שמור'
-        : r.warning ?? 'נוסף לגלריה — לחץ שמור';
+        ? t('media.uploadedRemote')
+        : r.warning ?? t('media.addedLocal');
       onStatus?.(msg);
       if (!manageOnly) {
         // short delay so user sees 100%
@@ -139,7 +142,7 @@ export function MediaGalleryModal({
         onStatus?.(msg);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'העלאה נכשלה';
+      const msg = err instanceof Error ? err.message : t('media.uploadFail');
       setError(msg);
       onStatus?.(msg);
     } finally {
@@ -155,16 +158,16 @@ export function MediaGalleryModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        dir="rtl"
+        dir={dir}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="mg-head">
-          <h2 id={titleId}>{title}</h2>
+          <h2 id={titleId}>{modalTitle}</h2>
           <button
             type="button"
             className="mg-close"
             onClick={tryClose}
-            aria-label="סגור"
+            aria-label={t('media.close')}
             disabled={uploading}
           >
             ×
@@ -178,7 +181,7 @@ export function MediaGalleryModal({
             disabled={uploading}
             onClick={openFilePicker}
           >
-            {uploading ? 'מעלה... אנא המתן' : '+ העלה קובץ חדש לגלריה'}
+            {uploading ? t('media.uploadBusy') : t('media.uploadNew')}
           </button>
           <input
             ref={fileRef}
@@ -192,7 +195,7 @@ export function MediaGalleryModal({
           />
           <input
             className="mg-search"
-            placeholder="חיפוש בגלריה..."
+            placeholder={t('media.searchPh')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             disabled={uploading}
@@ -207,7 +210,7 @@ export function MediaGalleryModal({
                 onClose();
               }}
             >
-              נקה בחירה
+              {t('media.clearSelection')}
             </button>
           ) : null}
         </div>
@@ -217,7 +220,7 @@ export function MediaGalleryModal({
         {uploading ? (
           <div className="mg-progress-wrap" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
             <div className="mg-progress-meta">
-              <span>{progressLabel || 'מעלה...'}</span>
+              <span>{progressLabel || t('media.uploading')}</span>
               <strong>{progress}%</strong>
             </div>
             <div className="mg-progress-track">
@@ -228,7 +231,7 @@ export function MediaGalleryModal({
 
         {items.length === 0 && !uploading ? (
           <p className="mg-empty">
-            הגלריה ריקה. לחץ «העלה קובץ חדש לגלריה», בחר תמונה, ואז שמור בהגדרות.
+            {t('media.empty')}
           </p>
         ) : (
           <div className="mg-grid">
@@ -245,7 +248,7 @@ export function MediaGalleryModal({
                     if (manageOnly) return;
                     onSelect(g.url);
                     onClose();
-                    onStatus?.('נבחר מהגלריה — לחץ שמור');
+                    onStatus?.(t('media.selectedSave'));
                   }}
                 >
                   {g.kind === 'video' ? (
@@ -253,18 +256,18 @@ export function MediaGalleryModal({
                   ) : (
                     <img src={g.url} alt={g.name} />
                   )}
-                  <span className="mg-kind">{g.kind === 'video' ? 'סרטון' : 'תמונה'}</span>
+                  <span className="mg-kind">{g.kind === 'video' ? t('media.video') : t('media.image')}</span>
                 </button>
                 <div className="mg-meta">
                   <span title={g.name}>{g.name}</span>
                   <button
                     type="button"
                     className="mg-del"
-                    title="הסר מהגלריה"
+                    title={t('media.removeFromGallery')}
                     disabled={uploading}
                     onClick={() => onGalleryChange(removeFromGallery(gallery, g.id))}
                   >
-                    מחק
+                    {t('media.delete')}
                   </button>
                 </div>
               </div>
@@ -297,6 +300,7 @@ export function MediaPickerField({
   onGalleryChange,
   onStatus,
 }: FieldProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const previewKind = value ? guessMediaKind(value, kind === 'video' ? 'video' : 'image') : null;
 
@@ -313,15 +317,15 @@ export function MediaPickerField({
             )}
           </div>
         ) : (
-          <div className="mg-field-preview empty">אין בחירה</div>
+          <div className="mg-field-preview empty">{t('media.noSelection')}</div>
         )}
         <div className="mg-field-actions">
           <button type="button" className="btn primary" onClick={() => setOpen(true)}>
-            בחר מהגלריה / העלה
+            {t('media.pickOrUpload')}
           </button>
           {value ? (
             <button type="button" className="btn ghost" onClick={() => onChange('')}>
-              נקה
+              {t('media.clear')}
             </button>
           ) : null}
         </div>
@@ -355,15 +359,16 @@ export function GalleryManager({
   onStatus?: (msg: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   return (
     <>
-      <div className="mg-field-label">ניהול גלריה ({gallery.length} קבצים)</div>
+      <div className="mg-field-label">{t('panels.manageGallery', { n: gallery.length })}</div>
       <button type="button" className="btn ghost" onClick={() => setOpen(true)}>
-        פתח גלריה
+        {t('panels.openGallery')}
       </button>
       <MediaGalleryModal
         open={open}
-        title="גלריית מדיה"
+        title={t('panels.mediaGallery')}
         synagogueId={synagogueId}
         gallery={gallery}
         kind="any"
