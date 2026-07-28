@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BrandLogo } from '../components/BrandLogo';
 import { SiteFooter } from '../components/SiteFooter';
 import { LangSwitch, useI18n } from '../i18n';
@@ -158,12 +158,23 @@ export function Landing() {
   const [message, setMessage] = useState('');
   const [formStatus, setFormStatus] = useState<FormStatus>('idle');
   const [formError, setFormError] = useState('');
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginShulId, setLoginShulId] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     document.title = t('landing.seoTitle');
     const desc = document.querySelector('meta[name="description"]');
     if (desc) desc.setAttribute('content', t('landing.seoDesc'));
   }, [t, locale]);
+
+  function onScreenLogin(e: FormEvent) {
+    e.preventDefault();
+    const id = loginShulId.trim();
+    if (id.length < 2) return;
+    setLoginOpen(false);
+    navigate(`/login/${encodeURIComponent(id)}`);
+  }
 
   async function onLeadSubmit(e: FormEvent) {
     e.preventDefault();
@@ -223,6 +234,42 @@ export function Landing() {
           <a className="landing-topbar-phone" href={PHONE_TEL} dir="ltr">
             {PHONE_LABEL}
           </a>
+          <div className="landing-login-wrap">
+            <button
+              type="button"
+              className={`landing-btn ghost-light compact${loginOpen ? ' on' : ''}`}
+              aria-expanded={loginOpen}
+              aria-controls="landing-login-panel"
+              onClick={() => setLoginOpen((v) => !v)}
+            >
+              {t('landing.screenLogin')}
+            </button>
+            {loginOpen ? (
+              <form
+                id="landing-login-panel"
+                className="landing-login-panel"
+                onSubmit={onScreenLogin}
+              >
+                <label>
+                  {t('landing.screenLoginId')}
+                  <input
+                    value={loginShulId}
+                    onChange={(e) => setLoginShulId(e.target.value)}
+                    placeholder={t('landing.screenLoginPlaceholder')}
+                    dir="ltr"
+                    autoComplete="username"
+                    autoFocus
+                    required
+                    minLength={2}
+                  />
+                </label>
+                <button type="submit" className="landing-btn primary compact">
+                  {t('landing.screenLoginGo')}
+                </button>
+                <p className="landing-login-hint">{t('landing.screenLoginHint')}</p>
+              </form>
+            ) : null}
+          </div>
           <a className="landing-btn primary compact" href={WHATSAPP} target="_blank" rel="noreferrer">
             {t('landing.orderNow')}
           </a>

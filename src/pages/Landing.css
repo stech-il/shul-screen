@@ -68,6 +68,73 @@
   flex-shrink: 0;
 }
 
+.landing-login-wrap {
+  position: relative;
+}
+
+.landing-topbar .landing-btn.ghost-light.compact {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+}
+
+.landing-topbar .landing-btn.ghost-light.compact:hover,
+.landing-topbar .landing-btn.ghost-light.compact.on {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #fff;
+}
+
+.landing-login-panel {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  inset-inline-end: 0;
+  z-index: 50;
+  width: min(280px, calc(100vw - 2rem));
+  padding: 0.9rem;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid rgba(11, 28, 58, 0.12);
+  box-shadow: 0 16px 40px rgba(6, 18, 37, 0.22);
+  display: grid;
+  gap: 0.65rem;
+  text-align: start;
+}
+
+.landing-login-panel label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.landing-login-panel input {
+  font: inherit;
+  padding: 0.55rem 0.65rem;
+  border-radius: 4px;
+  border: 1px solid rgba(11, 28, 58, 0.18);
+  color: var(--ink);
+}
+
+.landing-login-panel input:focus {
+  outline: 2px solid rgba(201, 162, 39, 0.45);
+  outline-offset: 1px;
+}
+
+.landing-login-panel .landing-btn.primary {
+  width: 100%;
+}
+
+.landing-login-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+  font-weight: 400;
+}
+
 .landing-topbar-phone {
   display: none;
   color: var(--gold-bright);

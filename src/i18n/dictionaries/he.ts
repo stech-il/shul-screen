@@ -109,6 +109,11 @@ export const he = {
     whatsapp: 'וואטסאפ',
     guideLink: 'מדריך התקנה למסך',
     adminLogin: 'כניסת מנהל מערכת',
+    screenLogin: 'כניסה לניהול מסך',
+    screenLoginId: 'מזהה בית הכנסת',
+    screenLoginPlaceholder: 'לדוגמה: amishav',
+    screenLoginGo: 'המשך להתחברות',
+    screenLoginHint: 'את המזהה קיבלתם מהספק או מכתובת המסך /display/…',
     previewKicker: 'תצוגה מקדימה',
     previewTitle: 'כך זה נראה באולם',
     previewLead:

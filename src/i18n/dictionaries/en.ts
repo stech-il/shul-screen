@@ -115,6 +115,11 @@ export const en: DeepString<typeof he> = {
     whatsapp: 'WhatsApp',
     guideLink: 'Screen install guide',
     adminLogin: 'System admin login',
+    screenLogin: 'Screen admin login',
+    screenLoginId: 'Synagogue ID',
+    screenLoginPlaceholder: 'e.g. amishav',
+    screenLoginGo: 'Continue to sign-in',
+    screenLoginHint: 'You received this ID from your provider, or from the /display/… screen URL.',
     previewKicker: 'Preview',
     previewTitle: 'How it looks in the hall',
     previewLead:
