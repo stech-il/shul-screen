@@ -110,6 +110,18 @@
   border: 1px solid var(--line);
 }
 
+.status.ok {
+  color: #1f5c3f;
+  background: color-mix(in srgb, #2f6b4f 12%, #fff);
+  border-color: color-mix(in srgb, #2f6b4f 28%, transparent);
+}
+
+.status.warn {
+  color: #8a3a1c;
+  background: color-mix(in srgb, #c45a28 10%, #fff);
+  border-color: color-mix(in srgb, #c45a28 28%, transparent);
+}
+
 .admin-actions {
   display: flex;
   gap: 0.5rem;

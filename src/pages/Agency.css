@@ -290,6 +290,10 @@ a.stat.has-unread strong {
   font-weight: 500;
 }
 
+.agency-flash.ok {
+  color: var(--ok);
+}
+
 .agency-flash.banner {
   background: color-mix(in srgb, var(--accent) 12%, #fff);
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
