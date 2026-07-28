@@ -43,6 +43,7 @@ export const en: DeepString<typeof he> = {
     navPricing: 'Pricing',
     navPreview: 'In the hall',
     navGuide: 'Install guide',
+    navDemo: 'Demo video',
     orderNow: 'Order now',
     brandAria: 'screensmart — synagogue display screen',
     h1: 'Smart schedule screen for synagogues',
