@@ -29,6 +29,7 @@ import { BrandLogo } from '../components/BrandLogo';
 import { ScreenIdBadge } from '../components/ScreenIdBadge';
 import { SiteFooter } from '../components/SiteFooter';
 import {
+  changeScreenId,
   deleteSynagogue,
   duplicateSynagogue,
   isSupabaseConfigured,
@@ -61,6 +62,7 @@ import {
 } from '../lib/backups';
 import type { ScreenHeartbeat, SynagogueConfig } from '../types';
 import {
+  isNumericScreenId,
   isValidScreenId,
   nextNumericScreenId,
   normalizeScreenId,
@@ -81,6 +83,7 @@ type Modal =
       mailOk: boolean;
     }
   | { kind: 'rename'; config: SynagogueConfig }
+  | { kind: 'changeId'; config: SynagogueConfig }
   | { kind: 'duplicate'; config: SynagogueConfig }
   | { kind: 'delete'; config: SynagogueConfig; step: 1 | 2 }
   | { kind: 'license'; config: SynagogueConfig }
@@ -751,6 +754,64 @@ export function Agency() {
     refresh(`השם עודכן ל־«${editName.trim()}»`);
   }
 
+  async function confirmChangeId(e: FormEvent) {
+    e.preventDefault();
+    if (!modal || modal.kind !== 'changeId') return;
+    const nextId = normalizeScreenId(screenId);
+    if (!isNumericScreenId(nextId)) {
+      setMsg('מזהה חדש חייב להיות מספר');
+      return;
+    }
+    if (
+      !confirm(
+        `להמיר את מזהה «${modal.config.id}» למספר ${nextId}?\nכתובות ישנות (/display/… עם המזהה הישן) יפסיקו לעבוד — עדכנו קיוסקים וקישורים.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    const result = await changeScreenId(modal.config.id, nextId);
+    setBusy(false);
+    if (!result.ok) {
+      setMsg(result.error ?? 'המרת מזהה נכשלה');
+      return;
+    }
+    setModal(null);
+    refresh(`המזהה של «${modal.config.name}» הומר ל־${nextId}`);
+  }
+
+  async function convertAllToNumeric() {
+    const legacy = shuls.filter((c) => !isNumericScreenId(c.id));
+    if (!legacy.length) {
+      setMsg('כל המסכים כבר עם מזהה מספרי');
+      return;
+    }
+    if (
+      !confirm(
+        `להמיר ${legacy.length} מסכים עם מזהה מילולי למספרים?\nיש לעדכן אחרי זה קישורי קיוסק /display.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    const taken = [...listSynagogueIds(), ...shuls.map((c) => c.id)];
+    let okCount = 0;
+    const errors: string[] = [];
+    for (const c of legacy) {
+      const nextId = nextNumericScreenId(taken);
+      taken.push(nextId);
+      const result = await changeScreenId(c.id, nextId);
+      if (result.ok) okCount += 1;
+      else errors.push(`${c.name}: ${result.error ?? 'שגיאה'}`);
+    }
+    setBusy(false);
+    refresh(
+      errors.length
+        ? `הומרו ${okCount}/${legacy.length}. בעיות: ${errors.join(' · ')}`
+        : `הומרו ${okCount} מסכים למזהים מספריים`,
+    );
+  }
+
   async function confirmDuplicate(e: FormEvent) {
     e.preventDefault();
     if (!modal || modal.kind !== 'duplicate') return;
@@ -1047,6 +1108,17 @@ export function Agency() {
             </button>
           ))}
         </div>
+        {shuls.some((c) => !isNumericScreenId(c.id)) ? (
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={busy}
+            onClick={() => void convertAllToNumeric()}
+            title="ממיר מזהים מילוליים ישנים למספרים"
+          >
+            המר מזהים למספרים
+          </button>
+        ) : null}
       </div>
 
       <div className="agency-body is-full">
@@ -1182,6 +1254,24 @@ export function Agency() {
                             >
                               שנה שם
                             </button>
+                            {!isNumericScreenId(c.id) ? (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setScreenId(
+                                    nextNumericScreenId([
+                                      ...listSynagogueIds(),
+                                      ...shuls.map((x) => x.id),
+                                    ]),
+                                  );
+                                  setModal({ kind: 'changeId', config: c });
+                                  setMoreOpenId(null);
+                                }}
+                              >
+                                המר למספר
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               role="menuitem"
@@ -1427,6 +1517,42 @@ export function Agency() {
                   </button>
                   <button type="submit" className="btn primary" disabled={busy}>
                     {busy ? 'שומר…' : 'שמור שם'}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {modal.kind === 'changeId' ? (
+              <form onSubmit={(e) => void confirmChangeId(e)}>
+                <h2>המרת מזהה למספר</h2>
+                <p className="hint">
+                  מזהה נוכחי: <code dir="ltr">{modal.config.id}</code> («{modal.config.name}»)
+                </p>
+                <p className="hint warn-inline">
+                  אחרי ההמרה יש לעדכן קיוסקים וקישורים ל־/#/display/{screenId || '…'}
+                </p>
+                <label>
+                  מזהה מספרי חדש
+                  <input
+                    className="ltr"
+                    dir="ltr"
+                    inputMode="numeric"
+                    pattern="[0-9]{1,12}"
+                    value={screenId}
+                    onChange={(e) => setScreenId(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                    required
+                    autoFocus
+                    autoComplete="off"
+                    placeholder="1"
+                    style={{ textAlign: 'left' }}
+                  />
+                </label>
+                <div className="modal-actions">
+                  <button type="button" className="btn ghost" onClick={() => setModal(null)}>
+                    ביטול
+                  </button>
+                  <button type="submit" className="btn primary" disabled={busy}>
+                    {busy ? 'ממיר…' : 'המר למספר'}
                   </button>
                 </div>
               </form>

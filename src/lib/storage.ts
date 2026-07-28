@@ -800,6 +800,80 @@ export async function renameSynagogue(
   return saveConfig(next, undefined, { by, summary: `שינוי שם ל־${trimmed}` });
 }
 
+/** Change screen id (e.g. Hebrew slug → numeric). Moves cloud media/billing. */
+export async function changeScreenId(
+  oldId: string,
+  newIdRaw: string,
+): Promise<{ ok: boolean; error?: string; newId?: string }> {
+  const from = String(oldId || '').trim();
+  const to = String(newIdRaw || '').trim();
+  if (!from || !to) return { ok: false, error: 'חסר מזהה' };
+  if (from === to) return { ok: false, error: 'המזהה החדש זהה לישן' };
+  if (!/^\d{1,12}$/.test(to)) return { ok: false, error: 'מזהה חדש חייב להיות מספר' };
+  if (listSynagogueIds().includes(to) || loadLocal(to)) {
+    return { ok: false, error: `מזהה ${to} כבר קיים מקומית` };
+  }
+
+  if (!(await isServerCloudAvailable())) {
+    return { ok: false, error: 'שרת הענן לא זמין — נדרש לשינוי מזהה' };
+  }
+
+  try {
+    const res = await fetch(
+      cloudUrl(`/api/cloud/synagogues/${encodeURIComponent(from)}/change-id`),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newId: to }),
+      },
+    );
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      newId?: string;
+    };
+    if (!res.ok) {
+      return { ok: false, error: body.error || `שינוי מזהה נכשל (${res.status})` };
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'שינוי מזהה נכשל',
+    };
+  }
+
+  // Refresh local cache under the new id; drop the old one
+  const remote = await pullFromCloud(to);
+  if (remote) saveLocal(remote);
+  localStorage.removeItem(key(from));
+  localStorage.removeItem(CLOUD_PREFIX + from);
+  localStorage.removeItem(`shul-screen:history:${from}`);
+  localStorage.removeItem(`shul-screen:heartbeat:${from}`);
+  localStorage.removeItem(`shul-screen:live-bump:${from}`);
+  try {
+    localStorage.removeItem(`screensmart:admin-tab:${from}`);
+  } catch {
+    /* ignore */
+  }
+  setQueue(getQueue().filter((x) => x !== from));
+  removeFromIndex(from);
+  if (remote) {
+    const ids = listSynagogueIds();
+    if (!ids.includes(to)) {
+      localStorage.setItem(`${PREFIX}index`, JSON.stringify([...ids, to]));
+    }
+  }
+
+  if (isSupabaseConfigured && navigator.onLine) {
+    const sb = getSupabase();
+    if (sb && remote) {
+      await sb.from('synagogues').delete().eq('id', from);
+      await pushSupabase(remote);
+    }
+  }
+
+  return { ok: true, newId: to };
+}
+
 export async function duplicateSynagogue(
   id: string,
   newName: string,
@@ -810,19 +884,13 @@ export async function duplicateSynagogue(
   const trimmed = newName.trim();
   if (!trimmed) return { ok: false, error: 'יש להזין שם להעתק' };
 
-  const baseId =
-    trimmed
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\u0590-\u05FFa-z0-9-]/g, '')
-      .replace(/-+/g, '-')
-      .slice(0, 36) || `shul-${Date.now().toString(36)}`;
-  let newId = baseId;
-  let n = 2;
-  while (listSynagogueIds().includes(newId) || loadLocal(newId)) {
-    newId = `${baseId}-${n}`;
-    n += 1;
-  }
+  const { nextNumericScreenId } = await import('./screenId');
+  const cloudBundles = await listServerCloud().catch(() => [] as CachedBundle[]);
+  const newId = nextNumericScreenId([
+    ...listSynagogueIds(),
+    ...cloudBundles.map((b) => b.config.id),
+    id,
+  ]);
 
   const src = await expandConfigMedia(normalizeConfig(local.config));
   const copy: SynagogueConfig = {

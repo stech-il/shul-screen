@@ -499,6 +499,178 @@ export async function purgeSynagogueData(synagogueId) {
   return summary;
 }
 
+function moveTree(fromDir, toDir) {
+  if (!fromDir || !fs.existsSync(fromDir)) return { moved: false, files: 0 };
+  fs.mkdirSync(path.dirname(toDir), { recursive: true });
+  if (!fs.existsSync(toDir)) {
+    try {
+      fs.renameSync(fromDir, toDir);
+      return { moved: true, files: -1 };
+    } catch {
+      /* fall through to copy */
+    }
+  }
+  let files = 0;
+  fs.mkdirSync(toDir, { recursive: true });
+  for (const entry of fs.readdirSync(fromDir, { withFileTypes: true })) {
+    const src = path.join(fromDir, entry.name);
+    const dest = path.join(toDir, entry.name);
+    if (entry.isDirectory()) {
+      files += moveTree(src, dest).files;
+    } else {
+      try {
+        fs.renameSync(src, dest);
+        files += 1;
+      } catch {
+        try {
+          fs.copyFileSync(src, dest);
+          fs.unlinkSync(src);
+          files += 1;
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+  try {
+    fs.rmdirSync(fromDir);
+  } catch {
+    /* ignore */
+  }
+  return { moved: true, files };
+}
+
+function rewriteIdInJson(value, oldId, newId) {
+  const oldEnc = encodeURIComponent(oldId);
+  const newEnc = encodeURIComponent(newId);
+  const oldSafe = safeOwnerId(oldId);
+  const newSafe = safeOwnerId(newId);
+  let text = JSON.stringify(value);
+  const pairs = [
+    [`/api/cloud/media/${oldEnc}/`, `/api/cloud/media/${newEnc}/`],
+    [`/api/cloud/media/${oldId}/`, `/api/cloud/media/${newId}/`],
+    [`/api/cloud/media/${oldSafe}/`, `/api/cloud/media/${newSafe}/`],
+  ];
+  for (const [from, to] of pairs) {
+    if (from !== to) text = text.split(from).join(to);
+  }
+  return JSON.parse(text);
+}
+
+/**
+ * Rename a synagogue's screen id (e.g. Hebrew slug → numeric).
+ * Moves config, media, backups, billing and related records; keeps license/data.
+ */
+export async function changeSynagogueId(oldIdRaw, newIdRaw) {
+  const oldId = String(oldIdRaw || '').trim();
+  const newId = String(newIdRaw || '').trim();
+  if (!oldId || !newId) throw new Error('חסר מזהה ישן או חדש');
+  if (oldId === newId) throw new Error('המזהה החדש זהה לישן');
+  if (!/^\d{1,12}$/.test(newId)) throw new Error('מזהה חדש חייב להיות מספר (עד 12 ספרות)');
+
+  const existingNew = await getBundle(newId);
+  if (existingNew) throw new Error(`מזהה ${newId} כבר קיים`);
+
+  const bundle = await getBundle(oldId);
+  if (!bundle?.config) throw new Error('בית הכנסת לא נמצא');
+
+  let config = rewriteIdInJson(bundle.config, oldId, newId);
+  config = {
+    ...config,
+    id: newId,
+    updatedAt: new Date().toISOString(),
+    revision: (Number(config.revision) || 0) + 1,
+  };
+  if (config.license && typeof config.license === 'object') {
+    config.license = { ...config.license, synagogueId: newId };
+  }
+
+  const nextBundle = {
+    ...bundle,
+    config,
+    syncedAt: new Date().toISOString(),
+    pendingSync: false,
+  };
+
+  const oldSafe = safeOwnerId(oldId);
+  const newSafe = safeOwnerId(newId);
+  const moved = {
+    media: moveTree(path.join(ROOT_DIR, 'media', oldSafe), path.join(ROOT_DIR, 'media', newSafe)),
+    backups: moveTree(
+      path.join(ROOT_DIR, 'backups', oldSafe),
+      path.join(ROOT_DIR, 'backups', newSafe),
+    ),
+    records: [],
+  };
+
+  for (const prefix of ['billing', 'heartbeats', 'notify-log', 'templates']) {
+    try {
+      const rec = (await getRecord(prefix, oldId)) || (await getRecord(prefix, oldSafe));
+      if (!rec) continue;
+      let next = rewriteIdInJson(rec, oldId, newId);
+      if (next && typeof next === 'object') {
+        if ('synagogueId' in next) next = { ...next, synagogueId: newId };
+        if (prefix === 'heartbeats') next = { ...next, synagogueId: newId };
+      }
+      await putRecord(prefix, newId, next);
+      await deleteRecord(prefix, oldId);
+      if (oldSafe !== oldId) await deleteRecord(prefix, oldSafe);
+      moved.records.push(prefix);
+    } catch (err) {
+      console.warn(`changeId move ${prefix}`, err);
+    }
+  }
+
+  try {
+    const all = await listRecords('inquiries');
+    for (const rec of all) {
+      const sid = String(rec?.synagogueId || '');
+      if (sid !== oldId && safeOwnerId(sid) !== oldSafe) continue;
+      const inqId = rec.id || rec.synagogueId;
+      if (!inqId) continue;
+      const next = { ...rewriteIdInJson(rec, oldId, newId), synagogueId: newId };
+      await putRecord('inquiries', inqId, next);
+    }
+  } catch (err) {
+    console.warn('changeId inquiries', err);
+  }
+
+  try {
+    const shared = await getRecord('templates', 'list');
+    if (Array.isArray(shared?.items) && shared.items.length) {
+      let changed = false;
+      const items = shared.items.map((t) => {
+        const tid = String(t?.synagogueId || '');
+        if (tid === oldId || safeOwnerId(tid) === oldSafe) {
+          changed = true;
+          return { ...t, synagogueId: newId };
+        }
+        return t;
+      });
+      if (changed) {
+        await putRecord('templates', 'list', {
+          ...shared,
+          items,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  await putBundle(newId, nextBundle);
+  await deleteBundle(oldId);
+
+  return {
+    ok: true,
+    oldId,
+    newId,
+    name: config.name,
+    moved,
+  };
+}
+
 // —— Binary media files on persistent disk (Render Disk / DATA_DIR) ——
 const MEDIA_PREFIX = 'media';
 const MAX_MEDIA_BYTES = 8 * 1024 * 1024;

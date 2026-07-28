@@ -14,6 +14,7 @@ import {
   getMediaFile,
   listBundles,
   listHeartbeats,
+  changeSynagogueId,
   purgeSynagogueData,
   putBundle,
   putDesignTemplates,
@@ -164,6 +165,22 @@ async function handleCloud(req, res, url) {
       });
     } catch (err) {
       sendJson(res, 500, { error: String(err.message || err) });
+    }
+    return;
+  }
+
+  // POST /api/cloud/synagogues/:id/change-id  { newId: "12" }
+  const changeIdMatch = url.pathname.match(/^\/api\/cloud\/synagogues\/([^/]+)\/change-id$/);
+  if (changeIdMatch && req.method === 'POST') {
+    try {
+      const oldId = decodeURIComponent(changeIdMatch[1] || '').trim();
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const newId = String(body.newId || '').trim();
+      const result = await changeSynagogueId(oldId, newId);
+      sendJson(res, 200, result);
+    } catch (err) {
+      sendJson(res, 400, { error: String(err?.message || err) });
     }
     return;
   }
