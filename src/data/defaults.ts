@@ -49,6 +49,7 @@ export function createDefaultConfigSync(
     showOrefAlerts: true,
     showYahrzeit: true,
     showCalendarExtras: true,
+    showOmer: true,
     orefAreaExtra: '',
     modes: getDefaultModes(),
     emergency: { active: false, message: '', updatedAt: new Date().toISOString() },

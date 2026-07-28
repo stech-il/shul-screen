@@ -20,7 +20,7 @@ const PALETTE_SECTION_DEFS: {
   {
     id: 'extra',
     labelKey: 'panels.paletteExtra',
-    types: ['parasha', 'dafYomi', 'weather', 'yahrzeit', 'calendar', 'countdown'],
+    types: ['parasha', 'dafYomi', 'omer', 'weather', 'yahrzeit', 'calendar', 'countdown'],
   },
 ];
 
@@ -37,6 +37,7 @@ const ICONS: Record<CanvasWidgetType, string> = {
   hebrewDate: 'ד',
   parasha: 'ס',
   dafYomi: 'ע',
+  omer: 'עֹ',
   weather: '☁',
   zmanim: '☰',
   zman: '◎',

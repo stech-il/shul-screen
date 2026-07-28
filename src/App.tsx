@@ -3,6 +3,7 @@ import { I18nProvider } from './i18n';
 import { Admin } from './pages/Admin';
 import { Agency } from './pages/Agency';
 import { Display } from './pages/Display';
+import { Guide } from './pages/Guide';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { PlatformLogin } from './pages/PlatformLogin';
@@ -35,6 +36,7 @@ export default function App() {
       <HashRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/guide" element={<Guide />} />
           <Route path="/display/:id" element={<DisplayRoute />} />
           <Route path="/screen/:id" element={<DisplayRoute />} />
           {/* Platform super-admin gate — must be before /admin/:id */}

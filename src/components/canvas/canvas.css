@@ -333,6 +333,16 @@
   font-size: 0.95em;
 }
 
+.cw-omer-day {
+  font-family: 'Frank Ruhl Libre', 'David Libre', serif !important;
+}
+
+.cw-omer-sefira {
+  margin-top: 0.35rem !important;
+  opacity: 0.82;
+  font-size: 0.88em !important;
+}
+
 .time-ltr {
   direction: ltr;
   unicode-bidi: isolate;

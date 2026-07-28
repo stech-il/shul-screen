@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { BrandLogo } from '../components/BrandLogo';
 import { SiteFooter } from '../components/SiteFooter';
 import { LangSwitch, useI18n } from '../i18n';
+import { submitInquiry } from '../lib/inquiries';
 import './Landing.css';
 
 const WHATSAPP = 'https://wa.me/972524521527';
@@ -146,14 +147,61 @@ function ShowcaseMock({ id, t }: { id: ShowcaseId; t: (key: string) => string })
   );
 }
 
+type FormStatus = 'idle' | 'sending' | 'success' | 'error';
+
 export function Landing() {
   const { t, dir, locale } = useI18n();
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [synagogueName, setSynagogueName] = useState('');
+  const [message, setMessage] = useState('');
+  const [formStatus, setFormStatus] = useState<FormStatus>('idle');
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
     document.title = t('landing.seoTitle');
     const desc = document.querySelector('meta[name="description"]');
     if (desc) desc.setAttribute('content', t('landing.seoDesc'));
   }, [t, locale]);
+
+  async function onLeadSubmit(e: FormEvent) {
+    e.preventDefault();
+    setFormError('');
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedMessage = message.trim();
+    if (trimmedName.length < 2 || trimmedPhone.length < 7 || trimmedMessage.length < 5) {
+      setFormStatus('error');
+      setFormError(t('landing.formRequired'));
+      return;
+    }
+    setFormStatus('sending');
+    try {
+      const shulNote = synagogueName.trim();
+      const fullMessage = shulNote
+        ? `${locale === 'he' ? 'בית כנסת' : 'Synagogue'}: ${shulNote}\n\n${trimmedMessage}`
+        : trimmedMessage;
+      await submitInquiry({
+        name: trimmedName,
+        phone: trimmedPhone,
+        email: email.trim() || undefined,
+        message: fullMessage,
+        topic: 'demo',
+        source: 'landing',
+        synagogueId: '_platform',
+      });
+      setFormStatus('success');
+      setName('');
+      setPhone('');
+      setEmail('');
+      setSynagogueName('');
+      setMessage('');
+    } catch (err) {
+      setFormStatus('error');
+      setFormError(err instanceof Error ? err.message : t('landing.formError'));
+    }
+  }
 
   return (
     <div className="landing" dir={dir} lang={locale}>
@@ -165,8 +213,10 @@ export function Landing() {
           <a href="#about">{t('landing.navAbout')}</a>
           <a href="#features">{t('landing.navFeatures')}</a>
           <a href="#screens">{t('landing.navScreens')}</a>
+          <a href="#preview">{t('landing.navPreview')}</a>
           <a href="#manage">{t('landing.navSystem')}</a>
           <a href="#pricing">{t('landing.navPricing')}</a>
+          <Link to="/guide">{t('landing.navGuide')}</Link>
         </nav>
         <div className="landing-topbar-actions">
           <LangSwitch variant="dark" />
@@ -298,6 +348,23 @@ export function Landing() {
           ))}
         </section>
 
+        <section className="landing-preview" id="preview" aria-labelledby="preview-title">
+          <div className="landing-preview-inner">
+            <div className="landing-preview-copy">
+              <p className="landing-kicker">{t('landing.previewKicker')}</p>
+              <h2 id="preview-title">{t('landing.previewTitle')}</h2>
+              <p className="landing-section-lead">{t('landing.previewLead')}</p>
+            </div>
+            <div className="landing-phone-frame" aria-hidden="true">
+              <div className="landing-phone-notch" />
+              <div className="landing-phone-screen">
+                <ShowcaseMock id="weekday" t={t} />
+              </div>
+              <div className="landing-phone-home" />
+            </div>
+          </div>
+        </section>
+
         <section className="landing-manage" id="manage" aria-labelledby="manage-title">
           <div className="landing-manage-inner">
             <p className="landing-kicker on-dark">{t('landing.manageKicker')}</p>
@@ -334,6 +401,87 @@ export function Landing() {
         <section className="landing-contact" id="contact" aria-labelledby="contact-title">
           <h2 id="contact-title">{t('landing.contactTitle')}</h2>
           <p>{t('landing.contactLead')}</p>
+
+          <form className="landing-lead-form" onSubmit={(e) => void onLeadSubmit(e)} noValidate>
+            <label>
+              <span>{t('landing.formName')}</span>
+              <input
+                name="name"
+                autoComplete="name"
+                required
+                minLength={2}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={formStatus === 'sending'}
+              />
+            </label>
+            <label>
+              <span>{t('landing.formPhone')}</span>
+              <input
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                dir="ltr"
+                required
+                minLength={7}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                disabled={formStatus === 'sending'}
+              />
+            </label>
+            <label>
+              <span>{t('landing.formEmail')}</span>
+              <input
+                name="email"
+                type="email"
+                autoComplete="email"
+                dir="ltr"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={formStatus === 'sending'}
+              />
+            </label>
+            <label>
+              <span>{t('landing.formShul')}</span>
+              <input
+                name="synagogue"
+                autoComplete="organization"
+                value={synagogueName}
+                onChange={(e) => setSynagogueName(e.target.value)}
+                disabled={formStatus === 'sending'}
+              />
+            </label>
+            <label className="landing-lead-full">
+              <span>{t('landing.formMessage')}</span>
+              <textarea
+                name="message"
+                required
+                minLength={5}
+                rows={4}
+                placeholder={t('landing.formMessagePlaceholder')}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                disabled={formStatus === 'sending'}
+              />
+            </label>
+            <div className="landing-lead-actions">
+              <button className="landing-btn primary lg" type="submit" disabled={formStatus === 'sending'}>
+                {formStatus === 'sending' ? t('landing.formSending') : t('landing.formSubmit')}
+              </button>
+            </div>
+            {formStatus === 'success' ? (
+              <p className="landing-form-msg ok" role="status">
+                {t('landing.formSuccess')}
+              </p>
+            ) : null}
+            {formStatus === 'error' ? (
+              <p className="landing-form-msg err" role="alert">
+                {formError || t('landing.formError')}
+              </p>
+            ) : null}
+          </form>
+
+          <p className="landing-secondary-label">{t('landing.secondaryCtas')}</p>
           <div className="landing-cta-row">
             <a className="landing-btn primary lg" href={WHATSAPP} target="_blank" rel="noreferrer">
               {t('landing.whatsapp')}
@@ -343,6 +491,8 @@ export function Landing() {
             </a>
           </div>
           <p className="landing-admin-link">
+            <Link to="/guide">{t('landing.guideLink')}</Link>
+            <span aria-hidden="true"> · </span>
             <Link to="/admin">{t('landing.adminLogin')}</Link>
           </p>
         </section>

@@ -936,6 +936,9 @@ export function Admin({ synagogueId }: Props) {
             </button>
           ) : null}
           <LangSwitch variant="light" />
+          <Link className="btn ghost admin-guide-link" to="/guide">
+            {t('admin.installGuide')}
+          </Link>
           <button
             className="btn ghost"
             type="button"
@@ -1206,6 +1209,7 @@ export function Admin({ synagogueId }: Props) {
                   ['showHebrewDate', 'admin.showHebrewDate'],
                   ['showParasha', 'admin.showParsha'],
                   ['showDafYomi', 'admin.showDaf'],
+                  ['showOmer', 'admin.showOmer'],
                   ['showWeather', 'admin.showWeather'],
                   ['showOrefAlerts', 'admin.showOrefAlerts'],
                   ['showYahrzeit', 'admin.showYahrzeitToday'],

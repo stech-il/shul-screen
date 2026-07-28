@@ -108,7 +108,12 @@ function fetchOrefAlertsText() {
 function probeServer(serverUrl, timeoutMs = 18000) {
   return new Promise((resolve) => {
     const base = normalizeServerUrl(serverUrl);
-    const candidates = [`${base}/api/cloud/status`, `${base}/api/cloud/heartbeats`, `${base}/`];
+    const candidates = [
+      `${base}/healthz`,
+      `${base}/api/cloud/status`,
+      `${base}/api/cloud/heartbeats`,
+      `${base}/`,
+    ];
     let left = candidates.length;
     let ok = false;
 
@@ -140,6 +145,49 @@ function probeServer(serverUrl, timeoutMs = 18000) {
       }
     }
   });
+}
+
+async function probeConnection({ serverUrl, shulId }) {
+  const base = normalizeServerUrl(serverUrl);
+  const id = String(shulId || '').trim();
+  const serverOk = await probeServer(base, 12000);
+  let configOk = false;
+  let configStatus = 0;
+  let configDetail = '';
+
+  if (serverOk && id) {
+    const url = `${base}/api/cloud/synagogues/${encodeURIComponent(id)}`;
+    try {
+      const result = await httpJson('GET', url);
+      configStatus = result.status;
+      if (result.status === 200) {
+        try {
+          const body = JSON.parse(result.body || '{}');
+          configOk = Boolean(body?.config?.id || body?.config);
+          configDetail = configOk ? 'found' : 'empty';
+        } catch {
+          configOk = false;
+          configDetail = 'bad-json';
+        }
+      } else if (result.status === 404) {
+        configDetail = 'not-found';
+      } else {
+        configDetail = `http-${result.status}`;
+      }
+    } catch (err) {
+      configDetail = String(err?.message || err);
+    }
+  } else if (!id) {
+    configDetail = 'missing-id';
+  } else {
+    configDetail = 'server-down';
+  }
+
+  return {
+    ok: serverOk,
+    server: { ok: serverOk },
+    config: { ok: configOk, status: configStatus, detail: configDetail },
+  };
 }
 
 async function probeServerReliable(serverUrl) {
@@ -391,6 +439,23 @@ ipcMain.handle('kiosk-save-config', (_e, body) => {
     return { ok: true, config: saved };
   } catch (err) {
     return { ok: false, error: String(err?.message || err) };
+  }
+});
+
+ipcMain.handle('kiosk-probe-connection', async (_e, body) => {
+  try {
+    return await probeConnection({
+      serverUrl: body?.serverUrl,
+      shulId: body?.shulId,
+    });
+  } catch (err) {
+    appendLog(`probe-connection error ${err?.message || err}`);
+    return {
+      ok: false,
+      server: { ok: false },
+      config: { ok: false, status: 0, detail: String(err?.message || err) },
+      error: String(err?.message || err),
+    };
   }
 });
 

@@ -85,6 +85,7 @@ export type CanvasWidgetType =
   | 'yahrzeit'
   | 'calendar'
   | 'countdown'
+  | 'omer'
   | 'text'
   | 'heading'
   | 'image'
@@ -284,6 +285,8 @@ export interface SynagogueConfig {
   showOrefAlerts: boolean;
   showYahrzeit: boolean;
   showCalendarExtras: boolean;
+  /** Show Sefirat HaOmer on the screen during the counting period */
+  showOmer: boolean;
   orefAreaExtra?: string;
   modes: ModeSettings;
   emergency: EmergencyState;
@@ -319,6 +322,13 @@ export interface DayInfo {
   holidays: string[];
   memorials: string[];
   yahrzeitNames: string[];
+  /** Present only during Sefirat HaOmer */
+  omer?: {
+    day: number;
+    label: string;
+    todayIs: string;
+    sefira: string;
+  } | null;
 }
 
 export interface ModeInfo {

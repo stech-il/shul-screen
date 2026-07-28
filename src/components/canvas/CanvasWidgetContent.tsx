@@ -85,6 +85,23 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <Placeholder label="הדף היומי" />
       );
 
+    case 'omer':
+      return data.day.omer ? (
+        <div className="cw-stat cw-omer">
+          {widget.showTitle ? <h3>{title || 'ספירת העומר'}</h3> : null}
+          <p className="cw-omer-day">{data.day.omer.label}</p>
+          {data.day.omer.sefira ? <p className="cw-omer-sefira">{data.day.omer.sefira}</p> : null}
+        </div>
+      ) : placeholder ? (
+        <div className="cw-stat cw-omer">
+          {widget.showTitle ? <h3>{title || 'ספירת העומר'}</h3> : null}
+          <p className="cw-omer-day">עוֹמֶר יוֹם 18</p>
+          <p className="cw-omer-sefira">נצח שבתיפארת</p>
+        </div>
+      ) : (
+        <Placeholder label="ספירת העומר (רק בימי הספירה)" />
+      );
+
     case 'weather':
       return data.weatherTemp != null ? (
         <div className="cw-stat">

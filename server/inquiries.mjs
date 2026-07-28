@@ -346,10 +346,14 @@ export async function handleInquiries(req, res, url) {
       const message = String(body.message || '').trim().slice(0, 4000);
       const topicRaw = String(body.topic || 'fault').trim();
       const topic = TOPICS.has(topicRaw) ? topicRaw : 'fault';
-      const synagogueId = String(body.synagogueId || '')
+      const source = String(body.source || 'admin').trim().slice(0, 40) || 'admin';
+      const isLandingLead = source === 'landing' || topic === 'demo';
+      let synagogueId = String(body.synagogueId || '')
         .trim()
         .slice(0, 64);
-      const source = String(body.source || 'admin').trim().slice(0, 40) || 'admin';
+      if (!synagogueId && isLandingLead) {
+        synagogueId = PLATFORM_ID;
+      }
 
       if (!synagogueId) {
         sendJson(res, 400, { error: 'חסר מזהה בית כנסת' });
@@ -359,8 +363,16 @@ export async function handleInquiries(req, res, url) {
         sendJson(res, 400, { error: 'נא להזין שם' });
         return;
       }
-      if (!isEmail(email)) {
+      if (email) {
+        if (!isEmail(email)) {
+          sendJson(res, 400, { error: 'כתובת מייל לא תקינה' });
+          return;
+        }
+      } else if (!isLandingLead) {
         sendJson(res, 400, { error: 'כתובת מייל לא תקינה' });
+        return;
+      } else if (!phone || phone.length < 7) {
+        sendJson(res, 400, { error: 'נא להזין טלפון או מייל' });
         return;
       }
       if (!message || message.length < 5) {

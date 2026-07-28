@@ -493,6 +493,12 @@
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+.omer-sefira {
+  margin: 0.35rem 0 0;
+  font-size: 0.95em;
+  opacity: 0.85;
+}
+
 .big {
   margin: 0;
   font-family: var(--font-heading);

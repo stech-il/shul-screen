@@ -82,6 +82,7 @@ export function normalizeConfig(config: SynagogueConfig): SynagogueConfig {
     showOrefAlerts: config.showOrefAlerts ?? true,
     showYahrzeit: config.showYahrzeit ?? true,
     showCalendarExtras: config.showCalendarExtras ?? true,
+    showOmer: config.showOmer ?? true,
     orefAreaExtra: config.orefAreaExtra ?? '',
     nusach: config.nusach ?? 'ashkenaz',
     dedication: decodeHtmlEntities(config.dedication ?? ''),

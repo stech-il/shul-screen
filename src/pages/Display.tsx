@@ -370,6 +370,13 @@ export function Display({ synagogueId }: Props) {
           <p className="big">{day.dafYomi}</p>
         </div>
       ) : null}
+      {config.showOmer && day.omer ? (
+        <div className="side-block omer-block">
+          <h3>ספירת העומר</h3>
+          <p className="big">{day.omer.label}</p>
+          {day.omer.sefira ? <p className="omer-sefira">{day.omer.sefira}</p> : null}
+        </div>
+      ) : null}
       {config.showWeather && weather ? (
         <div className="side-block">
           <h3>מזג האוויר</h3>

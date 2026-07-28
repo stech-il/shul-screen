@@ -150,7 +150,7 @@ async function parseJson<T>(res: Response): Promise<T> {
 
 export async function submitInquiry(input: {
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
   message: string;
   topic?: InquiryTopic;

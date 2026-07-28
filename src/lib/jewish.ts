@@ -26,6 +26,7 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
     start: hd,
     end: hd,
     sedrot: true,
+    omer: true,
     il: true,
   });
 
@@ -57,15 +58,36 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
 
   const holidays: string[] = [];
   const memorials: string[] = [];
+  let omer: DayInfo['omer'] = null;
   for (const e of events) {
+    const desc = e.getDesc();
+    if (desc.startsWith('Omer') && typeof (e as { getTodayIs?: (l: string) => string }).getTodayIs === 'function') {
+      const oe = e as unknown as {
+        render: (l: string) => string;
+        renderBrief: (l: string) => string;
+        getTodayIs: (l: string) => string;
+        sefira: (l: string) => string;
+        getWeeks: () => number;
+        getDaysWithinWeeks: () => number;
+      };
+      const dayMatch = /^Omer\s+(\d+)/i.exec(desc);
+      const day = dayMatch ? Number(dayMatch[1]) : oe.getWeeks() * 7 + oe.getDaysWithinWeeks();
+      omer = {
+        day,
+        label: oe.renderBrief('he') || oe.render('he'),
+        todayIs: oe.getTodayIs('he'),
+        sefira: oe.sefira('he'),
+      };
+      continue;
+    }
     const f = e.getFlags();
     let label = '';
     try {
       label = e.render('he');
     } catch {
-      label = e.getDesc();
+      label = desc;
     }
-    if (!label || label.startsWith('פרשת') || e.getDesc().startsWith('Parashat')) continue;
+    if (!label || label.startsWith('פרשת') || desc.startsWith('Parashat')) continue;
     if (f & flags.MAJOR_FAST || /יזכור|זכרון|שואה|צה״ל|צה\"ל|חללי/.test(label)) {
       memorials.push(label);
     } else if (
@@ -92,5 +114,6 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
     holidays,
     memorials,
     yahrzeitNames,
+    omer,
   };
 }

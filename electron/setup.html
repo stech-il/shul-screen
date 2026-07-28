@@ -12,6 +12,9 @@
       --accent: #9a7a32;
       --bg1: #eef3f0;
       --bg2: #dce7e2;
+      --ok: #2f7a45;
+      --bad: #8f2f2f;
+      --warn: #8a6a20;
     }
     * { box-sizing: border-box; }
     body {
@@ -28,7 +31,7 @@
       padding: 1.5rem;
     }
     .card {
-      width: min(440px, 100%);
+      width: min(460px, 100%);
       background: rgba(255, 252, 247, 0.94);
       border: 1px solid var(--line);
       border-radius: 16px;
@@ -77,6 +80,69 @@
       outline-offset: 1px;
     }
     .ltr { direction: ltr; text-align: left; }
+    .checklist {
+      list-style: none;
+      margin: 0 0 1rem;
+      padding: 0.75rem 0.85rem;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.7);
+    }
+    .checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.55rem;
+      font-size: 0.88rem;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+    .checklist li + li { margin-top: 0.55rem; }
+    .dot {
+      flex-shrink: 0;
+      width: 0.85rem;
+      height: 0.85rem;
+      margin-top: 0.2rem;
+      border-radius: 50%;
+      background: #c5ced1;
+      border: 1px solid rgba(22, 48, 56, 0.18);
+    }
+    .dot.pending { background: #c5ced1; }
+    .dot.checking {
+      background: var(--accent);
+      animation: pulse 0.9s ease-in-out infinite;
+    }
+    .dot.ok { background: var(--ok); border-color: var(--ok); }
+    .dot.bad { background: var(--bad); border-color: var(--bad); }
+    .dot.warn { background: var(--warn); border-color: var(--warn); }
+    @keyframes pulse {
+      50% { opacity: 0.45; }
+    }
+    .check-detail {
+      display: block;
+      margin-top: 0.15rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .tips {
+      margin: 0 0 1rem;
+      padding: 0.75rem 0.85rem;
+      border-radius: 12px;
+      border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line));
+      background: rgba(154, 122, 50, 0.08);
+      font-size: 0.84rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .tips strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: var(--ink);
+      font-size: 0.88rem;
+    }
+    .tips a {
+      color: var(--accent);
+      font-weight: 600;
+    }
     .actions {
       display: flex;
       gap: 0.6rem;
@@ -123,8 +189,34 @@
       כתובת שרת
       <input id="serverUrl" class="ltr" required type="url" value="https://shul-screen.onrender.com" />
     </label>
+
+    <ul class="checklist" id="checklist" aria-live="polite">
+      <li>
+        <span class="dot pending" id="dotServer" aria-hidden="true"></span>
+        <span>
+          שרת זמין
+          <span class="check-detail" id="detailServer">טרם נבדק</span>
+        </span>
+      </li>
+      <li>
+        <span class="dot pending" id="dotConfig" aria-hidden="true"></span>
+        <span>
+          הגדרת מסך בענן
+          <span class="check-detail" id="detailConfig">טרם נבדק</span>
+        </span>
+      </li>
+    </ul>
+
+    <div class="tips">
+      <strong>טיפים להתקנה</strong>
+      חברו HDMI לטלוויזיה, ודאו אינטרנט יציב, ושמרו את מזהה בית הכנסת.
+      מדריך מלא באתר: <span class="ltr">/#/guide</span>
+      (אחרי שהמסך מחובר לשרת — פתחו את כתובת האתר עם <span class="ltr">#/guide</span>).
+    </div>
+
     <p class="err" id="err"></p>
     <div class="actions">
+      <button type="button" id="checkBtn">בדיקת חיבור</button>
       <button type="submit" class="primary" id="submit">שמור והפעל מסך</button>
     </div>
   </form>
@@ -134,33 +226,121 @@
       if (cfg.shulId) document.getElementById('shulId').value = cfg.shulId;
       if (cfg.serverUrl) document.getElementById('serverUrl').value = cfg.serverUrl;
 
+      const errEl = document.getElementById('err');
+      const submitBtn = document.getElementById('submit');
+      const checkBtn = document.getElementById('checkBtn');
+      let lastServerOk = false;
+
+      function setDot(id, state) {
+        const el = document.getElementById(id);
+        el.className = 'dot ' + state;
+      }
+
+      function configMessage(detail, ok) {
+        if (ok) return 'נמצאה הגדרת מסך לקהילה';
+        if (detail === 'not-found' || detail === 'empty') {
+          return 'השרת זמין אך אין עדיין הגדרה למזהה זה — אפשר להמשיך ולפרסם מהפאנל';
+        }
+        if (detail === 'missing-id') return 'נא להזין מזהה';
+        if (detail === 'server-down') return 'לא נבדק — השרת לא זמין';
+        return 'לא ניתן לאמת הגדרה (' + (detail || 'שגיאה') + ')';
+      }
+
+      async function runChecks() {
+        errEl.textContent = '';
+        const shulId = document.getElementById('shulId').value.trim();
+        let serverUrl = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+        if (!/^https?:\/\//i.test(serverUrl)) {
+          errEl.textContent = 'כתובת שרת לא תקינה';
+          lastServerOk = false;
+          return false;
+        }
+
+        setDot('dotServer', 'checking');
+        setDot('dotConfig', 'checking');
+        document.getElementById('detailServer').textContent = 'בודקים…';
+        document.getElementById('detailConfig').textContent = 'בודקים…';
+        checkBtn.disabled = true;
+        submitBtn.disabled = true;
+
+        try {
+          const result = await window.shulKiosk.probeConnection({ shulId, serverUrl });
+          lastServerOk = Boolean(result?.server?.ok);
+          setDot('dotServer', lastServerOk ? 'ok' : 'bad');
+          document.getElementById('detailServer').textContent = lastServerOk
+            ? 'השרת מגיב'
+            : 'לא ניתן להגיע לשרת — בדקו רשת וכתובת';
+
+          const configOk = Boolean(result?.config?.ok);
+          const detail = result?.config?.detail || '';
+          setDot('dotConfig', configOk ? 'ok' : lastServerOk ? 'warn' : 'bad');
+          document.getElementById('detailConfig').textContent = configMessage(detail, configOk);
+
+          if (!lastServerOk) {
+            errEl.textContent = 'השרת לא זמין — לא ניתן להמשיך עד שהחיבור יצליח';
+          }
+          return lastServerOk;
+        } catch (ex) {
+          lastServerOk = false;
+          setDot('dotServer', 'bad');
+          setDot('dotConfig', 'bad');
+          document.getElementById('detailServer').textContent = 'שגיאת בדיקה';
+          document.getElementById('detailConfig').textContent = '—';
+          errEl.textContent = ex?.message || 'שגיאה בבדיקת חיבור';
+          return false;
+        } finally {
+          checkBtn.disabled = false;
+          submitBtn.disabled = false;
+        }
+      }
+
+      checkBtn.addEventListener('click', () => {
+        void runChecks();
+      });
+
       document.getElementById('form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const err = document.getElementById('err');
-        const btn = document.getElementById('submit');
-        err.textContent = '';
+        errEl.textContent = '';
         const shulId = document.getElementById('shulId').value.trim();
         let serverUrl = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
         if (!shulId) {
-          err.textContent = 'נא להזין מזהה';
+          errEl.textContent = 'נא להזין מזהה';
           return;
         }
         if (!/^https?:\/\//i.test(serverUrl)) {
-          err.textContent = 'כתובת שרת לא תקינה';
+          errEl.textContent = 'כתובת שרת לא תקינה';
           return;
         }
-        btn.disabled = true;
+
+        submitBtn.disabled = true;
+        checkBtn.disabled = true;
         try {
+          const ok = await runChecks();
+          if (!ok) {
+            submitBtn.disabled = false;
+            checkBtn.disabled = false;
+            return;
+          }
           const result = await window.shulKiosk.saveConfig({ shulId, serverUrl });
           if (!result?.ok) {
-            err.textContent = result?.error || 'שמירה נכשלה';
-            btn.disabled = false;
+            errEl.textContent = result?.error || 'שמירה נכשלה';
+            submitBtn.disabled = false;
+            checkBtn.disabled = false;
+            return;
+          }
+          // Re-check after save (same endpoints; confirms persisted values still reach the server)
+          await runChecks();
+          if (!lastServerOk) {
+            errEl.textContent = 'נשמר, אך השרת לא זמין כעת — תקנו חיבור ונסו שוב';
+            submitBtn.disabled = false;
+            checkBtn.disabled = false;
             return;
           }
           await window.shulKiosk.continueToSplash();
         } catch (ex) {
-          err.textContent = ex?.message || 'שגיאה';
-          btn.disabled = false;
+          errEl.textContent = ex?.message || 'שגיאה';
+          submitBtn.disabled = false;
+          checkBtn.disabled = false;
         }
       });
     })();
