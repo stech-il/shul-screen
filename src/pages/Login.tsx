@@ -8,7 +8,6 @@ import {
   memberUsernameExists,
   saveSession,
 } from '../lib/auth';
-import { createDefaultConfig } from '../data/defaults';
 import { isLicenseValid } from '../lib/license';
 import { requestPasswordReset } from '../lib/passwordReset';
 import { syncConfig } from '../lib/storage';
@@ -42,6 +41,7 @@ export function Login() {
   const [error, setError] = useState('');
   const [config, setConfig] = useState<SynagogueConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [missing, setMissing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [forgotMsg, setForgotMsg] = useState('');
@@ -55,12 +55,35 @@ export function Login() {
       navigate(`/admin/${encodeURIComponent(id)}${billingQs}`, { replace: true });
       return;
     }
-    createDefaultConfig(id, t('login.defaultShul')).then((fallback) =>
-      syncConfig(id, fallback, { preferCloud: true }).then((r) => {
-        setConfig(r.bundle.config);
-        setLoading(false);
-      }),
-    );
+
+    let cancelled = false;
+    setLoading(true);
+    setMissing(false);
+    void (async () => {
+      try {
+        // No fallback — missing cloud id must not create a synagogue
+        const r = await syncConfig(id, undefined, { preferCloud: true });
+        if (cancelled) return;
+        if (r.source === 'default') {
+          setMissing(true);
+          setConfig(null);
+        } else {
+          setConfig(r.bundle.config);
+          setMissing(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setMissing(true);
+          setConfig(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, navigate, params, t]);
 
   async function onSubmit(e: FormEvent) {
@@ -163,7 +186,27 @@ export function Login() {
     );
   }
 
-  const licenseOk = isLicenseValid(config?.license);
+  if (missing || !config) {
+    return (
+      <div className="admin" dir={dir} lang={locale}>
+        <div className="login-card">
+          <BrandLogo size="md" className="login-brand-logo" />
+          <p className="eyebrow">{t('login.title')}</p>
+          <h1>{t('login.missingShul', { id })}</h1>
+          <div className="admin-id-row">
+            <ScreenIdBadge id={id} size="lg" copyable />
+          </div>
+          <p className="hint">{t('login.missingShulHint')}</p>
+          <Link className="btn primary" to="/">
+            {t('login.backHome')}
+          </Link>
+        </div>
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  const licenseOk = isLicenseValid(config.license);
   const licenseExpiry = config?.license?.expiresAt
     ? new Date(config.license.expiresAt).toLocaleDateString(dateTag, {
         day: 'numeric',
@@ -180,7 +223,7 @@ export function Login() {
           <p className="eyebrow">{t('login.title')}</p>
           <LangSwitch variant="light" />
         </div>
-        <h1>{config?.name ?? id}</h1>
+        <h1>{config.name}</h1>
         <div className="admin-id-row">
           <ScreenIdBadge id={id} size="lg" copyable />
         </div>

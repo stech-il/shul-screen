@@ -523,6 +523,19 @@ export async function syncConfig(
       }
       // Local is newer — keep local and queue push
       if (local.pendingSync) enqueueSync(id);
+    } else if (preferCloud) {
+      // Cloud is authoritative for login/admin — missing id must not invent a shul
+      // or revive a leftover local draft from a previous mistaken visit.
+      if (fallback) {
+        return withExpanded(
+          {
+            config: await compactConfigMedia(normalizeConfig(fallback)),
+            syncedAt: new Date().toISOString(),
+          },
+          'default',
+        );
+      }
+      throw new Error('לא נמצאה הגדרה לבית הכנסת');
     }
   }
 
@@ -537,22 +550,16 @@ export async function syncConfig(
     }
   }
 
+  // Never auto-create cloud synagogues from /admin|/login|/display URLs.
+  // Agency "create" (saveConfig) is the only path that should seed a new id.
   if (fallback) {
-    const bundle: CachedBundle = {
-      config: await compactConfigMedia(normalizeConfig(fallback)),
-      syncedAt: new Date().toISOString(),
-    };
-    try {
-      saveLocal(bundle);
-    } catch {
-      /* ignore */
-    }
-    // Do not overwrite durable cloud with a fresh default — only seed if missing
-    if (online) {
-      const existing = await pullFromCloud(id);
-      if (!existing) await pushToCloud(bundle);
-    }
-    return withExpanded(bundle, 'default');
+    return withExpanded(
+      {
+        config: await compactConfigMedia(normalizeConfig(fallback)),
+        syncedAt: new Date().toISOString(),
+      },
+      'default',
+    );
   }
 
   throw new Error('לא נמצאה הגדרה לבית הכנסת');

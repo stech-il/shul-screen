@@ -12,7 +12,6 @@ import { MediaPickerField, GalleryManager } from '../components/MediaPicker';
 import { CITIES } from '../data/cities';
 import { NUSACH_TEMPLATES, applyNusachTemplate } from '../data/nusach';
 import { ZMAN_DEFS, type ZmanKey } from '../data/zmanim';
-import { createDefaultConfig } from '../data/defaults';
 import { useI18n, LangSwitch } from '../i18n';
 import {
   canEditContent,
@@ -119,6 +118,7 @@ export function Admin({ synagogueId }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [config, setConfigRaw] = useState<SynagogueConfig | null>(null);
+  const [missingShul, setMissingShul] = useState(false);
   const undo = useUndoHistory<SynagogueConfig>();
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
@@ -221,8 +221,14 @@ export function Admin({ synagogueId }: Props) {
   useEffect(() => {
     setSession(loadSession());
     const stop = startAutoSync((n) => setStatus(t('admin.statusSynced', { n })));
-    createDefaultConfig(synagogueId, t('admin.newShulName')).then((fallback) =>
-      syncConfig(synagogueId, fallback).then((r) => {
+    setMissingShul(false);
+    void syncConfig(synagogueId, undefined, { preferCloud: true })
+      .then((r) => {
+        if (r.source === 'default') {
+          setMissingShul(true);
+          setConfigRaw(null);
+          return;
+        }
         setConfigRaw(r.bundle.config);
         undo.reset();
         setDirty(false);
@@ -238,8 +244,11 @@ export function Admin({ synagogueId }: Props) {
             : t('admin.statusOffline'),
         );
         setHistory(loadHistory(synagogueId));
-      }),
-    );
+      })
+      .catch(() => {
+        setMissingShul(true);
+        setConfigRaw(null);
+      });
     return stop;
   }, [synagogueId, t]);
 
@@ -382,6 +391,21 @@ export function Admin({ synagogueId }: Props) {
 
   if (!session || session.synagogueId !== synagogueId || !canEditContent(session.role)) {
     return <Navigate to={`/login/${synagogueId}`} replace />;
+  }
+
+  if (missingShul) {
+    return (
+      <div className="admin" dir={dir} lang={locale}>
+        <div className="login-card">
+          <BrandLogo size="sm" className="admin-brand-logo" />
+          <h1>{t('admin.missingShul', { id: synagogueId })}</h1>
+          <p className="hint">{t('admin.missingShulHint')}</p>
+          <Link className="btn primary" to="/agency">
+            {t('admin.backToAgency')}
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (!config) {

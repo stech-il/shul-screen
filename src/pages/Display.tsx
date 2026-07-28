@@ -7,7 +7,6 @@ import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { defaultCanvas } from '../components/canvas/widgets';
 import { getOrefMatchNames } from '../data/cities';
 import { designToCssVars } from '../data/designPresets';
-import { createDefaultConfig } from '../data/defaults';
 import { ensureCustomFontsLoaded } from '../lib/customFonts';
 import { getDayInfo } from '../lib/jewish';
 import {
@@ -68,6 +67,7 @@ export function Display({ synagogueId }: Props) {
   const [orefMatch, setOrefMatch] = useState<MatchedOrefAlert | null>(null);
   /** After first entrance animations finish — prevents re-blink on config/weather updates */
   const [settled, setSettled] = useState(false);
+  const [missing, setMissing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,13 +76,21 @@ export function Display({ synagogueId }: Props) {
 
     async function load() {
       try {
-        const fallback = await createDefaultConfig(synagogueId, 'בית כנסת');
-        const result = await syncConfig(synagogueId, fallback);
+        const result = await syncConfig(synagogueId, undefined, { preferCloud: true });
         if (cancelled) return;
+        if (result.source === 'default') {
+          setConfig(null);
+          setMissing(true);
+          return;
+        }
+        setMissing(false);
         setConfig(result.bundle.config);
         live?.noteBaseline(result.bundle.config);
       } catch {
-        /* ignore */
+        if (!cancelled) {
+          setConfig(null);
+          setMissing(true);
+        }
       }
     }
 
@@ -242,6 +250,28 @@ export function Display({ synagogueId }: Props) {
       window.removeEventListener('keydown', onKey);
     };
   }, [autoKiosk, kioskOn, isAndroidNative]);
+
+  if (missing) {
+    return (
+      <div className="display license-lock" dir="rtl" lang="he">
+        <div className="license-lock-card">
+          <BrandLogo size="md" className="license-lock-logo" />
+          <h1>מזהה מסך לא נמצא</h1>
+          <p className="license-lock-reason">
+            אין בית כנסת עם המזהה «{synagogueId}» במערכת.
+          </p>
+          <p className="license-lock-help">
+            בדקו את המספר עם הספק. בית כנסת חדש נוצר רק מפאנל הסוכנות.
+          </p>
+          <div className="license-lock-actions">
+            <Link className="btn primary" to="/">
+              חזרה לדף הבית
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!config) {
     return (

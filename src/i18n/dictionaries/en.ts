@@ -247,6 +247,8 @@ export const en: DeepString<typeof he> = {
     cloudServer: 'Server cloud',
     cloudLocal: 'Local sync',
     newShulName: 'New synagogue',
+    missingShul: 'Screen ID {id} was not found',
+    missingShulHint: 'Only the agency can create a new synagogue. Check the number or go back.',
     canvasLayoutHint: 'Layout set to free canvas — click «Publish to screen» to update the TV',
     publishCtrlS: 'Publish to screen (Ctrl+S)',
     itemTitle: 'Title / note',
@@ -504,6 +506,10 @@ export const en: DeepString<typeof he> = {
     bootstrapHint: 'Initial login: {user} / {pass}',
     wrongPassword: 'Incorrect password',
     userNotFound: 'Username not found in this system',
+    missingShul: 'Screen ID {id} was not found',
+    missingShulHint:
+      'Check the number with your provider, or ask the agency admin. A new synagogue is not created automatically.',
+    backHome: 'Back to home',
     forgot: 'Forgot password',
     forgotTitle: 'Reset password',
     forgotHint:

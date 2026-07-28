@@ -241,6 +241,8 @@ export const he = {
     cloudServer: 'ענן שרת',
     cloudLocal: 'סנכרון מקומי',
     newShulName: 'בית כנסת חדש',
+    missingShul: 'מזהה מסך {id} לא קיים',
+    missingShulHint: 'רק סוכנות יכולה ליצור בית כנסת חדש. בדקו את המספר או חזרו לרשימה.',
     canvasLayoutHint: 'מבנה המסך הוגדר לבונה חופשי — לחצו «פרסם למסך» כדי לעדכן את הטלוויזיה',
     publishCtrlS: 'פרסום למסך (Ctrl+S)',
     itemTitle: 'כותרת / הערה',
@@ -498,6 +500,9 @@ export const he = {
     bootstrapHint: 'כניסה ראשונית: {user} / {pass}',
     wrongPassword: 'הסיסמה שגויה',
     userNotFound: 'שם משתמש לא נמצא במערכת זו',
+    missingShul: 'מזהה מסך {id} לא קיים במערכת',
+    missingShulHint: 'בדקו את המספר עם הספק, או פנו לניהול הסוכנות. לא נוצר בית כנסת חדש אוטומטית.',
+    backHome: 'חזרה לדף הבית',
     forgot: 'שכחתי סיסמה',
     forgotTitle: 'איפוס סיסמה',
     forgotHint:
