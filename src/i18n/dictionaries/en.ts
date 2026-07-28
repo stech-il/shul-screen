@@ -29,6 +29,8 @@ export const en: DeepString<typeof he> = {
     duplicate: 'Duplicate',
     reset: 'Reset',
     confirm: 'Confirm',
+    screenId: 'Screen ID',
+    screenIdTitle: 'Screen ID {id}',
   },
   footer: {
     credit: 'Built by screensmart 2026 · Support:',

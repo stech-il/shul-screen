@@ -26,6 +26,7 @@ import {
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
 import { fetchHeartbeatsFromCloud, findHeartbeat, isScreenOnline } from '../lib/analytics';
 import { BrandLogo } from '../components/BrandLogo';
+import { ScreenIdBadge } from '../components/ScreenIdBadge';
 import { SiteFooter } from '../components/SiteFooter';
 import {
   deleteSynagogue,
@@ -1083,10 +1084,10 @@ export function Agency() {
                     <div className="shul-card-top">
                       <div>
                         <h2>{c.name}</h2>
-                        <p className="shul-meta">
-                          {getCity(c.cityId).name}
-                          <span dir="ltr"> · {c.id}</span>
-                        </p>
+                        <p className="shul-meta">{getCity(c.cityId).name}</p>
+                        <div className="shul-id-wrap">
+                          <ScreenIdBadge id={c.id} size="sm" copyable />
+                        </div>
                       </div>
                       <span className={`pill ${online ? 'ok' : 'off'}`}>
                         {online ? 'מחובר' : 'לא מחובר'}
@@ -1344,6 +1345,9 @@ export function Agency() {
             {modal.kind === 'created' ? (
               <div>
                 <h2>המערכת מוכנה</h2>
+                <div className="shul-id-wrap" style={{ margin: '0.5rem 0 0.75rem' }}>
+                  <ScreenIdBadge id={modal.config.id} size="lg" copyable />
+                </div>
                 <p className="hint">
                   «{modal.config.name}» · ניסיון {TRIAL_DAYS} ימים
                   {modal.mailOk

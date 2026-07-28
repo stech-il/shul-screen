@@ -1,0 +1,85 @@
+.screen-id-badge {
+  --sid-navy: #0b1c3a;
+  --sid-gold: #c9a227;
+  --sid-gold-bright: #e0b93a;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--sid-navy), #122a4d);
+  color: #f5f7fa;
+  border: 1px solid color-mix(in srgb, var(--sid-gold) 55%, transparent);
+  box-shadow:
+    0 0 0 1px rgba(201, 162, 39, 0.12),
+    0 6px 16px rgba(11, 28, 58, 0.18);
+  font-family: 'Heebo', 'Rubik', sans-serif;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+
+.screen-id-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sid-gold-bright);
+  white-space: nowrap;
+}
+
+.screen-id-value {
+  font-family: 'Secular One', 'Heebo', monospace;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: #fff;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.screen-id-copy {
+  margin: 0;
+  margin-inline-start: 0.15rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.screen-id-copy:hover {
+  background: rgba(201, 162, 39, 0.28);
+  border-color: var(--sid-gold);
+}
+
+.screen-id-badge.size-sm {
+  padding: 0.18rem 0.5rem;
+  gap: 0.35rem;
+}
+
+.screen-id-badge.size-sm .screen-id-label {
+  font-size: 0.62rem;
+}
+
+.screen-id-badge.size-sm .screen-id-value {
+  font-size: 0.82rem;
+}
+
+.screen-id-badge.size-lg {
+  padding: 0.45rem 0.9rem;
+  gap: 0.55rem;
+  border-radius: 12px;
+}
+
+.screen-id-badge.size-lg .screen-id-label {
+  font-size: 0.75rem;
+}
+
+.screen-id-badge.size-lg .screen-id-value {
+  font-size: 1.25rem;
+}

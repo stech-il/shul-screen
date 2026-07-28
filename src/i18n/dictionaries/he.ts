@@ -23,6 +23,8 @@ export const he = {
     duplicate: 'שכפל',
     reset: 'איפוס',
     confirm: 'אישור',
+    screenId: 'מזהה מסך',
+    screenIdTitle: 'מזהה מסך {id}',
   },
   footer: {
     credit: 'נבנה ע״י screensmart 2026 · לתמיכה חייג',

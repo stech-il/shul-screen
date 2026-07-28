@@ -5,6 +5,7 @@ import { DesignStudio } from '../components/DesignStudio';
 import { CanvasBuilder } from '../components/canvas/CanvasBuilder';
 import { InquiriesPanel } from '../components/InquiriesPanel';
 import { BrandLogo } from '../components/BrandLogo';
+import { ScreenIdBadge } from '../components/ScreenIdBadge';
 import { SiteFooter } from '../components/SiteFooter';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { MediaPickerField, GalleryManager } from '../components/MediaPicker';
@@ -917,6 +918,9 @@ export function Admin({ synagogueId }: Props) {
             })}
           </p>
           <h1>{config.name}</h1>
+          <div className="admin-id-row">
+            <ScreenIdBadge id={synagogueId} size="md" copyable />
+          </div>
           <div className="admin-meta">
             <span className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>
               {licenseBanner}

@@ -15,6 +15,7 @@ import { syncConfig } from '../lib/storage';
 import type { SynagogueConfig } from '../types';
 import { SiteFooter } from '../components/SiteFooter';
 import { BrandLogo } from '../components/BrandLogo';
+import { ScreenIdBadge } from '../components/ScreenIdBadge';
 import { useI18n, LangSwitch } from '../i18n';
 import './Admin.css';
 
@@ -180,6 +181,9 @@ export function Login() {
           <LangSwitch variant="light" />
         </div>
         <h1>{config?.name ?? id}</h1>
+        <div className="admin-id-row">
+          <ScreenIdBadge id={id} size="lg" copyable />
+        </div>
         <p className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>
           {licenseOk ? (
             licenseExpiry ? (

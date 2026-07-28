@@ -415,6 +415,10 @@ a.stat.has-unread strong {
   font-size: 0.86rem;
 }
 
+.shul-id-wrap {
+  margin-top: 0.45rem;
+}
+
 .pill {
   flex-shrink: 0;
   font-size: 0.75rem;
