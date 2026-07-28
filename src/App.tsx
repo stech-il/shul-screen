@@ -3,7 +3,6 @@ import { I18nProvider } from './i18n';
 import { isAndroidKiosk } from './lib/androidKiosk';
 import { Admin } from './pages/Admin';
 import { Agency } from './pages/Agency';
-import { DemoReel } from './pages/DemoReel';
 import { Display } from './pages/Display';
 import { Guide } from './pages/Guide';
 import { KioskSetup } from './pages/KioskSetup';
@@ -51,7 +50,6 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/guide" element={<Guide />} />
-          <Route path="/demo" element={<DemoReel />} />
           <Route path="/kiosk-setup" element={<KioskSetup />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/display/:id" element={<DisplayRoute />} />

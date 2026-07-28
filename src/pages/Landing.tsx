@@ -228,7 +228,6 @@ export function Landing() {
           <a href="#manage">{t('landing.navSystem')}</a>
           <a href="#pricing">{t('landing.navPricing')}</a>
           <Link to="/guide">{t('landing.navGuide')}</Link>
-          <Link to="/demo">{t('landing.navDemo')}</Link>
         </nav>
         <div className="landing-topbar-actions">
           <LangSwitch variant="dark" />
@@ -302,9 +301,9 @@ export function Landing() {
               <a className="landing-btn primary lg" href={WHATSAPP} target="_blank" rel="noreferrer">
                 {t('landing.orderNow')}
               </a>
-              <Link className="landing-btn ghost-light lg" to="/demo">
-                {t('landing.navDemo')}
-              </Link>
+              <a className="landing-btn ghost-light lg" href="#features">
+                {t('landing.whatIncludes')}
+              </a>
             </div>
 
             <div className="landing-hero-product" aria-hidden="true">
@@ -542,8 +541,6 @@ export function Landing() {
             </a>
           </div>
           <p className="landing-admin-link">
-            <Link to="/demo">{t('landing.navDemo')}</Link>
-            <span aria-hidden="true"> · </span>
             <Link to="/guide">{t('landing.guideLink')}</Link>
             <span aria-hidden="true"> · </span>
             <Link to="/admin">{t('landing.adminLogin')}</Link>

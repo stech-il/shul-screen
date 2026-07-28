@@ -37,7 +37,6 @@ export const he = {
     navPricing: 'מחיר',
     navPreview: 'באולם',
     navGuide: 'מדריך התקנה',
-    navDemo: 'סרטון הדגמה',
     orderNow: 'הזמינו עכשיו',
     brandAria: 'screensmart — מסך לבית כנסת',
     h1: 'מסך זמנים חכם לבית כנסת',
