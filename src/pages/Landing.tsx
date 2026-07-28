@@ -24,6 +24,33 @@ const FEATURES = [
   'ספירת העומר וזמנים לפי העיר',
 ] as const;
 
+const SHOWCASES = [
+  {
+    id: 'weekday',
+    title: 'זמני תפילה וזמני היום',
+    text: 'שחרית, מנחה וערבית לצד עלות השחר, שקיעה וצאת הכוכבים — מחושבים לפי העיר של בית הכנסת.',
+    image: '/template-bgs/jerusalem-stone.webp',
+  },
+  {
+    id: 'holidays',
+    title: 'חגים וראשי חודשים',
+    text: 'המסך מציג אוטומטית חגים ותאריכים עבריים: פסח, ראש השנה, יום כיפור, סוכות, חנוכה, פורים, ספירת העומר ועוד.',
+    image: '/template-bgs/gold-sanctuary.webp',
+  },
+  {
+    id: 'community',
+    title: 'הודעות, תורה וקהילה',
+    text: 'לוח מודעות, דבר תורה, פרשת השבוע, עילוי נשמות ורפואת החולים — מתעדכנים מרחוק בלי לגעת במסך.',
+    image: '/template-bgs/ark-wood.webp',
+  },
+  {
+    id: 'oref',
+    title: 'פיקוד העורף באולם',
+    text: 'כשיש אזעקה באזור בית הכנסת — התראה ברורה על המסך, כדי שהמתפללים יידעו בזמן אמת.',
+    image: '/template-bgs/shabbat-night.webp',
+  },
+] as const;
+
 const SEO_TITLE = 'מסך זמנים לבית כנסת | screensmart — לוח זמנים והודעות חכם';
 const SEO_DESC =
   'מסך תצוגה חכם לבתי כנסת: זמני תפילה, הודעות, חגים ופיקוד העורף. עדכון מרחוק מהטלפון. מנוי חודשי פשוט מ־screensmart.';
@@ -37,26 +64,32 @@ export function Landing() {
 
   return (
     <div className="landing" dir="rtl" lang="he">
-      <header className="landing-nav">
-        <a className="landing-nav-brand" href="#top" aria-label="screensmart — מסך לבית כנסת">
-          <BrandLogo size="sm" />
+      <header className="landing-topbar">
+        <a className="landing-topbar-brand" href="#top" aria-label="screensmart — מסך לבית כנסת">
+          <BrandLogo size="sm" withWordmark />
         </a>
-        <nav className="landing-nav-links" aria-label="ניווט ראשי">
+        <nav className="landing-topbar-nav" aria-label="ניווט ראשי">
           <a href="#about">אודות המסך</a>
           <a href="#features">יתרונות</a>
-          <a href="#screens">מה מוצג</a>
+          <a href="#screens">סוגי מסכים</a>
+          <a href="#manage">המערכת</a>
           <a href="#pricing">מחיר</a>
-          <a className="landing-nav-cta" href={WHATSAPP} target="_blank" rel="noreferrer">
+        </nav>
+        <div className="landing-topbar-actions">
+          <a className="landing-topbar-phone" href={PHONE_TEL} dir="ltr">
+            {PHONE_LABEL}
+          </a>
+          <a className="landing-btn primary compact" href={WHATSAPP} target="_blank" rel="noreferrer">
             הזמינו עכשיו
           </a>
-        </nav>
+        </div>
       </header>
 
       <main>
         <section className="landing-hero" id="top" aria-label="פתיחה">
           <div className="landing-hero-media" aria-hidden="true">
             <img
-              src="/template-bgs/jerusalem-stone.webp"
+              src="/template-bgs/gold-columns.webp"
               alt=""
               className="landing-hero-photo"
               width={1920}
@@ -66,21 +99,19 @@ export function Landing() {
             <div className="landing-hero-shade" />
           </div>
 
-          <div className="landing-hero-inner">
-            <div className="landing-hero-copy">
-              <p className="landing-brand">screensmart</p>
-              <h1>מסך זמנים חכם לבית כנסת</h1>
-              <p className="landing-lead">
-                לוח זמנים והודעות שמתעדכן מהטלפון — זמני תפילה, חגים ופיקוד העורף במסך אחד.
-              </p>
-              <div className="landing-cta-row">
-                <a className="landing-btn primary" href={WHATSAPP} target="_blank" rel="noreferrer">
-                  הזמינו עכשיו
-                </a>
-                <a className="landing-btn ghost" href="#features">
-                  כל היתרונות
-                </a>
-              </div>
+          <div className="landing-hero-center">
+            <p className="landing-brand">screensmart</p>
+            <h1>מסך זמנים חכם לבית כנסת</h1>
+            <p className="landing-lead">
+              לוח זמנים והודעות שמתעדכן מהטלפון — זמני תפילה, חגים ופיקוד העורף במסך אחד.
+            </p>
+            <div className="landing-cta-row">
+              <a className="landing-btn primary lg" href={WHATSAPP} target="_blank" rel="noreferrer">
+                הזמינו עכשיו
+              </a>
+              <a className="landing-btn ghost-light lg" href="#features">
+                מה כולל המסך
+              </a>
             </div>
 
             <div className="landing-hero-product" aria-hidden="true">
@@ -114,103 +145,85 @@ export function Landing() {
           </div>
         </section>
 
-        <section className="landing-section landing-about" id="about" aria-labelledby="about-title">
-          <div className="landing-section-intro">
+        <section className="landing-about" id="about" aria-labelledby="about-title">
+          <div className="landing-about-inner">
             <p className="landing-kicker">אודות המסך</p>
             <h2 id="about-title">לוח זמנים חכם לבתי כנסת</h2>
-          </div>
-          <div className="landing-prose">
-            <p>
-              <strong>screensmart</strong> הוא מסך תצוגה לבית כנסת שמציג זמני תפילה, הודעות לציבור ומידע
-              משתנה לאורך היום — בלי להחליף ידנית לוח בכל שבוע. מזינים פעם אחת בפאנל הניהול, והמסך
-              יודע להציג את הנכון לפי השעה, היום והלוח העברי.
-            </p>
-            <p>
-              התוכנה נשלטת מרחוק מכל מקום: עדכון הודעה מהטלפון מופיע מיד על המסך באולם. כך חוסכים זמן
-              יקר לגבאים ולרבנים, והמתפללים תמיד מעודכנים — בזמני חול, בשבת, בחגים ובראשי חודשים.
-            </p>
-            <p>
-              העיצוב מותאם לכל בית כנסת: מסך זמנים מודרני, קריא מרחוק, עם אפשרות לעיצוב אישי בבונה
-              המסך. זה פתרון מסך זמנים והודעות שמשפר את חוויית הקהילה ומחזיק את האולם מעודכן כל השנה.
-            </p>
+            <div className="landing-prose">
+              <p>
+                <strong>screensmart</strong> הוא מסך תצוגה לבית כנסת שמציג זמני תפילה, הודעות לציבור
+                ומידע משתנה לאורך היום — בלי להחליף ידנית לוח בכל שבוע. מזינים פעם אחת בפאנל הניהול,
+                והמסך יודע להציג את הנכון לפי השעה, היום והלוח העברי.
+              </p>
+              <p>
+                התוכנה נשלטת מרחוק מכל מקום: עדכון הודעה מהטלפון מופיע מיד על המסך באולם. כך חוסכים
+                זמן יקר לגבאים ולרבנים, והמתפללים תמיד מעודכנים — בזמני חול, בשבת, בחגים ובראשי חודשים.
+              </p>
+              <p>
+                העיצוב מותאם לכל בית כנסת: מסך זמנים מודרני, קריא מרחוק, עם אפשרות לעיצוב אישי בבונה
+                המסך. זה פתרון מסך זמנים והודעות שמשפר את חוויית הקהילה ומחזיק את האולם מעודכן כל
+                השנה.
+              </p>
+            </div>
           </div>
         </section>
 
-        <section className="landing-band" id="features" aria-labelledby="features-title">
-          <div className="landing-band-inner">
-            <div className="landing-section-intro">
-              <p className="landing-kicker">יתרונות</p>
+        <section className="landing-features-block" id="features" aria-labelledby="features-title">
+          <div className="landing-features-inner">
+            <div className="landing-features-head">
+              <p className="landing-kicker on-dark">יתרונות</p>
               <h2 id="features-title">כל מה שצריך במסך אחד</h2>
-              <p className="landing-section-lead">
+              <p className="landing-section-lead on-dark">
                 מסך זמנים לבית כנסת שמכסה את יום החול, השבת והחגים — כולל התראות חירום.
               </p>
             </div>
             <ul className="landing-checklist">
-              {FEATURES.map((item) => (
-                <li key={item}>{item}</li>
+              {FEATURES.map((item, i) => (
+                <li key={item}>
+                  <span className="landing-check-num" aria-hidden="true">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <span>{item}</span>
+                </li>
               ))}
             </ul>
           </div>
         </section>
 
-        <section className="landing-section" id="screens" aria-labelledby="screens-title">
-          <div className="landing-section-intro">
-            <p className="landing-kicker">מה מוצג</p>
+        <section className="landing-showcases" id="screens" aria-labelledby="screens-title">
+          <div className="landing-showcases-head">
+            <p className="landing-kicker">סוגי מסכים</p>
             <h2 id="screens-title">מסכי זמנים והודעות לכל ימות השנה</h2>
             <p className="landing-section-lead">
               תצוגה ברורה לקהל — זמני תפילות חול ושבת, שיעורים, כניסת ויציאת שבת, ועוד.
             </p>
           </div>
-          <ul className="landing-features">
-            <li>
-              <strong>זמני תפילה וזמני היום</strong>
-              <span>
-                שחרית, מנחה וערבית לצד עלות השחר, שקיעה וצאת הכוכבים — מחושבים לפי העיר של בית הכנסת.
-              </span>
-            </li>
-            <li>
-              <strong>חגים וראשי חודשים</strong>
-              <span>
-                המסך מציג אוטומטית חגים ותאריכים עבריים: פסח, שבועות, ראש השנה, יום כיפור, סוכות,
-                חנוכה, פורים, ספירת העומר ועוד — בזמן הנכון.
-              </span>
-            </li>
-            <li>
-              <strong>הודעות, תורה וקהילה</strong>
-              <span>
-                לוח מודעות, דבר תורה, פרשת השבוע, מסכי עילוי נשמות ורפואת החולים — מתעדכנים מרחוק בלי
-                לגעת במסך.
-              </span>
-            </li>
-            <li>
-              <strong>פיקוד העורף באולם</strong>
-              <span>
-                כשיש אזעקה באזור בית הכנסת — התראה ברורה על המסך, כדי שהמתפללים יידעו בזמן אמת.
-              </span>
-            </li>
-          </ul>
+          {SHOWCASES.map((item, index) => (
+            <article
+              key={item.id}
+              className={`landing-showcase ${index % 2 === 1 ? 'flip' : ''}`}
+              aria-labelledby={`${item.id}-title`}
+            >
+              <div className="landing-showcase-media" aria-hidden="true">
+                <img src={item.image} alt="" width={1200} height={800} loading="lazy" />
+              </div>
+              <div className="landing-showcase-copy">
+                <h3 id={`${item.id}-title`}>{item.title}</h3>
+                <p>{item.text}</p>
+              </div>
+            </article>
+          ))}
         </section>
 
-        <section className="landing-split" id="manage" aria-labelledby="manage-title">
-          <div className="landing-split-media" aria-hidden="true">
-            <img
-              src="/template-bgs/ark-wood.webp"
-              alt=""
-              className="landing-split-photo"
-              width={1200}
-              height={800}
-              loading="lazy"
-            />
-          </div>
-          <div className="landing-split-copy">
-            <p className="landing-kicker">ניהול מרחוק</p>
+        <section className="landing-manage" id="manage" aria-labelledby="manage-title">
+          <div className="landing-manage-inner">
+            <p className="landing-kicker on-dark">המערכת</p>
             <h2 id="manage-title">מערכת ניהול קלה מהטלפון</h2>
             <p>
               עדכנו את מסך בית הכנסת מכל מקום ובכל זמן: הודעות, זמנים, עיצוב ומעבר בין תצוגות —
-              בפאנל בעברית שמתוכנן לגבאים. אין צורך במחשב מקומי מסובך; החיבור בענן, והמסך בקיוסק
-              ממשיך לרוץ באולם.
+              בפאנל בעברית שמתוכנן לגבאים. החיבור בענן, והמסך בקיוסק ממשיך לרוץ באולם.
             </p>
-            <a className="landing-btn primary" href={WHATSAPP} target="_blank" rel="noreferrer">
+            <a className="landing-btn primary lg" href={WHATSAPP} target="_blank" rel="noreferrer">
               לשאול על התקנה
             </a>
           </div>
@@ -231,7 +244,7 @@ export function Landing() {
               <li>התראות פיקוד העורף</li>
               <li>הוראת קבע באשראי</li>
             </ul>
-            <a className="landing-btn primary" href={WHATSAPP} target="_blank" rel="noreferrer">
+            <a className="landing-btn primary lg" href={WHATSAPP} target="_blank" rel="noreferrer">
               הזמינו בוואטסאפ
             </a>
             <p className="landing-hardware-note">
@@ -240,18 +253,16 @@ export function Landing() {
           </div>
         </section>
 
-        <section className="landing-section landing-contact" id="contact" aria-labelledby="contact-title">
-          <div className="landing-section-intro">
-            <h2 id="contact-title">השאירו פנייה ונחזור אליכם</h2>
-            <p className="landing-section-lead">
-              רוצים מסך זמנים לבית הכנסת? דברו בוואטסאפ או חייגו — נחזור בעברית במהירות.
-            </p>
-          </div>
+        <section className="landing-contact" id="contact" aria-labelledby="contact-title">
+          <h2 id="contact-title">השאירו פנייה ונחזור אליכם</h2>
+          <p>
+            רוצים מסך זמנים לבית הכנסת? דברו בוואטסאפ או חייגו — נחזור בעברית במהירות.
+          </p>
           <div className="landing-cta-row">
-            <a className="landing-btn primary" href={WHATSAPP} target="_blank" rel="noreferrer">
+            <a className="landing-btn primary lg" href={WHATSAPP} target="_blank" rel="noreferrer">
               וואטסאפ
             </a>
-            <a className="landing-btn ghost" href={PHONE_TEL} dir="ltr">
+            <a className="landing-btn outline lg" href={PHONE_TEL} dir="ltr">
               {PHONE_LABEL}
             </a>
           </div>
