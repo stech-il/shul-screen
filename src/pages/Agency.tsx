@@ -59,19 +59,12 @@ import {
   type BackupItem,
 } from '../lib/backups';
 import type { ScreenHeartbeat, SynagogueConfig } from '../types';
+import {
+  isValidScreenId,
+  nextNumericScreenId,
+  normalizeScreenId,
+} from '../lib/screenId';
 import './Agency.css';
-
-function slugify(name: string) {
-  return (
-    name
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\u0590-\u05FFa-z0-9-]/g, '')
-      .replace(/-+/g, '-')
-      .slice(0, 40) || `shul-${Date.now().toString(36)}`
-  );
-}
 
 type Modal =
   | null
@@ -112,6 +105,7 @@ export function Agency() {
 
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [name, setName] = useState('');
+  const [screenId, setScreenId] = useState('');
   const [cityId, setCityId] = useState('petah-tikva');
   const [contactEmail, setContactEmail] = useState('');
   const [editName, setEditName] = useState('');
@@ -607,6 +601,13 @@ export function Agency() {
     );
   }
 
+  function openCreateModal() {
+    setScreenId(
+      nextNumericScreenId([...listSynagogueIds(), ...shuls.map((c) => c.id)]),
+    );
+    setModal({ kind: 'create' });
+  }
+
   async function createShul(e: FormEvent) {
     e.preventDefault();
     if (!isPlatformAdminLoggedIn()) {
@@ -625,10 +626,19 @@ export function Agency() {
       return;
     }
     setBusy(true);
-    const id = slugify(name);
-    if (listSynagogueIds().includes(id) || loadLocal(id)) {
+    const id = normalizeScreenId(screenId);
+    if (!isValidScreenId(id) || !/^\d{1,12}$/.test(id)) {
       setBusy(false);
-      setMsg('מזהה בית כנסת כבר קיים — נסה שם אחר');
+      setMsg('מזהה מסך חייב להיות מספר (למשל 12)');
+      return;
+    }
+    const taken = new Set([
+      ...listSynagogueIds(),
+      ...shuls.map((c) => c.id),
+    ]);
+    if (taken.has(id) || loadLocal(id)) {
+      setBusy(false);
+      setMsg('מזהה מסך כבר קיים — בחרו מספר אחר');
       return;
     }
     const adminUser = generateExclusiveAdminUsername(id, email);
@@ -671,6 +681,7 @@ export function Agency() {
     const mailOk = Boolean(mailResult && (mailResult as { ok?: boolean }).ok);
 
     setName('');
+    setScreenId('');
     setContactEmail('');
     setBusy(false);
     setModal({
@@ -841,7 +852,7 @@ export function Agency() {
           >
             {loadingList ? 'טוען…' : 'רענן מהענן'}
           </button>
-          <button type="button" className="btn primary" onClick={() => setModal({ kind: 'create' })}>
+          <button type="button" className="btn primary" onClick={() => openCreateModal()}>
             בית כנסת חדש
           </button>
           <button
@@ -1048,7 +1059,7 @@ export function Agency() {
             <div className="empty-board">
               <h2>אין בתי כנסת להצגה</h2>
               <p>צור בית כנסת חדש, או נקה את החיפוש והסינון.</p>
-              <button type="button" className="btn primary" onClick={() => setModal({ kind: 'create' })}>
+              <button type="button" className="btn primary" onClick={() => openCreateModal()}>
                 צור בית כנסת
               </button>
             </div>
@@ -1274,9 +1285,28 @@ export function Agency() {
                     onChange={(e) => setName(e.target.value)}
                     required
                     autoFocus
-                    placeholder="לדוגמה: קהילת נווה שלום"
+                    autoComplete="organization"
+                    placeholder="לדוגמה: בית כנסת השכונה"
                   />
                 </label>
+                <label>
+                  מזהה מסך (מספר)
+                  <input
+                    className="ltr"
+                    dir="ltr"
+                    inputMode="numeric"
+                    pattern="[0-9]{1,12}"
+                    value={screenId}
+                    onChange={(e) => setScreenId(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                    required
+                    autoComplete="off"
+                    placeholder="12"
+                    style={{ textAlign: 'left' }}
+                  />
+                </label>
+                <p className="hint" style={{ marginTop: '-0.35rem' }}>
+                  המזהה מופיע בכתובת המסך: <code dir="ltr">/#/display/{screenId || '…'}</code>
+                </p>
                 <label>
                   מייל הלקוח (חובה — פרטי כניסה)
                   <input
@@ -1284,6 +1314,7 @@ export function Agency() {
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     required
+                    autoComplete="email"
                     placeholder="gabbai@example.com"
                     dir="ltr"
                     style={{ textAlign: 'left' }}

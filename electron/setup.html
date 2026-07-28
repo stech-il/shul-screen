@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8" />
@@ -180,14 +180,14 @@
   <form class="card" id="form">
     <p class="brand"><img class="brand-img" src="./screensmart-logo.png" alt="screensmart" width="120" height="120" /></p>
     <h1>רישום מסך קיוסק</h1>
-    <p>הזינו את מזהה בית הכנסת מהמערכת (כמו בכתובת המסך /display/… — לא שם חופשי). הפרטים נשמרים במחשב זה.</p>
+    <p>הזינו את מזהה המסך המספרי מהמערכת (כמו בכתובת /display/12). הפרטים נשמרים במחשב זה.</p>
     <label>
-      מזהה בית כנסת
-      <input id="shulId" class="ltr" required minlength="2" maxlength="80" placeholder="קהילת-מרכז-עמישב" autocomplete="off" />
+      מזהה מסך
+      <input id="shulId" class="ltr" required minlength="1" maxlength="12" inputmode="numeric" pattern="[0-9]*" placeholder="12" autocomplete="off" />
     </label>
     <label>
       כתובת שרת
-      <input id="serverUrl" class="ltr" required type="url" value="https://shul-screen.onrender.com" />
+      <input id="serverUrl" class="ltr" required type="url" value="https://www.screensmart.co.il" />
     </label>
 
     <ul class="checklist" id="checklist" aria-live="polite">

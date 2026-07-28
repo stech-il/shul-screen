@@ -2,12 +2,13 @@ import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import { DEFAULT_PUBLIC_ORIGIN, isValidScreenId, normalizeScreenId } from './screenId';
 
 const KEY_SHUL = 'screensmart.kiosk.shulId';
 const KEY_SERVER = 'screensmart.kiosk.serverUrl';
 const LS_SHUL = 'screensmart.kiosk.shulId';
 const LS_SERVER = 'screensmart.kiosk.serverUrl';
-export const DEFAULT_SERVER = 'https://shul-screen.onrender.com';
+export const DEFAULT_SERVER = DEFAULT_PUBLIC_ORIGIN;
 
 export function isAndroidKiosk(): boolean {
   try {
@@ -63,10 +64,13 @@ export async function saveAndroidKioskConfig(input: {
   shulId: string;
   serverUrl: string;
 }): Promise<void> {
-  const shulId = String(input.shulId || '').trim();
+  const shulId = normalizeScreenId(input.shulId);
   const serverUrl = String(input.serverUrl || DEFAULT_SERVER)
     .trim()
     .replace(/\/$/, '');
+  if (!isValidScreenId(shulId)) {
+    throw new Error('מזהה מסך לא תקין — השתמשו במספר (למשל 12)');
+  }
   writeLocal(LS_SHUL, shulId);
   writeLocal(LS_SERVER, serverUrl);
   if (!isAndroidKiosk()) return;
@@ -100,6 +104,9 @@ export async function probeAndroidConnection(input: {
   }
   if (!shulId) {
     return { server: { ok: false }, config: { ok: false, detail: 'missing-id' } };
+  }
+  if (!isValidScreenId(shulId)) {
+    return { server: { ok: false }, config: { ok: false, detail: 'bad-id' } };
   }
 
   let serverOk = false;

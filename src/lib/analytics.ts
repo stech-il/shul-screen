@@ -1,5 +1,6 @@
 import type { AnalyticsEvent, ScreenHeartbeat } from '../types';
 import { getSupabase, isSupabaseConfigured } from './supabase';
+import { DEFAULT_PUBLIC_ORIGIN } from './screenId';
 
 const EVENTS_KEY = 'shul-screen:analytics';
 const HEART_PREFIX = 'shul-screen:heartbeat:';
@@ -69,7 +70,7 @@ async function resolveCloudOrigin(): Promise<string> {
   } catch {
     /* ignore */
   }
-  return 'https://shul-screen.onrender.com';
+  return DEFAULT_PUBLIC_ORIGIN;
 }
 
 async function postHeartbeatToCloud(hb: ScreenHeartbeat): Promise<void> {

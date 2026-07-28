@@ -1,6 +1,6 @@
-{
+﻿{
   "shulId": "",
-  "serverUrl": "https://shul-screen.onrender.com",
+  "serverUrl": "https://www.screensmart.co.il",
   "openAtLogin": true,
   "note": "העתק ל־%APPDATA%/screensmart/kiosk.json או הגדר בהפעלה הראשונה. shulId חייב להיות זהה למזהה בסוכנות (לא שם תצוגה). Ctrl+Shift+S לפתיחת ההגדרות."
 }

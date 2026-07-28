@@ -1,10 +1,10 @@
-const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
+﻿const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
-const DEFAULT_SERVER = 'https://shul-screen.onrender.com';
+const DEFAULT_SERVER = 'https://www.screensmart.co.il';
 
 /** @type {BrowserWindow | null} */
 let mainWindow = null;

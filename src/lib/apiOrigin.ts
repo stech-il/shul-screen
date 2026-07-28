@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
+import { DEFAULT_PUBLIC_ORIGIN } from './screenId';
 
-const DEFAULT_SERVER = 'https://shul-screen.onrender.com';
 const LS_SERVER = 'screensmart.kiosk.serverUrl';
 
 /** True inside Capacitor Android/iOS WebView. */
@@ -26,7 +26,7 @@ export function getCloudOrigin(): string {
   } catch {
     /* ignore */
   }
-  return DEFAULT_SERVER;
+  return DEFAULT_PUBLIC_ORIGIN;
 }
 
 /** Prefix /api/... with the cloud origin when running inside the APK. */

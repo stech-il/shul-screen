@@ -254,13 +254,16 @@ export function Landing() {
                   {t('landing.screenLoginId')}
                   <input
                     value={loginShulId}
-                    onChange={(e) => setLoginShulId(e.target.value)}
+                    onChange={(e) => setLoginShulId(e.target.value.trim())}
                     placeholder={t('landing.screenLoginPlaceholder')}
                     dir="ltr"
-                    autoComplete="username"
+                    inputMode="numeric"
+                    autoComplete="off"
                     autoFocus
                     required
-                    minLength={2}
+                    minLength={1}
+                    maxLength={12}
+                    pattern="[0-9]*"
                   />
                 </label>
                 <button type="submit" className="landing-btn primary compact">

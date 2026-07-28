@@ -19,7 +19,8 @@ function HomeRoute() {
 }
 
 function DisplayRoute() {
-  const { id = 'amishav' } = useParams();
+  const { id } = useParams();
+  if (!id) return <Navigate to="/" replace />;
   let synagogueId = id;
   try {
     synagogueId = decodeURIComponent(id);
@@ -30,7 +31,8 @@ function DisplayRoute() {
 }
 
 function AdminRoute() {
-  const { id = 'amishav' } = useParams();
+  const { id } = useParams();
+  if (!id) return <Navigate to="/" replace />;
   let synagogueId = id;
   try {
     synagogueId = decodeURIComponent(id);

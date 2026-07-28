@@ -1,4 +1,4 @@
-# screensmart — מסך בית כנסת
+﻿# screensmart — מסך בית כנסת
 
 תוכנה להצגת מסך דיגיטלי בבתי כנסת — גרסה 0.3.
 
@@ -26,8 +26,8 @@ npm run dev
 ```
 
 - בית: `/#/`
-- מסך: `/#/display/amishav`
-- ניהול בית כנסת: `/#/login/amishav` → `admin` / `admin123`
+- מסך: `/#/display/12`
+- ניהול בית כנסת: `/#/login/12` → `admin` / `admin123`
 - מנהל מערכת (יצירת בתי כנסת): `superadmin` / `ShulAdmin2026!` או `admin` / `a5744084a` (ניתן לשנות ב־`.env`)
 - סוכנות: `/#/agency` (דורש מנהל מערכת)
 

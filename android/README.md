@@ -1,4 +1,4 @@
-# אפליקציית Android (Capacitor) — screensmart
+﻿# אפליקציית Android (Capacitor) — screensmart
 
 מעטפת WebView סביב האתר החי (כמו Electron ב־Windows): מסך מלא, landscape, מסך לא נרדם, ורישום מזהה בית כנסת במכשיר.
 

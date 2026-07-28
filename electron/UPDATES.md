@@ -1,4 +1,4 @@
-# מסך קיוסק (Electron) — התקנה ועדכונים
+﻿# מסך קיוסק (Electron) — התקנה ועדכונים
 
 ## התקנה על מחשב המסך
 
@@ -26,8 +26,8 @@
 
 ```json
 {
-  "shulId": "קהילת-מרכז",
-  "serverUrl": "https://shul-screen.onrender.com",
+  "shulId": "12",
+  "serverUrl": "https://www.screensmart.co.il",
   "openAtLogin": true,
   "registeredAt": "2026-07-27T10:00:00.000Z"
 }

@@ -1,4 +1,4 @@
-# Android kiosk (Capacitor)
+﻿# Android kiosk (Capacitor)
 
 Native Android shell for the live HashRouter web app.
 

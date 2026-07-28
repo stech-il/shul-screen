@@ -16,6 +16,7 @@ function configMessage(detail: string, ok: boolean): string {
     return 'השרת זמין אך אין עדיין הגדרה למזהה זה — אפשר להמשיך ולפרסם מהפאנל';
   }
   if (detail === 'missing-id') return 'נא להזין מזהה';
+  if (detail === 'bad-id') return 'מזהה מסך לא תקין — השתמשו במספר';
   if (detail === 'server-down') return 'לא נבדק — השרת לא זמין';
   if (detail === 'bad-url') return 'כתובת שרת לא תקינה';
   return `לא ניתן לאמת הגדרה (${detail || 'שגיאה'})`;
@@ -95,20 +96,22 @@ export function KioskSetup() {
         </p>
         <h1>רישום מסך Android</h1>
         <p className="kiosk-setup-lead">
-          הזינו את מזהה בית הכנסת מהמערכת (כמו בכתובת המסך /display/…). הפרטים נשמרים במכשיר זה.
+          הזינו את מזהה המסך המספרי מהמערכת (למשל 12, כמו בכתובת /display/12). הפרטים נשמרים במכשיר זה.
         </p>
 
         <label>
-          מזהה בית כנסת
+          מזהה מסך
           <input
             className="ltr"
             required
-            minLength={2}
-            maxLength={80}
-            placeholder="קהילת-מרכז-עמישב"
+            minLength={1}
+            maxLength={12}
+            placeholder="12"
+            inputMode="numeric"
             autoComplete="off"
+            pattern="[0-9]*"
             value={shulId}
-            onChange={(e) => setShulId(e.target.value)}
+            onChange={(e) => setShulId(e.target.value.replace(/\D/g, '').slice(0, 12))}
           />
         </label>
         <label>
@@ -117,6 +120,7 @@ export function KioskSetup() {
             className="ltr"
             required
             type="url"
+            autoComplete="off"
             value={serverUrl}
             onChange={(e) => setServerUrl(e.target.value)}
           />
