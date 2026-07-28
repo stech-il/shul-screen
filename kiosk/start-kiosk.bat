@@ -1,7 +1,8 @@
 @echo off
-rem ===== screensmart - הפעלת קיוסק מסך בית כנסת =====
-rem העתק קובץ זה למחשב המסך, ושים קיצור דרך אליו ב- shell:startup
-rem החלף את SHUL_ID במזהה בית הכנסת (מקודד URL) אם צריך.
+rem ===== screensmart - קיוסק דפדפן (גיבוי) =====
+rem מומלץ: התקינו את תוכנת Electron (npm run dist → screensmart-Setup).
+rem קובץ זה נשאר כגיבוי בלבד אם אין installer.
+rem העתק למחשב המסך + קיצור ב-shell:startup. החלף SHUL_ID במזהה בית הכנסת.
 
 rem "קהילת-מרכז-עמישב" מקודד. %% הוא סימן אחוז אחד בקובץ bat.
 set "SHUL_ID=%%D7%%A7%%D7%%94%%D7%%99%%D7%%9C%%D7%%AA-%%D7%%9E%%D7%%A8%%D7%%9B%%D7%%96-%%D7%%A2%%D7%%9E%%D7%%99%%D7%%A9%%D7%%91"

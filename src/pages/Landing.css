@@ -29,11 +29,7 @@
   animation: landing-fade 0.7s ease both;
 }
 
-.landing-nav-brand {
-  margin: 0;
-  font-family: 'Secular One', 'Frank Ruhl Libre', serif;
-  font-size: 1.15rem;
-  letter-spacing: 0.04em;
+.landing-nav-logo {
   color: var(--ink);
 }
 
@@ -66,12 +62,9 @@
   animation: landing-rise 0.85s ease 0.08s both;
 }
 
-.landing-brand {
-  margin: 0 0 0.85rem;
-  font-family: 'Secular One', 'Frank Ruhl Libre', serif;
-  font-size: clamp(2.6rem, 9vw, 4.4rem);
-  line-height: 1;
-  letter-spacing: 0.02em;
+.landing-brand-logo {
+  display: block;
+  margin: 0 0 1rem;
   color: var(--ink);
 }
 

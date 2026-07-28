@@ -24,23 +24,35 @@ export default defineConfig({
       // 'prompt' avoids the plugin's automatic full-page reload (that flashes kiosks).
       // We claim updates ourselves in main.tsx — skip reload on live display routes.
       registerType: 'prompt',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'screensmart-mark.png'],
       manifest: {
         name: 'screensmart',
         short_name: 'screensmart',
         description: 'screensmart — מסך תצוגה לבתי כנסת: זמנים, תפילות והודעות',
-        theme_color: '#1a3a4a',
-        background_color: '#f7f5f0',
+        theme_color: '#0f1c22',
+        background_color: '#0f1c22',
         display: 'fullscreen',
         lang: 'he',
         dir: 'rtl',
         start_url: '/',
         icons: [
           {
-            src: 'favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
+            src: 'pwa-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'pwa-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'pwa-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },

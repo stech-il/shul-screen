@@ -1,0 +1,56 @@
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.brand-logo img {
+  display: block;
+  width: auto;
+  height: var(--brand-logo-h, 2.25rem);
+  border-radius: 0.55em;
+  object-fit: contain;
+}
+
+.brand-logo-word {
+  font-family: 'Secular One', 'Frank Ruhl Libre', serif;
+  font-size: 1.05em;
+  letter-spacing: 0.04em;
+  color: inherit;
+  line-height: 1;
+}
+
+.brand-logo-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.brand-logo--sm {
+  --brand-logo-h: 1.65rem;
+}
+
+.brand-logo--md {
+  --brand-logo-h: 2.35rem;
+}
+
+.brand-logo--lg {
+  --brand-logo-h: 3.4rem;
+}
+
+.brand-logo--hero {
+  --brand-logo-h: clamp(5.5rem, 18vw, 9.5rem);
+}
+
+.brand-logo--hero img {
+  border-radius: 1rem;
+  box-shadow: 0 16px 40px rgba(20, 47, 56, 0.18);
+}

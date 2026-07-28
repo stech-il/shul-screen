@@ -794,6 +794,16 @@ textarea {
   gap: 0.75rem;
 }
 
+.login-brand-logo {
+  align-self: flex-start;
+  margin-bottom: 0.15rem;
+}
+
+.admin-brand-logo {
+  display: block;
+  margin: 0 0 0.35rem;
+}
+
 .login-form {
   display: flex;
   flex-direction: column;

@@ -50,6 +50,7 @@
     "directories": {
       "output": "release"
     },
+    "icon": "build/icon.png",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -65,7 +66,11 @@
       "oneClick": true,
       "perMachine": true,
       "allowToChangeInstallationDirectory": false,
-      "shortcutName": "screensmart"
+      "shortcutName": "screensmart",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "include": "electron/installer.nsh"
     },
     "publish": null
   },

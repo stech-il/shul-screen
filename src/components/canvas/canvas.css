@@ -282,6 +282,51 @@
   margin: 0 auto;
 }
 
+.cw-heading {
+  margin: 0;
+  font-size: 1em;
+  line-height: 1.2;
+  font-weight: inherit;
+  font-family: inherit;
+  color: inherit;
+}
+
+.cw-divider {
+  width: 100%;
+  border: 0;
+  border-top: 0.12em solid currentColor;
+  margin: 0.35em 0;
+  opacity: 0.85;
+}
+
+.cw-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60%;
+  padding: 0.35em 0.9em;
+  border-radius: inherit;
+  background: color-mix(in srgb, currentColor 12%, #fff);
+  border: 0.06em solid color-mix(in srgb, currentColor 35%, transparent);
+  font-weight: inherit;
+  font-size: 0.95em;
+}
+
+.cw-video {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  object-fit: cover;
+  background: #0a1216;
+}
+
+.cw-link-wrap {
+  color: inherit;
+  text-decoration: none;
+  display: contents;
+}
+
 .cw-empty {
   margin: 0;
   opacity: 0.45;

@@ -13,6 +13,7 @@ import { isLicenseValid } from '../lib/license';
 import { syncConfig } from '../lib/storage';
 import type { SynagogueConfig } from '../types';
 import { SiteFooter } from '../components/SiteFooter';
+import { BrandLogo } from '../components/BrandLogo';
 import './Admin.css';
 
 const BOOTSTRAP_USER = 'admin';
@@ -143,6 +144,7 @@ export function Login() {
   return (
     <div className="admin" dir="rtl" lang="he">
       <div className="login-card">
+        <BrandLogo size="md" className="login-brand-logo" />
         <p className="eyebrow">כניסה לניהול</p>
         <h1>{config?.name ?? id}</h1>
         <p className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>

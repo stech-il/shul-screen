@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { BrandLogo } from '../components/BrandLogo';
 import { SiteFooter } from '../components/SiteFooter';
 import './Landing.css';
 
@@ -11,7 +12,7 @@ export function Landing() {
   return (
     <div className="landing" dir="rtl" lang="he">
       <header className="landing-nav">
-        <p className="landing-nav-brand">screensmart</p>
+        <BrandLogo size="sm" className="landing-nav-logo" />
         <a className="landing-nav-cta" href={WHATSAPP} target="_blank" rel="noreferrer">
           דברו איתנו
         </a>
@@ -19,7 +20,7 @@ export function Landing() {
 
       <section className="landing-hero" aria-label="פתיחה">
         <div className="landing-hero-copy">
-          <p className="landing-brand">screensmart</p>
+          <BrandLogo size="hero" className="landing-brand-logo" />
           <h1>המסך שבית הכנסת שלכם צריך</h1>
           <p className="landing-lead">
             זמני תפילה, הודעות ופיקוד העורף — על מסך אחד, מנוהל מהטלפון.

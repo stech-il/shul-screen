@@ -147,7 +147,6 @@ export async function notifyTrialStarted(synagogueId, opts = {}) {
            <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#163038;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600">כניסה לניהול המסך</a>
          </p>
          ${displayUrl ? `<p style="margin:8px 0 0;font-size:13px"><a href="${escapeHtml(displayUrl)}" style="color:#163038">פתיחת המסך החי</a></p>` : ''}
-         <p style="margin:14px 0 0;font-size:12px;color:#8a5a2b">שמרו את הסיסמה במקום בטוח — היא לא תוצג שוב במערכת.</p>
        </div>`
     : '';
 

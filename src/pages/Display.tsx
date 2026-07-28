@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { BrandLogo } from '../components/BrandLogo';
 import { CanvasStage } from '../components/canvas/CanvasStage';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { defaultCanvas } from '../components/canvas/widgets';
@@ -250,7 +251,7 @@ export function Display({ synagogueId }: Props) {
     return (
       <div className="display license-lock" dir="rtl" lang="he">
         <div className="license-lock-card">
-          <p className="license-lock-eyebrow">screensmart</p>
+          <BrandLogo size="md" className="license-lock-logo" />
           <h1>{config.name}</h1>
           <p className="license-lock-reason">
             אין רישיון פעיל למסך זה — פנה לספק המערכת

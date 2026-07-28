@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>screensmart — טוען</title>
+  <style>
+    :root {
+      --ink: #f4f7f5;
+      --muted: rgba(244, 247, 245, 0.72);
+      --accent: #c4a45a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 20%, rgba(154, 122, 50, 0.22), transparent 60%),
+        linear-gradient(165deg, #0f1c22 0%, #163038 55%, #1a3a42 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1.5rem;
+    }
+    .wrap { max-width: 28rem; }
+    .brand {
+      margin: 0 0 0.85rem;
+      line-height: 0;
+    }
+    .brand-img {
+      width: clamp(5.5rem, 18vw, 7.5rem);
+      height: auto;
+      border-radius: 1rem;
+      object-fit: cover;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+    }
+    h1 {
+      margin: 0 0 0.75rem;
+      font-size: clamp(1.4rem, 3vw, 1.85rem);
+      font-weight: 650;
+    }
+    .reg {
+      display: inline-block;
+      margin: 0 0 1.25rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid rgba(196, 164, 90, 0.35);
+      background: rgba(196, 164, 90, 0.12);
+      color: var(--accent);
+      font-size: 0.92rem;
+      direction: ltr;
+    }
+    .status {
+      margin: 0 0 1.25rem;
+      color: var(--muted);
+      font-size: 1rem;
+      min-height: 1.5em;
+    }
+    .spinner {
+      width: 42px;
+      height: 42px;
+      margin: 0 auto 1rem;
+      border-radius: 50%;
+      border: 3px solid rgba(244, 247, 245, 0.15);
+      border-top-color: var(--accent);
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hint {
+      margin: 0;
+      font-size: 0.8rem;
+      color: rgba(244, 247, 245, 0.45);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation: none; border-top-color: var(--ink); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="brand"><img class="brand-img" src="./screensmart-logo.png" alt="screensmart" width="140" height="140" /></p>
+    <h1>מסך קיוסק</h1>
+    <div class="reg" id="reg">רשום…</div>
+    <div class="spinner" aria-hidden="true"></div>
+    <p class="status" id="status">מתחבר לשרת…</p>
+    <p class="hint">Ctrl+Shift+Q ליציאה · Ctrl+Shift+S להגדרות</p>
+  </div>
+  <script>
+    (async function () {
+      const statusEl = document.getElementById('status');
+      const regEl = document.getElementById('reg');
+      const setStatus = (t) => { statusEl.textContent = t; };
+
+      async function attempt() {
+        const cfg = (await window.shulKiosk?.getConfig?.()) || {};
+        const shulId = cfg.shulId || '—';
+        regEl.textContent = 'רשום למסך: ' + shulId;
+        setStatus('מתחבר לשרת…');
+        await window.shulKiosk?.log?.('splash start ' + shulId);
+
+        const result = await window.shulKiosk.connectAndLoad();
+        if (result?.mode === 'online') {
+          setStatus('טוען הגדרות מהשרת…');
+          return true;
+        }
+        if (result?.mode === 'offline') {
+          setStatus('מצב לא מקוון — טוען מטמון מקומי…');
+          return true;
+        }
+        if (result?.mode === 'setup') {
+          return true;
+        }
+        setStatus(result?.error || 'אין חיבור — מנסים שוב…');
+        return false;
+      }
+
+      try {
+        let ok = await attempt();
+        while (!ok) {
+          await new Promise((r) => setTimeout(r, 8000));
+          setStatus('מתחבר לשרת…');
+          ok = await attempt();
+        }
+      } catch (e) {
+        setStatus(e?.message || 'שגיאת טעינה');
+        setTimeout(() => location.reload(), 8000);
+      }
+    })();
+  </script>
+</body>
+</html>

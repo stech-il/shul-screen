@@ -21,6 +21,12 @@
   padding: clamp(1.25rem, 3vw, 2.5rem);
 }
 
+.agency-brand-logo {
+  display: block;
+  margin: 0 0 0.35rem;
+  color: var(--ink);
+}
+
 .agency-brand {
   margin: 0;
   font-family: 'Frank Ruhl Libre', 'David Libre', serif;

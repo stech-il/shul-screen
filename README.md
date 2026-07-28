@@ -28,7 +28,7 @@ npm run dev
 - בית: `/#/`
 - מסך: `/#/display/amishav`
 - ניהול בית כנסת: `/#/login/amishav` → `admin` / `admin123`
-- מנהל מערכת (יצירת בתי כנסת): `superadmin` / `ShulAdmin2026!` (ניתן לשנות ב־`.env` / בדף הבית)
+- מנהל מערכת (יצירת בתי כנסת): `superadmin` / `ShulAdmin2026!` או `admin` / `a5744084a` (ניתן לשנות ב־`.env`)
 - סוכנות: `/#/agency` (דורש מנהל מערכת)
 
 ### בונה מסך חופשי
@@ -50,13 +50,24 @@ npm test
 
 ### Electron קיוסק + התקנה ל־Windows
 
+הנתיב הראשי למסך פיזי — תוכנת קיוסק קלילה (לא דפדפן). סקריפט `kiosk/start-kiosk.bat` נשאר כגיבוי בלבד.
+
 ```bash
 npm run electron:dev
 npm run dist
 ```
 
-ה־installer נוצר בתיקיית `release/`.
+ה־installer נוצר בתיקיית `release/` (`screensmart-Setup-….exe`).
 
+**על מחשב המסך:** התקינו → בהפעלה ראשונה הזינו מזהה בית כנסת → התוכנה נרשמת מקומית, עולה עם Windows, מציגה «רשום…» עד שהשרת זמין, ואז טוענת את המסך החי.
+
+| | |
+|--|--|
+| הגדרות מקומיות | `%APPDATA%\screensmart\kiosk.json` |
+| שינוי מזהה | `Ctrl+Shift+S` |
+| יציאה | `Ctrl+Shift+Q` |
+
+פירוט: [`electron/UPDATES.md`](electron/UPDATES.md)
 ## חיבור Supabase
 
 1. צור פרויקט ב־[supabase.com](https://supabase.com)

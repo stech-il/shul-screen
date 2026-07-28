@@ -54,9 +54,22 @@ a {
 
 .site-footer p {
   margin: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.7rem;
   color: #5a6b73;
   font-size: 0.82rem;
   line-height: 1.5;
+}
+
+.site-footer-logo {
+  color: #163038;
+}
+
+.site-footer-logo img {
+  border-radius: 0.35rem;
 }
 
 .site-footer a {

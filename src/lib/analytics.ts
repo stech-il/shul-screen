@@ -42,14 +42,36 @@ export function listEvents(synagogueId?: string): AnalyticsEvent[] {
   return synagogueId ? all.filter((e) => e.synagogueId === synagogueId) : all;
 }
 
+/** Absolute origin for cloud API — needed on Electron file:// offline shell. */
+async function resolveCloudOrigin(): Promise<string> {
+  try {
+    if (typeof window !== 'undefined' && window.shulKiosk?.getConfig) {
+      const cfg = await window.shulKiosk.getConfig();
+      const url = String(cfg?.serverUrl || '').trim().replace(/\/$/, '');
+      if (/^https?:\/\//i.test(url)) return url;
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (typeof window !== 'undefined' && /^https?:$/i.test(window.location.protocol)) {
+      return ''; // same-origin relative paths
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'https://shul-screen.onrender.com';
+}
+
 async function postHeartbeatToCloud(hb: ScreenHeartbeat): Promise<void> {
   try {
-    await fetch('/api/cloud/heartbeats', {
+    const origin = await resolveCloudOrigin();
+    const url = `${origin}/api/cloud/heartbeats`;
+    await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(hb),
       cache: 'no-store',
-      keepalive: true,
     });
   } catch {
     /* offline / server down — local copy still useful on same device */
@@ -116,22 +138,43 @@ export function isScreenOnline(hb: ScreenHeartbeat | null, withinMs = 90_000): b
   return Date.now() - Date.parse(hb.at) < withinMs;
 }
 
+/** Normalize synagogue ids for heartbeat ↔ Agency matching (trim / decode). */
+export function normalizeSynagogueId(id: string): string {
+  const raw = String(id || '').trim();
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+export function findHeartbeat(
+  heartbeats: ScreenHeartbeat[],
+  synagogueId: string,
+): ScreenHeartbeat | null {
+  const want = normalizeSynagogueId(synagogueId);
+  return (
+    heartbeats.find((h) => normalizeSynagogueId(h.synagogueId) === want) ?? null
+  );
+}
+
 /** Call from display every 30s — posts to server so Agency sees online status */
 export function startHeartbeat(
   synagogueId: string,
   getLayout: () => string,
   intervalMs = 30_000,
 ): () => void {
+  const id = normalizeSynagogueId(synagogueId);
   function beat() {
     saveHeartbeat({
-      synagogueId,
+      synagogueId: id,
       at: new Date().toISOString(),
       version: APP_VERSION,
-      online: navigator.onLine,
+      online: typeof navigator === 'undefined' ? true : navigator.onLine,
       layout: getLayout(),
     });
   }
   beat();
-  const id = window.setInterval(beat, intervalMs);
-  return () => window.clearInterval(id);
+  const timer = window.setInterval(beat, intervalMs);
+  return () => window.clearInterval(timer);
 }

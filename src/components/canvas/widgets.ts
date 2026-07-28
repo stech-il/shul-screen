@@ -17,8 +17,12 @@ export const WIDGET_LABELS: Record<CanvasWidgetType, string> = {
   yahrzeit: 'יארצייט',
   calendar: 'חגים וזיכרון',
   countdown: 'הדלקת נרות',
-  text: 'טקסט חופשי',
+  text: 'עורך טקסט',
+  heading: 'כותרת',
   image: 'תמונה',
+  video: 'וידאו',
+  divider: 'מפריד',
+  button: 'כפתור',
 };
 
 const SIZE_DEFAULTS: Partial<Record<CanvasWidgetType, { w: number; h: number }>> = {
@@ -36,8 +40,12 @@ const SIZE_DEFAULTS: Partial<Record<CanvasWidgetType, { w: number; h: number }>>
   yahrzeit: { w: 26, h: 14 },
   calendar: { w: 26, h: 14 },
   countdown: { w: 30, h: 12 },
-  text: { w: 30, h: 10 },
+  text: { w: 36, h: 14 },
+  heading: { w: 40, h: 10 },
   image: { w: 24, h: 24 },
+  video: { w: 36, h: 28 },
+  divider: { w: 40, h: 4 },
+  button: { w: 22, h: 8 },
 };
 
 export function createWidget(
@@ -58,15 +66,29 @@ export function createWidget(
     showTitle: type === 'zmanim' || type === 'block' || type === 'announcements' || type === 'zman',
     titleLayout: type === 'zman' ? 'above' : 'above',
     align: type === 'zmanim' || type === 'block' ? 'right' : 'center',
-    fontScale: 1,
+    fontScale: type === 'heading' ? 1.35 : 1,
     titleScale: 0.55,
-    fontWeight: type === 'zman' || type === 'clock' ? 'bold' : 'normal',
-    bg: type === 'text' || type === 'image' || type === 'logo' || type === 'zman' ? 'none' : 'panel',
-    showBorder: type !== 'zman' && type !== 'text' && type !== 'image' && type !== 'logo',
+    fontWeight: type === 'zman' || type === 'clock' || type === 'heading' || type === 'button' ? 'bold' : 'normal',
+    bg:
+      type === 'text' ||
+      type === 'heading' ||
+      type === 'image' ||
+      type === 'logo' ||
+      type === 'zman' ||
+      type === 'divider' ||
+      type === 'video'
+        ? 'none'
+        : type === 'button'
+          ? 'solid'
+          : 'panel',
+    showBorder: type !== 'zman' && type !== 'text' && type !== 'heading' && type !== 'image' && type !== 'logo' && type !== 'divider' && type !== 'video',
     textShadow: type === 'zman',
     opacity: 1,
-    radius: type === 'zman' ? 0 : 12,
+    radius: type === 'zman' || type === 'divider' ? 0 : type === 'button' ? 10 : 12,
     zmanKey: type === 'zman' ? 'sunrise' : undefined,
+    htmlTag: type === 'heading' ? 'h2' : undefined,
+    text: type === 'heading' ? 'כותרת לדוגמה' : type === 'text' ? 'כתבו כאן טקסט…' : undefined,
+    buttonLabel: type === 'button' ? 'לחצו כאן' : undefined,
     ...extras,
   };
 }
@@ -165,6 +187,10 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
     titleLayout: w.titleLayout ?? fallback.titleLayout,
     title: w.title != null ? decodeHtmlEntities(w.title) : w.title,
     text: w.text != null ? decodeHtmlEntities(w.text) : w.text,
+    linkUrl: w.linkUrl,
+    videoUrl: w.videoUrl,
+    buttonLabel: w.buttonLabel,
+    htmlTag: w.htmlTag,
     align: w.align ?? fallback.align,
     fontScale: w.fontScale ?? 1,
     fontSizePx:

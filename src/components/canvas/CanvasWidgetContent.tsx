@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type {
   Announcement,
   CanvasWidget,
@@ -219,7 +220,7 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
     case 'text': {
       const raw = widget.text?.trim();
       if (!raw) {
-        return placeholder ? <div className="cw-text cw-text-placeholder">טקסט חופשי</div> : null;
+        return placeholder ? <div className="cw-text cw-text-placeholder">עורך טקסט</div> : null;
       }
       return (
         <div
@@ -227,6 +228,83 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
           dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(raw) }}
         />
       );
+    }
+
+    case 'heading': {
+      const raw = (widget.text || widget.title || '').trim() || (placeholder ? 'כותרת' : '');
+      if (!raw) return null;
+      const tag = widget.htmlTag || 'h2';
+      const className = 'cw-heading';
+      let inner: ReactNode;
+      switch (tag) {
+        case 'h1':
+          inner = <h1 className={className}>{raw}</h1>;
+          break;
+        case 'h3':
+          inner = <h3 className={className}>{raw}</h3>;
+          break;
+        case 'h4':
+          inner = <h4 className={className}>{raw}</h4>;
+          break;
+        case 'h5':
+          inner = <h5 className={className}>{raw}</h5>;
+          break;
+        case 'h6':
+          inner = <h6 className={className}>{raw}</h6>;
+          break;
+        case 'p':
+          inner = <p className={className}>{raw}</p>;
+          break;
+        case 'div':
+          inner = <div className={className}>{raw}</div>;
+          break;
+        default:
+          inner = <h2 className={className}>{raw}</h2>;
+      }
+      if (widget.linkUrl?.trim()) {
+        return (
+          <a className="cw-link-wrap" href={widget.linkUrl} target="_blank" rel="noreferrer">
+            {inner}
+          </a>
+        );
+      }
+      return <>{inner}</>;
+    }
+
+    case 'divider':
+      return <hr className="cw-divider" />;
+
+    case 'button': {
+      const label = (widget.buttonLabel || widget.text || 'כפתור').trim();
+      const el = <span className="cw-button">{label}</span>;
+      if (widget.linkUrl?.trim()) {
+        return (
+          <a className="cw-link-wrap" href={widget.linkUrl} target="_blank" rel="noreferrer">
+            {el}
+          </a>
+        );
+      }
+      return el;
+    }
+
+    case 'video': {
+      const url = widget.videoUrl?.trim() || widget.imageUrl?.trim();
+      if (!url) {
+        return placeholder ? <Placeholder label="וידאו — הזינו קישור בהגדרות" /> : null;
+      }
+      const yt = youtubeEmbed(url);
+      if (yt) {
+        return (
+          <iframe
+            className="cw-video"
+            src={yt}
+            title="וידאו"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        );
+      }
+      return <video className="cw-video" src={url} controls playsInline muted={placeholder} />;
     }
 
     case 'image':
@@ -239,4 +317,26 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
     default:
       return <Placeholder label={WIDGET_LABELS[widget.type] ?? ''} />;
   }
+}
+
+function youtubeEmbed(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('youtu.be')) {
+      const id = u.pathname.replace(/^\//, '');
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (u.hostname.includes('youtube.com')) {
+      const id = u.searchParams.get('v');
+      if (id) return `https://www.youtube.com/embed/${id}`;
+      const parts = u.pathname.split('/');
+      const embedIdx = parts.indexOf('embed');
+      if (embedIdx >= 0 && parts[embedIdx + 1]) {
+        return `https://www.youtube.com/embed/${parts[embedIdx + 1]}`;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
 }

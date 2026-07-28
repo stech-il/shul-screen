@@ -5,6 +5,7 @@ import {
   isPlatformAdminLoggedIn,
   loginPlatformAdmin,
 } from '../lib/platformAuth';
+import { BrandLogo } from '../components/BrandLogo';
 import { SiteFooter } from '../components/SiteFooter';
 import './Agency.css';
 
@@ -37,7 +38,7 @@ export function PlatformLogin() {
     <div className="agency" dir="rtl" lang="he">
       <div className="agency-login-shell">
         <div className="agency-brand-block">
-          <p className="agency-brand">screensmart</p>
+          <BrandLogo size="lg" className="agency-brand-logo" />
           <h1>ניהול על</h1>
           <p className="agency-lead">
             כניסת מנהל מערכת — ניהול בתי כנסת, רישיונות והשבתות ממקום אחד.

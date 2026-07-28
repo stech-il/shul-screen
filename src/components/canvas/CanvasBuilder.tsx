@@ -15,6 +15,7 @@ import { fontSelectOptions } from '../../lib/customFonts';
 import { MediaGalleryModal } from '../MediaPicker';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ElementorWidgetPanel, type ElementorTab } from './ElementorWidgetPanel';
+import { WidgetPalette } from './WidgetPalette';
 import { widgetStyle } from './CanvasStage';
 import {
   ASPECT_RATIOS,
@@ -55,24 +56,6 @@ interface DragState {
   stage: DOMRect;
 }
 
-const PALETTE_GROUPS: { id: string; label: string; types: CanvasWidgetType[] }[] = [
-  {
-    id: 'main',
-    label: 'תמיד במסך',
-    types: ['title', 'logo', 'clock', 'hebrewDate'],
-  },
-  {
-    id: 'content',
-    label: 'תוכן',
-    types: ['block', 'announcements', 'zmanim', 'zman', 'parasha', 'dafYomi'],
-  },
-  {
-    id: 'extra',
-    label: 'נוסף',
-    types: ['weather', 'yahrzeit', 'calendar', 'countdown', 'text', 'image'],
-  },
-];
-
 const SIZE_PRESETS = [
   { id: 'S', fontScale: 0.75, boxMult: 0.72 },
   { id: 'M', fontScale: 1, boxMult: 1 },
@@ -82,7 +65,7 @@ const SIZE_PRESETS = [
 
 type SizePresetId = (typeof SIZE_PRESETS)[number]['id'];
 
-const BOX_SIZE_TYPES: CanvasWidgetType[] = ['image', 'logo'];
+const BOX_SIZE_TYPES: CanvasWidgetType[] = ['image', 'logo', 'video'];
 
 function detectSizePreset(w: CanvasWidget): SizePresetId | null {
   if (BOX_SIZE_TYPES.includes(w.type)) {
@@ -128,6 +111,7 @@ function detectNearestBoxMult(w: CanvasWidget): number {
   const defaults: Partial<Record<CanvasWidgetType, { w: number; h: number }>> = {
     image: { w: 24, h: 24 },
     logo: { w: 12, h: 16 },
+    video: { w: 36, h: 28 },
   };
   const base = defaults[w.type];
   if (!base) return 1;
@@ -156,7 +140,6 @@ export function CanvasBuilder({
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [picker, setPicker] = useState<PickerTarget | null>(null);
   const [boxUnit, setBoxUnit] = useState<'percent' | 'px'>('px');
-  const [showExtraPalette, setShowExtraPalette] = useState(false);
   const [editTab, setEditTab] = useState<ElementorTab>('content');
   const [fitLabel, setFitLabel] = useState('');
   const [stageBox, setStageBox] = useState({ w: 0, h: 0 });
@@ -407,45 +390,18 @@ export function CanvasBuilder({
   return (
     <div className="canvas-builder">
       <div className="cb-toolbar">
-        <div className="cb-palette">
-          {PALETTE_GROUPS.filter((g) => g.id !== 'extra' || showExtraPalette).map((group) => (
-            <div key={group.id} className="cb-palette-group">
-              <span className="cb-label">{group.label}</span>
-              {group.types.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  className="cb-chip"
-                  onClick={() => addWidget(type)}
-                >
-                  + {WIDGET_LABELS[type]}
-                </button>
-              ))}
-            </div>
-          ))}
-          <div className="cb-palette-group">
-            <button
-              type="button"
-              className="cb-chip ghost"
-              onClick={() => setShowExtraPalette((v) => !v)}
-            >
-              {showExtraPalette ? 'הסתר רכיבים נוספים' : 'עוד רכיבים…'}
-            </button>
-            <button type="button" className="cb-chip accent" onClick={explodeZmanim}>
-              פצל זמנים לבלוקים
-            </button>
-            <Link
-              className="cb-chip ghost"
-              to={`/display/${synagogueId}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              מסך חי ↗
-            </Link>
-            <span className="cb-fit-meta" title="גדלים ב־px יחסית למסך 1920 — נשמרים מדויק בטלוויזיה">
-              {fitLabel || `${refWidth}×${refHeight}`}
-            </span>
-          </div>
+        <div className="cb-toolbar-row">
+          <Link
+            className="cb-chip ghost"
+            to={`/display/${synagogueId}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            מסך חי ↗
+          </Link>
+          <span className="cb-fit-meta" title="גדלים ב־px יחסית למסך 1920 — נשמרים מדויק בטלוויזיה">
+            {fitLabel || `${refWidth}×${refHeight}`}
+          </span>
         </div>
 
         <details className="cb-stage-settings-wrap">
@@ -540,7 +496,7 @@ export function CanvasBuilder({
         </details>
       </div>
 
-      <div className={`cb-workspace${selected ? ' is-editing' : ''}`}>
+      <div className="cb-workspace is-editing">
         <div className="cb-stage-col">
         <div className="cb-stage-frame" ref={frameRef}>
         <div
@@ -720,8 +676,8 @@ export function CanvasBuilder({
         </div>
         </div>
 
-        {selected ? (
-          <aside className="cb-inspector cb-inspector-el" dir="rtl">
+        <aside className="cb-inspector cb-inspector-el" dir="rtl">
+          {selected ? (
             <ElementorWidgetPanel
               selected={selected}
               tab={editTab}
@@ -745,8 +701,10 @@ export function CanvasBuilder({
               onClose={() => setSelectedId(null)}
               label={WIDGET_LABELS[selected.type]}
             />
-          </aside>
-        ) : null}
+          ) : (
+            <WidgetPalette onAdd={addWidget} onExplodeZmanim={explodeZmanim} />
+          )}
+        </aside>
       </div>
 
       <MediaGalleryModal

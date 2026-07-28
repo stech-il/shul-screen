@@ -86,10 +86,15 @@ export type CanvasWidgetType =
   | 'calendar'
   | 'countdown'
   | 'text'
-  | 'image';
+  | 'heading'
+  | 'image'
+  | 'video'
+  | 'divider'
+  | 'button';
 
 export type CanvasWidgetBg = 'none' | 'panel' | 'solid' | 'dark' | 'ghost';
 export type CanvasTitleLayout = 'above' | 'below' | 'side' | 'side-reverse';
+export type CanvasHtmlTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'div';
 
 export interface CanvasWidget {
   id: string;
@@ -107,6 +112,14 @@ export interface CanvasWidget {
   titleLayout: CanvasTitleLayout;
   text?: string;
   imageUrl?: string;
+  /** for type === 'video' — embed / direct media URL */
+  videoUrl?: string;
+  /** for type === 'button' */
+  buttonLabel?: string;
+  /** optional link for heading / button / image */
+  linkUrl?: string;
+  /** semantic tag for heading widget */
+  htmlTag?: CanvasHtmlTag;
   blockId?: string;
   /** for type === 'zman' — single zmanim entry */
   zmanKey?: ZmanKey;

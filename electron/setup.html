@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>screensmart — רישום מסך</title>
+  <style>
+    :root {
+      --ink: #163038;
+      --muted: #5f737a;
+      --line: rgba(22, 48, 56, 0.14);
+      --accent: #9a7a32;
+      --bg1: #eef3f0;
+      --bg2: #dce7e2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 70% 45% at 85% 0%, rgba(154, 122, 50, 0.18), transparent 55%),
+        linear-gradient(165deg, var(--bg1), var(--bg2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      width: min(440px, 100%);
+      background: rgba(255, 252, 247, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 1.5rem 1.4rem 1.35rem;
+      box-shadow: 0 18px 48px rgba(22, 48, 56, 0.12);
+    }
+    .brand {
+      margin: 0 0 0.75rem;
+      line-height: 0;
+    }
+    .brand-img {
+      width: 4.5rem;
+      height: 4.5rem;
+      border-radius: 12px;
+      object-fit: cover;
+      box-shadow: 0 8px 24px rgba(22, 48, 56, 0.14);
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.45rem;
+    }
+    p {
+      margin: 0 0 1rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 0.85rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    input {
+      font: inherit;
+      padding: 0.7rem 0.8rem;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      background: #fff;
+    }
+    input:focus {
+      outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+      outline-offset: 1px;
+    }
+    .ltr { direction: ltr; text-align: left; }
+    .actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+    button {
+      font: inherit;
+      font-weight: 600;
+      border-radius: 10px;
+      padding: 0.7rem 1.1rem;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+    }
+    button.primary {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+    .err {
+      color: #8f2f2f;
+      font-size: 0.88rem;
+      margin: 0 0 0.75rem;
+      min-height: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <form class="card" id="form">
+    <p class="brand"><img class="brand-img" src="./screensmart-logo.png" alt="screensmart" width="120" height="120" /></p>
+    <h1>רישום מסך קיוסק</h1>
+    <p>הזינו את מזהה בית הכנסת מהמערכת (כמו בכתובת המסך /display/… — לא שם חופשי). הפרטים נשמרים במחשב זה.</p>
+    <label>
+      מזהה בית כנסת
+      <input id="shulId" class="ltr" required minlength="2" maxlength="80" placeholder="קהילת-מרכז-עמישב" autocomplete="off" />
+    </label>
+    <label>
+      כתובת שרת
+      <input id="serverUrl" class="ltr" required type="url" value="https://shul-screen.onrender.com" />
+    </label>
+    <p class="err" id="err"></p>
+    <div class="actions">
+      <button type="submit" class="primary" id="submit">שמור והפעל מסך</button>
+    </div>
+  </form>
+  <script>
+    (async function () {
+      const cfg = (await window.shulKiosk?.getConfig?.()) || {};
+      if (cfg.shulId) document.getElementById('shulId').value = cfg.shulId;
+      if (cfg.serverUrl) document.getElementById('serverUrl').value = cfg.serverUrl;
+
+      document.getElementById('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const err = document.getElementById('err');
+        const btn = document.getElementById('submit');
+        err.textContent = '';
+        const shulId = document.getElementById('shulId').value.trim();
+        let serverUrl = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+        if (!shulId) {
+          err.textContent = 'נא להזין מזהה';
+          return;
+        }
+        if (!/^https?:\/\//i.test(serverUrl)) {
+          err.textContent = 'כתובת שרת לא תקינה';
+          return;
+        }
+        btn.disabled = true;
+        try {
+          const result = await window.shulKiosk.saveConfig({ shulId, serverUrl });
+          if (!result?.ok) {
+            err.textContent = result?.error || 'שמירה נכשלה';
+            btn.disabled = false;
+            return;
+          }
+          await window.shulKiosk.continueToSplash();
+        } catch (ex) {
+          err.textContent = ex?.message || 'שגיאה';
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

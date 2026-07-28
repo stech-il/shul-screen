@@ -24,7 +24,8 @@ import {
   touchPlatformSession,
 } from '../lib/platformAuth';
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
-import { fetchHeartbeatsFromCloud, isScreenOnline } from '../lib/analytics';
+import { fetchHeartbeatsFromCloud, findHeartbeat, isScreenOnline } from '../lib/analytics';
+import { BrandLogo } from '../components/BrandLogo';
 import { SiteFooter } from '../components/SiteFooter';
 import {
   deleteSynagogue,
@@ -281,7 +282,7 @@ export function Agency() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return shuls.filter((c) => {
-      const hb = heartbeats.find((h) => h.synagogueId === c.id) ?? null;
+      const hb = findHeartbeat(heartbeats, c.id);
       const online = isScreenOnline(hb);
       const licensed = Boolean(c.license && isLicenseValid(c.license));
       const locked = Boolean(c.license?.locked);
@@ -302,7 +303,7 @@ export function Agency() {
     let online = 0;
     let licensed = 0;
     for (const c of shuls) {
-      const hb = heartbeats.find((h) => h.synagogueId === c.id) ?? null;
+      const hb = findHeartbeat(heartbeats, c.id);
       if (isScreenOnline(hb)) online += 1;
       if (c.license && isLicenseValid(c.license)) licensed += 1;
     }
@@ -794,7 +795,7 @@ export function Agency() {
     <div className="agency" dir="rtl" lang="he">
       <header className="agency-top">
         <div>
-          <p className="agency-brand">screensmart</p>
+          <BrandLogo size="md" className="agency-brand-logo" />
           <h1>ניהול בתי כנסת</h1>
           <p className="agency-sub">{loadPlatformSession()?.username}</p>
         </div>
@@ -1054,7 +1055,7 @@ export function Agency() {
           ) : (
             <ul className="shul-cards">
               {filtered.map((c, i) => {
-                const hb = heartbeats.find((h) => h.synagogueId === c.id) ?? null;
+                const hb = findHeartbeat(heartbeats, c.id);
                 const online = isScreenOnline(hb);
                 const licensed = Boolean(c.license && isLicenseValid(c.license));
                 const locked = Boolean(c.license?.locked);

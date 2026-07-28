@@ -4,6 +4,7 @@ import { BillingCard } from '../components/BillingCard';
 import { DesignStudio } from '../components/DesignStudio';
 import { CanvasBuilder } from '../components/canvas/CanvasBuilder';
 import { InquiriesPanel } from '../components/InquiriesPanel';
+import { BrandLogo } from '../components/BrandLogo';
 import { SiteFooter } from '../components/SiteFooter';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { MediaPickerField, GalleryManager } from '../components/MediaPicker';
@@ -872,6 +873,7 @@ export function Admin({ synagogueId }: Props) {
     <div className={`admin${tab === 'canvas' ? ' canvas-mode' : ''}`} dir="rtl" lang="he">
       <header className="admin-header sticky-bar">
         <div className="admin-title">
+          <BrandLogo size="sm" className="admin-brand-logo" />
           <p className="eyebrow">
             ניהול מסך · {memberName} ({memberRole === 'owner' ? 'מנהל' : 'עורך'})
           </p>
