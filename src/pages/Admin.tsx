@@ -935,7 +935,7 @@ export function Admin({ synagogueId }: Props) {
               <span className="inquiry-mail-badge">{inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}</span>
             </button>
           ) : null}
-          <LangSwitch variant="dark" />
+          <LangSwitch variant="light" />
           <button
             className="btn ghost"
             type="button"
