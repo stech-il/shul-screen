@@ -1114,7 +1114,7 @@ code {
 }
 
 .admin.canvas-mode .canvas-builder-card .canvas-builder {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
   display: flex;
