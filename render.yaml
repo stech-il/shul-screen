@@ -1,4 +1,8 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Note: a persistent disk disables Render zero-downtime deploys.
+# For planned upgrades, enable Maintenance Mode on shul-screen and point
+# the custom page URI to the screensmart-status static site below.
 services:
   - type: web
     name: shul-screen
@@ -58,3 +62,15 @@ services:
         sync: false
       - key: MAIL_REPLY_TO
         sync: false
+
+  # Branded maintenance page (host separately so it stays up while main service is offline)
+  - type: web
+    name: screensmart-status
+    runtime: static
+    region: frankfurt
+    buildCommand: 'true'
+    staticPublishPath: ./maintenance
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
