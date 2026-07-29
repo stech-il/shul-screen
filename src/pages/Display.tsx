@@ -36,7 +36,7 @@ import {
   syncConfig,
 } from '../lib/storage';
 import { subscribeLiveUpdates } from '../lib/liveSync';
-import { subscribeWeather, type WeatherData } from '../lib/weather';
+import { subscribeWeather, weatherCodeToIcon, type WeatherData } from '../lib/weather';
 import type { ComputedZman, DayInfo, ModeInfo, SynagogueConfig, ZmanKey } from '../types';
 import './Display.css';
 
@@ -369,6 +369,8 @@ export function Display({ synagogueId }: Props) {
       ? carouselIdx % activeAnnouncements.length
       : 0,
     weatherTemp: config.showWeather ? weather?.tempC ?? null : null,
+    weatherCode: config.showWeather ? weather?.weatherCode : undefined,
+    weatherDesc: config.showWeather ? weather?.description : undefined,
     countdownLabel: modeInfo?.countdownLabel,
     candleBoard: modeInfo?.candleBoard ?? null,
   };
@@ -417,7 +419,15 @@ export function Display({ synagogueId }: Props) {
       {config.showWeather && weather ? (
         <div className="side-block">
           <h3>מזג האוויר</h3>
-          <p className="big">{weather.tempC}°C</p>
+          <p className="big">
+            {(() => {
+              const h = new Date().getHours();
+              const icon = weatherCodeToIcon(weather.weatherCode, h < 6 || h >= 20);
+              return icon ? <span className="weather-icon">{icon}</span> : null;
+            })()}
+            {weather.tempC}°C
+          </p>
+          <p className="weather-desc">{weather.description}</p>
         </div>
       ) : null}
       {config.showCalendarExtras && day.holidays?.length ? (

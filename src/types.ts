@@ -360,6 +360,8 @@ export interface ModeInfo {
 export interface WeatherInfo {
   tempC: number;
   description: string;
+  /** WMO weather interpretation code (0–99) from Open-Meteo */
+  weatherCode?: number;
   fetchedAt: string;
 }
 

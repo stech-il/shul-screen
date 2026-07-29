@@ -53,6 +53,23 @@ function weatherCodeToHe(code: number): string {
   return 'לא ידוע';
 }
 
+/** Map WMO weather code to a representative icon character. */
+export function weatherCodeToIcon(code: number | undefined, isNight = false): string {
+  if (code == null) return '';
+  if (code === 0) return isNight ? '🌙' : '☀️';
+  if (code === 1) return isNight ? '🌙' : '🌤️';
+  if (code === 2) return '⛅';
+  if (code === 3) return '☁️';
+  if (code <= 48) return '🌫️';
+  if (code <= 57) return '🌦️';
+  if (code <= 67) return '🌧️';
+  if (code <= 77) return '🌨️';
+  if (code <= 82) return '🌧️';
+  if (code <= 86) return '🌨️';
+  if (code <= 99) return '⛈️';
+  return '';
+}
+
 /** Fetch live weather from Open-Meteo cloud API for synagogue city */
 export async function fetchWeatherForCity(cityId: string): Promise<WeatherData | null> {
   const city = getCity(cityId);
@@ -86,6 +103,7 @@ export async function fetchWeatherForCity(cityId: string): Promise<WeatherData |
       cityName: city.name,
       tempC: Math.round(data.current.temperature_2m),
       description: weatherCodeToHe(data.current.weather_code),
+      weatherCode: data.current.weather_code,
       humidity: data.current.relative_humidity_2m,
       windKmh:
         data.current.wind_speed_10m != null

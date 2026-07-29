@@ -107,6 +107,17 @@
   font-size: 1.7em;
   line-height: 1.15;
 }
+.cw-stat .weather-icon {
+  margin-inline-end: 0.25em;
+  font-size: 1em;
+  vertical-align: middle;
+}
+.cw-weather-desc {
+  font-family: var(--font-body, sans-serif);
+  font-size: 0.55em !important;
+  opacity: 0.75;
+  margin-top: 0.2em !important;
+}
 
 .cw-zman {
   display: flex;

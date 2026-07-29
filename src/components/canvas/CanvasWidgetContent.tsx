@@ -9,6 +9,7 @@ import type {
   ScheduleItem,
 } from '../../types';
 import { sanitizeRichHtml, toPlainDisplayText } from '../../lib/sanitizeHtml';
+import { weatherCodeToIcon } from '../../lib/weather';
 import { CandleTimesBoard, PLACEHOLDER_CANDLE_BOARD } from '../CandleTimesBoard';
 import { WIDGET_LABELS } from './widgets';
 
@@ -25,6 +26,8 @@ export interface CanvasData {
   announcementCount: number;
   announcementIndex: number;
   weatherTemp?: number | null;
+  weatherCode?: number;
+  weatherDesc?: string;
   countdownLabel?: string;
   candleBoard?: CandleBoard | null;
 }
@@ -105,15 +108,24 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <Placeholder label="ספירת העומר (רק בימי הספירה)" />
       );
 
-    case 'weather':
+    case 'weather': {
+      const h = new Date().getHours();
+      const wIcon = weatherCodeToIcon(data.weatherCode, h < 6 || h >= 20);
       return data.weatherTemp != null ? (
         <div className="cw-stat">
           {widget.showTitle ? <h3>{title || 'מזג האוויר'}</h3> : null}
-          <p className="time-ltr">{data.weatherTemp}°C</p>
+          <p className="time-ltr">
+            {wIcon ? <span className="weather-icon">{wIcon}</span> : null}
+            {data.weatherTemp}°C
+          </p>
+          {data.weatherDesc ? (
+            <p className="cw-weather-desc">{data.weatherDesc}</p>
+          ) : null}
         </div>
       ) : (
         <Placeholder label="מזג אוויר" />
       );
+    }
 
     case 'zmanim':
       return (

@@ -449,6 +449,8 @@ export function Admin({ synagogueId }: Props) {
     announcementCount: config.announcements.filter((a) => a.enabled && a.text.trim()).length,
     announcementIndex: 0,
     weatherTemp: config.showWeather ? 24 : null,
+    weatherCode: config.showWeather ? 2 : undefined,
+    weatherDesc: config.showWeather ? 'מעונן חלקית' : undefined,
     countdownLabel: t('admin.candleCountdownPreview'),
     candleBoard: {
       entry: '18:42',
