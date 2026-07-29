@@ -76,11 +76,14 @@ export function CouponsPanel() {
   }
 
   return (
-    <div className="coupons-panel side-card">
-      <h2>קופוני הנחה</h2>
-      <p className="hint">
-        צרו קוד הנחה לחלק ללקוחות. הם מזינים אותו במסך התשלום והסכום החודשי מתעדכן אוטומטית.
-      </p>
+    <div className="coupons-panel side-card settings-panel">
+      <div className="settings-panel-head">
+        <span className="settings-panel-tag">שיווק</span>
+        <h2>קופוני הנחה</h2>
+        <p className="hint">
+          קוד הנחה ללקוחות — מוזן במסך התשלום והסכום החודשי מתעדכן אוטומטית.
+        </p>
+      </div>
 
       <form className="coupons-form" onSubmit={(e) => void onCreate(e)}>
         <label>

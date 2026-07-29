@@ -1,6 +1,6 @@
-/* Full-width inside agency settings grid */
+/* Disk files sit in the wide settings section */
 .agency-settings .disk-files {
-  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .disk-files {

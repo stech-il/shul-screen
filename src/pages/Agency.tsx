@@ -970,187 +970,239 @@ export function Agency() {
         <InquiriesPanel mode="agency" canManage />
       ) : agencyView === 'settings' ? (
         <section className="agency-settings" aria-label="הגדרות מערכת">
-          <div className="side-card">
-            <h2>דיסק ענן (Render)</h2>
-            {diskStatus ? (
-              <p className={`hint ${diskStatus.diskOk && diskStatus.dataDirSet ? '' : 'warn'}`}>
-                {diskStatus.diskOk && diskStatus.dataDirSet
-                  ? `פעיל · ${diskStatus.mediaFileCount} קבצי מדיה · ${diskStatus.billingRecordCount} רשומות הו״ק`
-                  : 'דיסק לא מוגדר כראוי — מדיה/הו״ק עלולים להימחק בפריסה'}
+          <header className="agency-settings-hero">
+            <div>
+              <p className="agency-settings-kicker">ניהול פלטפורמה</p>
+              <h1>הגדרות מערכת</h1>
+              <p className="agency-settings-lead">
+                תשתית, התראות, חיוב וחשבון מנהל — במקום אחד.
               </p>
-            ) : (
-              <p className="hint">טוען סטטוס דיסק…</p>
-            )}
-          </div>
-
-          <DiskFilesPanel />
-
-          <div className="side-card">
-            <h2>בדיקת התראת פיקוד העורף</h2>
-            <p className="hint">
-              מפעיל מסך אדום על מסך התצוגה של בית הכנסת שנבחר — לשימוש מנהל מערכת בלבד.
-              המסך צריך להיות פתוח (אונליין) כדי לראות את הבדיקה.
-            </p>
-            <label>
-              בית כנסת / מזהה מסך
-              <select value={orefTestId} onChange={(e) => setOrefTestId(e.target.value)}>
-                <option value="">— בחר —</option>
-                {shuls.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.id})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              משך הבדיקה (שניות)
-              <select value={orefTestSeconds} onChange={(e) => setOrefTestSeconds(e.target.value)}>
-                <option value="30">30</option>
-                <option value="60">60</option>
-                <option value="120">120</option>
-              </select>
-            </label>
-            <div className="row-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-              <button
-                type="button"
-                className="btn primary"
-                disabled={!orefTestId}
-                onClick={() => {
-                  void (async () => {
-                    setOrefTestMsg('');
-                    const city = getCity(shuls.find((s) => s.id === orefTestId)?.cityId || '');
-                    const area = city?.name || 'בדיקת מערכת';
-                    const res = await startOrefDrill({
-                      synagogueId: orefTestId,
-                      seconds: Number(orefTestSeconds) || 60,
-                      areas: [area, 'בדיקת מערכת'],
-                      title: 'ירי רקטות וטילים',
-                      desc: 'זוהי התראת בדיקה — לא אזעקה אמיתית',
-                    });
-                    setOrefTestMsg(
-                      res.ok
-                        ? `הופעלה בדיקה על מסך ${orefTestId} ל־${orefTestSeconds} שניות`
-                        : res.error || 'שגיאה',
-                    );
-                  })();
-                }}
-              >
-                הפעל התראת בדיקה
-              </button>
-              <button
-                type="button"
-                className="btn ghost"
-                disabled={!orefTestId}
-                onClick={() => {
-                  void (async () => {
-                    await stopOrefDrill(orefTestId);
-                    setOrefTestMsg(`כובתה בדיקה למסך ${orefTestId}`);
-                  })();
-                }}
-              >
-                כבה עכשיו
-              </button>
             </div>
-            {orefTestMsg ? <p className="hint" style={{ marginTop: '0.65rem' }}>{orefTestMsg}</p> : null}
+          </header>
+
+          <div className="agency-settings-status">
+            <article className="settings-stat-card">
+              <div className="settings-stat-top">
+                <span className="settings-stat-label">דיסק ענן</span>
+                {diskStatus ? (
+                  <span
+                    className={`settings-pill ${diskStatus.diskOk && diskStatus.dataDirSet ? 'ok' : 'warn'}`}
+                  >
+                    {diskStatus.diskOk && diskStatus.dataDirSet ? 'פעיל' : 'לא מוגדר'}
+                  </span>
+                ) : (
+                  <span className="settings-pill">טוען…</span>
+                )}
+              </div>
+              {diskStatus ? (
+                <p className={`hint ${diskStatus.diskOk && diskStatus.dataDirSet ? '' : 'warn'}`}>
+                  {diskStatus.diskOk && diskStatus.dataDirSet
+                    ? `${diskStatus.mediaFileCount} קבצי מדיה · ${diskStatus.billingRecordCount} רשומות הו״ק`
+                    : 'מדיה/הו״ק עלולים להימחק בפריסה — בדוק DATA_DIR בדיסק Render'}
+                </p>
+              ) : (
+                <p className="hint">טוען סטטוס דיסק…</p>
+              )}
+            </article>
+
+            <article className="settings-stat-card">
+              <div className="settings-stat-top">
+                <span className="settings-stat-label">SMTP · מיילים</span>
+                {mailStatus == null ? (
+                  <span className="settings-pill">טוען…</span>
+                ) : (
+                  <span className={`settings-pill ${mailStatus.configured ? 'ok' : 'warn'}`}>
+                    {mailStatus.configured ? 'מחובר' : 'לא מוגדר'}
+                  </span>
+                )}
+              </div>
+              {mailStatus == null ? (
+                <p className="hint">טוען…</p>
+              ) : mailStatus.configured ? (
+                <p className="hint">
+                  {mailStatus.host || 'שרת'} · מ־ <span dir="ltr">{mailStatus.from}</span>
+                </p>
+              ) : (
+                <p className="hint warn">
+                  הוסף ב־Render: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM
+                </p>
+              )}
+              <div className="settings-card-actions">
+                <button
+                  type="button"
+                  className="btn ghost"
+                  disabled={!mailStatus?.configured || busy}
+                  onClick={() => void onTestSmtp()}
+                >
+                  שלח מייל בדיקה
+                </button>
+              </div>
+              {mailTestMsg ? <p className="hint settings-feedback">{mailTestMsg}</p> : null}
+            </article>
           </div>
 
-          <form className="side-card" onSubmit={(e) => void onSaveAdminEmail(e)}>
-            <h2>ברירת מחדל — חיוב ומייל</h2>
-            <p className="hint">
-              סכום הו״ק ברירת מחדל מוזן אוטומטית לכל מסך חדש שנפתח. מייל המנהל משמש כגיבוי
-              להעתקת חשבוניות.
-            </p>
-            <label>
-              סכום חודשי ברירת מחדל (₪)
-              <input
-                value={defaultBillingAmount}
-                onChange={(e) => setDefaultBillingAmount(e.target.value)}
-                inputMode="decimal"
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-                required
-              />
-            </label>
-            <label>
-              אימייל מנהל מערכת
-              <input
-                type="email"
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-                placeholder="admin@example.com"
-              />
-            </label>
-            {adminEmailMsg ? <p className="hint">{adminEmailMsg}</p> : null}
-            <button type="submit" className="btn ghost" disabled={busy}>
-              שמור ברירות מחדל
-            </button>
-          </form>
+          <div className="agency-settings-grid">
+            <form className="side-card settings-panel" onSubmit={(e) => void onSaveAdminEmail(e)}>
+              <div className="settings-panel-head">
+                <span className="settings-panel-tag">חיוב</span>
+                <h2>ברירות מחדל</h2>
+                <p className="hint">
+                  סכום הו״ק לכל מסך חדש, ומייל מנהל כגיבוי להעתקת חשבוניות.
+                </p>
+              </div>
+              <div className="settings-fields">
+                <label>
+                  סכום חודשי ברירת מחדל (₪)
+                  <input
+                    value={defaultBillingAmount}
+                    onChange={(e) => setDefaultBillingAmount(e.target.value)}
+                    inputMode="decimal"
+                    dir="ltr"
+                    style={{ textAlign: 'left' }}
+                    required
+                  />
+                </label>
+                <label>
+                  אימייל מנהל מערכת
+                  <input
+                    type="email"
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    dir="ltr"
+                    style={{ textAlign: 'left' }}
+                    placeholder="admin@example.com"
+                  />
+                </label>
+              </div>
+              {adminEmailMsg ? <p className="hint settings-feedback">{adminEmailMsg}</p> : null}
+              <div className="settings-card-actions">
+                <button type="submit" className="btn primary" disabled={busy}>
+                  שמור ברירות מחדל
+                </button>
+              </div>
+            </form>
 
-          <CouponsPanel />
+            <form className="side-card settings-panel" onSubmit={onChangePassword}>
+              <div className="settings-panel-head">
+                <span className="settings-panel-tag">אבטחה</span>
+                <h2>סיסמת מנהל</h2>
+                <p className="hint">עדכון סיסמת כניסה לפאנל הסוכנות.</p>
+              </div>
+              <div className="settings-fields">
+                <label>
+                  סיסמה נוכחית
+                  <input
+                    type="password"
+                    value={curPass}
+                    onChange={(e) => setCurPass(e.target.value)}
+                    required
+                    dir="ltr"
+                    style={{ textAlign: 'left' }}
+                  />
+                </label>
+                <label>
+                  סיסמה חדשה
+                  <input
+                    type="password"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    required
+                    minLength={8}
+                    dir="ltr"
+                    style={{ textAlign: 'left' }}
+                  />
+                </label>
+              </div>
+              {pwdMsg ? <p className="hint settings-feedback">{pwdMsg}</p> : null}
+              <div className="settings-card-actions">
+                <button type="submit" className="btn primary">
+                  עדכן סיסמה
+                </button>
+              </div>
+            </form>
 
-          <div className="side-card">
-            <h2>SMTP — התראות מייל</h2>
-            {mailStatus == null ? (
-              <p className="hint">טוען…</p>
-            ) : mailStatus.configured ? (
-              <p className="hint">
-                מחובר · {mailStatus.host || 'שרת'} · מ־{' '}
-                <span dir="ltr">{mailStatus.from}</span>
-              </p>
-            ) : (
-              <p className="hint warn">
-                לא מוגדר — הוסף ב־Render משתני SMTP של תיבת המייל מהדומיין
-                שלך (מייל + סיסמה, בלי מפתח API): SMTP_HOST, SMTP_PORT,
-                SMTP_USER, SMTP_PASS, MAIL_FROM
-              </p>
-            )}
-            <p className="hint">
-              נשלחות התראות על תחילת ניסיון, סיום ניסיון, כשל תשלום, חידוש מוצלח — וגם על
-              פניות חדשות מניהול המסך.
-            </p>
-            <button
-              type="button"
-              className="btn ghost"
-              disabled={!mailStatus?.configured || busy}
-              onClick={() => void onTestSmtp()}
-            >
-              שלח מייל בדיקה למנהל
-            </button>
-            {mailTestMsg ? <p className="hint">{mailTestMsg}</p> : null}
+            <div className="side-card settings-panel settings-panel-alert">
+              <div className="settings-panel-head">
+                <span className="settings-panel-tag danger">בדיקה</span>
+                <h2>התראת פיקוד העורף</h2>
+                <p className="hint">
+                  מפעיל מסך אדום על מסך תצוגה פתוח — למנהל מערכת בלבד. לא אזעקה אמיתית.
+                </p>
+              </div>
+              <div className="settings-fields settings-fields-2">
+                <label>
+                  בית כנסת / מזהה מסך
+                  <select value={orefTestId} onChange={(e) => setOrefTestId(e.target.value)}>
+                    <option value="">— בחר —</option>
+                    {shuls.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.id})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  משך (שניות)
+                  <select value={orefTestSeconds} onChange={(e) => setOrefTestSeconds(e.target.value)}>
+                    <option value="30">30</option>
+                    <option value="60">60</option>
+                    <option value="120">120</option>
+                  </select>
+                </label>
+              </div>
+              <div className="settings-card-actions">
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={!orefTestId}
+                  onClick={() => {
+                    void (async () => {
+                      setOrefTestMsg('');
+                      const city = getCity(shuls.find((s) => s.id === orefTestId)?.cityId || '');
+                      const area = city?.name || 'בדיקת מערכת';
+                      const res = await startOrefDrill({
+                        synagogueId: orefTestId,
+                        seconds: Number(orefTestSeconds) || 60,
+                        areas: [area, 'בדיקת מערכת'],
+                        title: 'ירי רקטות וטילים',
+                        desc: 'זוהי התראת בדיקה — לא אזעקה אמיתית',
+                      });
+                      setOrefTestMsg(
+                        res.ok
+                          ? `הופעלה בדיקה על מסך ${orefTestId} ל־${orefTestSeconds} שניות`
+                          : res.error || 'שגיאה',
+                      );
+                    })();
+                  }}
+                >
+                  הפעל בדיקה
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  disabled={!orefTestId}
+                  onClick={() => {
+                    void (async () => {
+                      await stopOrefDrill(orefTestId);
+                      setOrefTestMsg(`כובתה בדיקה למסך ${orefTestId}`);
+                    })();
+                  }}
+                >
+                  כבה עכשיו
+                </button>
+              </div>
+              {orefTestMsg ? <p className="hint settings-feedback">{orefTestMsg}</p> : null}
+            </div>
+
+            <div className="settings-panel-coupons">
+              <CouponsPanel />
+            </div>
           </div>
 
-          <form className="side-card" onSubmit={onChangePassword}>
-            <h2>סיסמת מנהל מערכת</h2>
-            <label>
-              סיסמה נוכחית
-              <input
-                type="password"
-                value={curPass}
-                onChange={(e) => setCurPass(e.target.value)}
-                required
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-              />
-            </label>
-            <label>
-              סיסמה חדשה
-              <input
-                type="password"
-                value={newPass}
-                onChange={(e) => setNewPass(e.target.value)}
-                required
-                minLength={8}
-                dir="ltr"
-                style={{ textAlign: 'left' }}
-              />
-            </label>
-            {pwdMsg ? <p className="hint">{pwdMsg}</p> : null}
-            <button type="submit" className="btn ghost">
-              עדכן סיסמה
-            </button>
-          </form>
+          <div className="agency-settings-wide">
+            <p className="agency-settings-section-label">קבצים בדיסק</p>
+            <DiskFilesPanel />
+          </div>
         </section>
       ) : (
       <>
