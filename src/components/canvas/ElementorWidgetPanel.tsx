@@ -2,6 +2,7 @@ import type { CanvasHtmlTag, CanvasWidget, ScheduleBlock, ZmanKey } from '../../
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { useI18n } from '../../i18n';
 import { RichTextEditor } from '../RichTextEditor';
+import { ANALOG_DESIGNS, DIGITAL_DESIGNS } from './ClockWidget';
 import { clamp } from './widgets';
 
 export type ElementorTab = 'content' | 'style' | 'advanced';
@@ -297,6 +298,32 @@ export function ElementorWidgetPanel({
 
                 {selected.type === 'divider' ? (
                   <p className="cb-hint">{t('canvas.dividerHint')}</p>
+                ) : null}
+
+                {selected.type === 'clock' ? (
+                  <>
+                    <label className="cb-el-field">
+                      <span>סוג שעון</span>
+                      <select
+                        value={selected.clockMode ?? 'digital'}
+                        onChange={(e) => patch({ clockMode: e.target.value as 'digital' | 'analog', clockDesign: 'classic' })}
+                      >
+                        <option value="digital">דיגיטלי</option>
+                        <option value="analog">אנלוגי</option>
+                      </select>
+                    </label>
+                    <label className="cb-el-field">
+                      <span>עיצוב</span>
+                      <select
+                        value={selected.clockDesign ?? 'classic'}
+                        onChange={(e) => patch({ clockDesign: e.target.value })}
+                      >
+                        {((selected.clockMode ?? 'digital') === 'analog' ? ANALOG_DESIGNS : DIGITAL_DESIGNS).map((d) => (
+                          <option key={d.id} value={d.id}>{d.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
                 ) : null}
 
                 {selected.type !== 'heading' &&

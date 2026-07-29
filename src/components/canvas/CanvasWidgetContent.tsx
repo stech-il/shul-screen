@@ -11,6 +11,7 @@ import type {
 import { sanitizeRichHtml, toPlainDisplayText } from '../../lib/sanitizeHtml';
 import { weatherCodeToIcon } from '../../lib/weather';
 import { CandleTimesBoard, PLACEHOLDER_CANDLE_BOARD } from '../CandleTimesBoard';
+import { AnalogClock, DigitalClock } from './ClockWidget';
 import { WIDGET_LABELS } from './widgets';
 
 export interface CanvasData {
@@ -62,7 +63,10 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
       );
 
     case 'clock':
-      return <div className="cw-clock time-ltr">{data.clock || '00:00:00'}</div>;
+      if (widget.clockMode === 'analog') {
+        return <AnalogClock time={data.clock} design={(widget.clockDesign as any) || 'classic'} color={widget.color} />;
+      }
+      return <DigitalClock time={data.clock} design={(widget.clockDesign as any) || 'classic'} color={widget.color} />;
 
     case 'hebrewDate':
       return (

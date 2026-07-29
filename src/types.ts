@@ -149,6 +149,10 @@ export interface CanvasWidget {
   radius: number;
   /** For countdown widget — decorative candles on both sides */
   showCandles?: boolean;
+  /** Clock widget: analog vs digital */
+  clockMode?: 'digital' | 'analog';
+  /** Clock widget design variant */
+  clockDesign?: string;
 }
 
 /**
