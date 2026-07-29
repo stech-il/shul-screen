@@ -47,3 +47,7 @@ android/.idea/
 *.aab
 *.ap_
 *.dex
+*.jks
+*.keystore
+android/keystore.properties
+android/app/upload-keystore.jks

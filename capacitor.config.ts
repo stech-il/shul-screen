@@ -1,28 +1,33 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Android kiosk: bundled WebView only (never opens Chrome).
- * Cloud data is fetched from the saved server URL via JS (see apiOrigin.ts).
+ * Android shells:
+ * - default / kiosk: hall display APK (il.screensmart.app)
+ * - manage (VITE_APP_SHELL=manage): phone admin APK for Play Store (il.screensmart.manage)
+ *
  * Optional CAP_SERVER_URL is for debug remote WebView only.
  */
 const remoteOverride = String(process.env.CAP_SERVER_URL || '').trim();
+const isManage =
+  String(process.env.VITE_APP_SHELL || process.env.CAP_APP_SHELL || '')
+    .trim()
+    .toLowerCase() === 'manage';
 
 const config: CapacitorConfig = {
-  appId: 'il.screensmart.app',
-  appName: 'screensmart',
+  appId: isManage ? 'il.screensmart.manage' : 'il.screensmart.app',
+  appName: isManage ? 'screensmart ניהול' : 'screensmart',
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    // Do not list external hosts — keeps all navigation inside the app WebView.
   },
   android: {
-    backgroundColor: '#0f1c22',
+    backgroundColor: isManage ? '#f5f7fa' : '#0f1c22',
     allowMixedContent: false,
   },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
-      backgroundColor: '#0f1c22',
+      backgroundColor: isManage ? '#f5f7fa' : '#0f1c22',
       showSpinner: false,
     },
   },

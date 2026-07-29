@@ -12,14 +12,17 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        applyImmersive();
+        // Hall kiosk only — management phone app stays a normal Android UI.
+        if (!BuildConfig.IS_MANAGE_APP) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            applyImmersive();
+        }
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) {
+        if (hasFocus && !BuildConfig.IS_MANAGE_APP) {
             applyImmersive();
         }
     }

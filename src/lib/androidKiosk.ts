@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import { isManageShellBuild } from './manageApp';
 import { DEFAULT_PUBLIC_ORIGIN, isValidScreenId, normalizeScreenId } from './screenId';
 
 const KEY_SHUL = 'screensmart.kiosk.shulId';
@@ -10,7 +11,9 @@ const LS_SHUL = 'screensmart.kiosk.shulId';
 const LS_SERVER = 'screensmart.kiosk.serverUrl';
 export const DEFAULT_SERVER = DEFAULT_PUBLIC_ORIGIN;
 
+/** True inside the hall kiosk APK — not the phone management app. */
 export function isAndroidKiosk(): boolean {
+  if (isManageShellBuild()) return false;
   try {
     return Capacitor.isNativePlatform();
   } catch {
