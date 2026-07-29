@@ -11,14 +11,19 @@ const LS_SHUL = 'screensmart.kiosk.shulId';
 const LS_SERVER = 'screensmart.kiosk.serverUrl';
 export const DEFAULT_SERVER = DEFAULT_PUBLIC_ORIGIN;
 
-/** True inside the hall kiosk APK — not the phone management app. */
-export function isAndroidKiosk(): boolean {
-  if (isManageShellBuild()) return false;
+/** Any Capacitor native WebView (kiosk or manage APK). */
+export function isNativeCapacitorShell(): boolean {
   try {
     return Capacitor.isNativePlatform();
   } catch {
     return false;
   }
+}
+
+/** True inside the hall kiosk APK — not the phone management app. */
+export function isAndroidKiosk(): boolean {
+  if (isManageShellBuild()) return false;
+  return isNativeCapacitorShell();
 }
 
 function readLocal(key: string): string {

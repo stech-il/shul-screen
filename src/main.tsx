@@ -1,7 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { bootstrapAndroidKioskRoute, isAndroidKiosk } from './lib/androidKiosk';
+import { bootstrapAndroidKioskRoute, isAndroidKiosk, isNativeCapacitorShell } from './lib/androidKiosk';
+import { isManageShellBuild, markManageSession } from './lib/manageApp';
 import { purgeLegacyDesignTemplateStorage } from './lib/designTemplates';
 import './index.css';
 
@@ -43,8 +44,8 @@ function isLiveDisplayRoute(): boolean {
 }
 
 if ('serviceWorker' in navigator) {
-  // Native APK should not register a SW over the bundled shell (can blank the WebView).
-  if (!isAndroidKiosk()) {
+  // Never register a SW inside Capacitor — it blanks the bundled WebView.
+  if (!isNativeCapacitorShell()) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (isLiveDisplayRoute()) return;
       window.location.reload();
@@ -62,7 +63,16 @@ if ('serviceWorker' in navigator) {
 }
 
 async function start() {
-  if (isAndroidKiosk()) {
+  if (isManageShellBuild() && isNativeCapacitorShell()) {
+    markManageSession();
+    const hash = window.location.hash || '';
+    const onManageFlow =
+      hash.includes('/manage') || hash.includes('/login/') || hash.includes('/admin/');
+    if (!onManageFlow) {
+      window.location.replace('/#/manage');
+      return;
+    }
+  } else if (isAndroidKiosk()) {
     try {
       await bootstrapAndroidKioskRoute();
     } catch {
