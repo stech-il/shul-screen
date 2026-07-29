@@ -63,34 +63,40 @@ if ('serviceWorker' in navigator) {
 }
 
 async function start() {
-  if (isManageShellBuild() && isNativeCapacitorShell()) {
-    markManageSession();
-    const hash = window.location.hash || '';
-    const onManageFlow =
-      hash.includes('/manage') || hash.includes('/login/') || hash.includes('/admin/');
-    if (!onManageFlow) {
-      window.location.replace('/#/manage');
-      return;
-    }
-  } else if (isAndroidKiosk()) {
-    try {
-      await bootstrapAndroidKioskRoute();
-    } catch {
+  try {
+    if (isManageShellBuild() && isNativeCapacitorShell()) {
+      markManageSession();
       const hash = window.location.hash || '';
-      if (!hash.includes('/kiosk-setup') && !hash.includes('/display/')) {
-        window.location.replace('/#/kiosk-setup');
-        return;
+      const onManageFlow =
+        hash.includes('/manage') || hash.includes('/login/') || hash.includes('/admin/');
+      // Hash-only navigation does NOT reload Capacitor WebView — never return early.
+      if (!onManageFlow) {
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/manage`);
+      }
+    } else if (isAndroidKiosk()) {
+      try {
+        await bootstrapAndroidKioskRoute();
+      } catch {
+        const hash = window.location.hash || '';
+        if (!hash.includes('/kiosk-setup') && !hash.includes('/display/')) {
+          window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/kiosk-setup`);
+        }
       }
     }
-  }
 
-  const root = document.getElementById('root');
-  if (!root) return;
-  createRoot(root).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
+    const root = document.getElementById('root');
+    if (!root) return;
+    createRoot(root).render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+  } catch (err) {
+    const root = document.getElementById('root');
+    if (root) {
+      root.textContent = `שגיאת טעינה: ${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
 }
 
 void start();
