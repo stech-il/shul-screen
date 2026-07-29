@@ -67,6 +67,19 @@ android {
             }
         }
     }
+
+    applicationVariants.configureEach { variant ->
+        variant.outputs.configureEach { output ->
+            def flavor = variant.flavorName ?: "default"
+            def buildType = variant.buildType.name
+            output.outputFileName = "screensmart-${flavor}-${buildType}-${variant.versionName}.apk"
+        }
+        if (variant.name == "manageDebug") {
+            def outDir = rootProject.file("../releases/android-manage")
+            outDir.mkdirs()
+            variant.packageApplicationProvider.get().outputDirectory.set(outDir)
+        }
+    }
 }
 
 repositories {

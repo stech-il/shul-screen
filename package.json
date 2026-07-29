@@ -17,11 +17,11 @@
     "electron:dev": "cross-env ELECTRON_START_URL=http://localhost:5173 electron .",
     "dist": "npm run build && electron-builder --win",
     "dist:dir": "npm run build && electron-builder --win --dir",
-    "android:sync": "npm run build && npx cap sync android",
+    "android:sync": "cross-env VITE_CAPACITOR=1 npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "android:add": "npx cap add android",
     "android:apk": "npm run android:sync && cd android && .\\gradlew.bat assembleKioskDebug",
-    "android:manage-sync": "cross-env VITE_APP_SHELL=manage npm run build && cross-env VITE_APP_SHELL=manage npx cap sync android",
+    "android:manage-sync": "cross-env VITE_CAPACITOR=1 VITE_APP_SHELL=manage npm run build && cross-env VITE_APP_SHELL=manage npx cap sync android",
     "android:manage-apk": "npm run android:manage-sync && cd android && .\\gradlew.bat assembleManageDebug",
     "android:manage-bundle": "npm run android:manage-sync && cd android && .\\gradlew.bat bundleManageRelease"
   },

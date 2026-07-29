@@ -16,6 +16,11 @@ const orefProxy = {
   },
 };
 
+/** Capacitor APK builds must not ship a service worker — it blanks the WebView. */
+const forCapacitor =
+  process.env.VITE_CAPACITOR === '1' ||
+  String(process.env.VITE_APP_SHELL || '').trim().toLowerCase() === 'manage';
+
 export default defineConfig({
   // Relative base so Capacitor Android (and file:// Electron offline) can load assets.
   base: './',
@@ -23,6 +28,7 @@ export default defineConfig({
     react(),
     cloudApiPlugin(),
     VitePWA({
+      disable: forCapacitor,
       // 'prompt' avoids the plugin's automatic full-page reload (that flashes kiosks).
       // We claim updates ourselves in main.tsx — skip reload on live display routes.
       registerType: 'prompt',

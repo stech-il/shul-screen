@@ -43,11 +43,5 @@ android/build/
 android/captures/
 android/local.properties
 android/.idea/
-*.apk
-*.aab
-*.ap_
-*.dex
-*.jks
-*.keystore
-android/keystore.properties
-android/app/upload-keystore.jks
+releases/
+!releases/.gitkeep
