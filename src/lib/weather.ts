@@ -53,20 +53,20 @@ function weatherCodeToHe(code: number): string {
   return 'לא ידוע';
 }
 
-/** Map WMO weather code to a representative icon character. */
+/** Map WMO weather code to a plain-text icon (safe across all fonts/OS). */
 export function weatherCodeToIcon(code: number | undefined, isNight = false): string {
   if (code == null) return '';
-  if (code === 0) return isNight ? '🌙' : '☀️';
-  if (code === 1) return isNight ? '🌙' : '🌤️';
+  if (code === 0) return isNight ? '☽' : '☀';
+  if (code === 1) return isNight ? '☽' : '☀';
   if (code === 2) return '⛅';
-  if (code === 3) return '☁️';
-  if (code <= 48) return '🌫️';
-  if (code <= 57) return '🌦️';
-  if (code <= 67) return '🌧️';
-  if (code <= 77) return '🌨️';
-  if (code <= 82) return '🌧️';
-  if (code <= 86) return '🌨️';
-  if (code <= 99) return '⛈️';
+  if (code === 3) return '☁';
+  if (code <= 48) return '≋';
+  if (code <= 57) return '☂';
+  if (code <= 67) return '☂';
+  if (code <= 77) return '❄';
+  if (code <= 82) return '☂';
+  if (code <= 86) return '❄';
+  if (code <= 99) return '⚡';
   return '';
 }
 
