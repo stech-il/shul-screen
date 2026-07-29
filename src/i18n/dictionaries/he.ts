@@ -477,6 +477,17 @@ export const he = {
     liveScreen: 'מסך חי ↗',
     screenBgSettings: 'הגדרות מסך ורקע',
   },
+  manage: {
+    kicker: 'אפליקציית ניהול',
+    title: 'ניהול מהטלפון',
+    lead: 'עדכון זמני תפילה, הודעות והגדרות — בלי עיצוב המסך.',
+    screenId: 'מזהה מסך',
+    continue: 'המשך לכניסה',
+    note: 'עיצוב ובונה מסך זמינים רק במחשב דרך האתר המלא.',
+    backSite: 'לאתר screensmart',
+    invalidId: 'מזהה מסך לא תקין — הזינו מספר',
+    modeBadge: 'מצב ניהול מהיר',
+  },
   login: {
     title: 'כניסה לניהול',
     loading: 'טוען...',

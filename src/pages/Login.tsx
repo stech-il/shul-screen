@@ -11,6 +11,7 @@ import {
 import { isLicenseValid } from '../lib/license';
 import { requestPasswordReset } from '../lib/passwordReset';
 import { syncConfig } from '../lib/storage';
+import { adminPathFor, markManageSession } from '../lib/manageApp';
 import type { SynagogueConfig } from '../types';
 import { SiteFooter } from '../components/SiteFooter';
 import { BrandLogo } from '../components/BrandLogo';
@@ -48,11 +49,11 @@ export function Login() {
   const [forgotBusy, setForgotBusy] = useState(false);
 
   useEffect(() => {
-    const billingQs = params.get('billing') === '1' ? '?billing=1' : '';
+    if (params.get('manage') === '1') markManageSession();
 
     const existing = loadSession();
     if (existing && existing.synagogueId === id && canEditContent(existing.role)) {
-      navigate(`/admin/${encodeURIComponent(id)}${billingQs}`, { replace: true });
+      navigate(adminPathFor(id, params.get('billing') === '1'), { replace: true });
       return;
     }
 
@@ -119,11 +120,7 @@ export function Login() {
           role: 'owner',
           remember,
         });
-        navigate(
-          params.get('billing') === '1'
-            ? `/admin/${encodeURIComponent(id)}?billing=1`
-            : `/admin/${encodeURIComponent(id)}`,
-        );
+        navigate(adminPathFor(id, params.get('billing') === '1'));
         return;
       }
 
@@ -144,11 +141,7 @@ export function Login() {
         role: member.role,
         remember,
       });
-      navigate(
-        params.get('billing') === '1'
-          ? `/admin/${encodeURIComponent(id)}?billing=1`
-          : `/admin/${encodeURIComponent(id)}`,
-      );
+      navigate(adminPathFor(id, params.get('billing') === '1'));
     } finally {
       setSubmitting(false);
     }

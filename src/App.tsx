@@ -1,6 +1,7 @@
 import { HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { I18nProvider } from './i18n';
 import { isAndroidKiosk } from './lib/androidKiosk';
+import { isManageShellBuild, markManageSession } from './lib/manageApp';
 import { Admin } from './pages/Admin';
 import { Agency } from './pages/Agency';
 import { Display } from './pages/Display';
@@ -8,11 +9,16 @@ import { Guide } from './pages/Guide';
 import { KioskSetup } from './pages/KioskSetup';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
+import { ManageHome } from './pages/ManageApp';
 import { PlatformLogin } from './pages/PlatformLogin';
 import { ResetPassword } from './pages/ResetPassword';
 
 /** Native APK: never show marketing landing — go straight to registration. */
 function HomeRoute() {
+  if (isManageShellBuild()) {
+    markManageSession();
+    return <Navigate to="/manage" replace />;
+  }
   if (isAndroidKiosk()) {
     return <Navigate to="/kiosk-setup" replace />;
   }
@@ -31,16 +37,17 @@ function DisplayRoute() {
   return <Display synagogueId={synagogueId} />;
 }
 
-function AdminRoute() {
+function AdminRoute({ manageMode = false }: { manageMode?: boolean }) {
   const { id } = useParams();
-  if (!id) return <Navigate to="/" replace />;
+  if (!id) return <Navigate to={manageMode ? '/manage' : '/'} replace />;
   let synagogueId = id;
   try {
     synagogueId = decodeURIComponent(id);
   } catch {
     /* keep raw id */
   }
-  return <Admin synagogueId={synagogueId} />;
+  if (manageMode) markManageSession();
+  return <Admin synagogueId={synagogueId} manageMode={manageMode} />;
 }
 
 export default function App() {
@@ -57,11 +64,24 @@ export default function App() {
           {/* Platform super-admin gate — must be before /admin/:id */}
           <Route path="/admin" element={<PlatformLogin />} />
           <Route path="/admin/:id" element={<AdminRoute />} />
+          <Route path="/manage" element={<ManageHome />} />
+          <Route path="/manage/:id" element={<AdminRoute manageMode />} />
           <Route path="/login/:id" element={<Login />} />
           <Route path="/agency" element={<Agency />} />
           <Route
             path="*"
-            element={<Navigate to={isAndroidKiosk() ? '/kiosk-setup' : '/'} replace />}
+            element={
+              <Navigate
+                to={
+                  isManageShellBuild()
+                    ? '/manage'
+                    : isAndroidKiosk()
+                      ? '/kiosk-setup'
+                      : '/'
+                }
+                replace
+              />
+            }
           />
         </Routes>
       </HashRouter>

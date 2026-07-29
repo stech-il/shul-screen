@@ -20,7 +20,8 @@
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "android:add": "npx cap add android",
-    "android:apk": "npm run android:sync && cd android && .\\gradlew.bat assembleDebug"
+    "android:apk": "npm run android:sync && cd android && .\\gradlew.bat assembleDebug",
+    "android:manage-sync": "cross-env VITE_APP_SHELL=manage npm run build && npx cap sync android"
   },
   "engines": {
     "node": ">=20"

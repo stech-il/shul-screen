@@ -38,6 +38,7 @@ import { HEBREW_MONTHS, getDayInfo } from '../lib/jewish';
 import { daysLeft, isLicenseValid } from '../lib/license';
 import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
+import { MANAGE_STUDIO_TABS, loginPathFor } from '../lib/manageApp';
 import { saveDesignTemplate } from '../lib/designTemplates';
 import { fetchInquiries, markInquiriesSeen, type InquiryTopic } from '../lib/inquiries';
 import {
@@ -107,13 +108,15 @@ const TAB_DEFS: { id: TabId; labelKey: string; ownerOnly?: boolean; group: TabGr
 
 interface Props {
   synagogueId: string;
+  /** Mobile / app shell: times & settings only — hide design studio tabs */
+  manageMode?: boolean;
 }
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
 }
 
-export function Admin({ synagogueId }: Props) {
+export function Admin({ synagogueId, manageMode = false }: Props) {
   const { t, dir, locale, dateTag } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -149,25 +152,35 @@ export function Admin({ synagogueId }: Props) {
     }
     try {
       const saved = localStorage.getItem(`screensmart:admin-tab:${synagogueId}`) as TabId | null;
-      if (saved && TAB_DEFS.some((def) => def.id === saved)) return saved;
+      if (
+        saved &&
+        TAB_DEFS.some((def) => def.id === saved) &&
+        !(manageMode && MANAGE_STUDIO_TABS.has(saved))
+      ) {
+        return saved;
+      }
     } catch {
       /* ignore */
     }
     return 'content';
   });
   const tabGroups = useMemo(
-    () => TAB_GROUP_DEFS.map((g) => ({ id: g.id, label: t(g.labelKey) })),
-    [t],
+    () =>
+      TAB_GROUP_DEFS.filter((g) => !(manageMode && g.id === 'studio')).map((g) => ({
+        id: g.id,
+        label: t(g.labelKey),
+      })),
+    [t, manageMode],
   );
   const tabs = useMemo(
     () =>
-      TAB_DEFS.map((def) => ({
+      TAB_DEFS.filter((def) => !(manageMode && MANAGE_STUDIO_TABS.has(def.id))).map((def) => ({
         id: def.id,
         label: t(def.labelKey),
         ownerOnly: def.ownerOnly,
         group: def.group,
       })),
-    [t],
+    [t, manageMode],
   );
   const [toast, setToast] = useState<string | null>(null);
   const [collapsedBlocks, setCollapsedBlocks] = useState<Record<string, boolean>>({});
@@ -382,12 +395,12 @@ export function Admin({ synagogueId }: Props) {
   }, [tab, canvasCityId, canvasEnabledZmanim]);
 
   useEffect(() => {
-    if (tab !== 'canvas' || !config) return;
+    if (tab !== 'canvas' || !config || manageMode) return;
     if (!session || !canEditSettings(session.role)) return;
     if (config.layout === 'canvas') return;
     setConfig((c) => (c && c.layout !== 'canvas' ? { ...c, layout: 'canvas' } : c));
     setStatus(t('admin.canvasLayoutHint'));
-  }, [tab, session?.role, config?.layout, t]);
+  }, [tab, session?.role, config?.layout, t, manageMode]);
 
   if (!session || session.synagogueId !== synagogueId || !canEditContent(session.role)) {
     return <Navigate to={`/login/${synagogueId}`} replace />;
@@ -890,7 +903,7 @@ export function Admin({ synagogueId }: Props) {
   function logout() {
     if (dirty && !confirm(t('admin.confirmLeave'))) return;
     clearSession();
-    navigate(`/login/${synagogueId}`);
+    navigate(loginPathFor(synagogueId, manageMode));
   }
 
   const licenseOk = isLicenseValid(config.license);
@@ -933,10 +946,15 @@ export function Admin({ synagogueId }: Props) {
   );
 
   return (
-    <div className={`admin${tab === 'canvas' ? ' canvas-mode' : ''}`} dir={dir} lang={locale}>
+    <div
+      className={`admin${tab === 'canvas' ? ' canvas-mode' : ''}${manageMode ? ' manage-mode' : ''}`}
+      dir={dir}
+      lang={locale}
+    >
       <header className="admin-header sticky-bar">
         <div className="admin-title">
           <BrandLogo size="sm" className="admin-brand-logo" />
+          {manageMode ? <p className="manage-mode-badge">{t('manage.modeBadge')}</p> : null}
           <p className="eyebrow">
             {t('admin.eyebrow', {
               name: memberName,
@@ -976,9 +994,11 @@ export function Admin({ synagogueId }: Props) {
             </button>
           ) : null}
           <LangSwitch variant="light" />
-          <Link className="btn ghost admin-guide-link" to="/guide">
-            {t('admin.installGuide')}
-          </Link>
+          {!manageMode ? (
+            <Link className="btn ghost admin-guide-link" to="/guide">
+              {t('admin.installGuide')}
+            </Link>
+          ) : null}
           <button
             className="btn ghost"
             type="button"

@@ -483,6 +483,17 @@ export const en: DeepString<typeof he> = {
     liveScreen: 'Live screen ↗',
     screenBgSettings: 'Screen & background settings',
   },
+  manage: {
+    kicker: 'Management app',
+    title: 'Manage from your phone',
+    lead: 'Update prayer times, notices, and settings — without screen design.',
+    screenId: 'Screen ID',
+    continue: 'Continue to sign-in',
+    note: 'Design and canvas builder are available on desktop via the full website.',
+    backSite: 'Back to screensmart site',
+    invalidId: 'Invalid screen ID — enter a number',
+    modeBadge: 'Quick manage mode',
+  },
   login: {
     title: 'Admin login',
     loading: 'Loading...',
