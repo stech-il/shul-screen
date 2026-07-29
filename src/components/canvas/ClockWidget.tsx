@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { useMemo } from 'react';
 
 /* ── Design definitions ── */
@@ -136,7 +137,7 @@ export function AnalogClock({ time, design = 'classic', color, accentColor }: An
 
   const cx = 50, cy = 50, r = 44;
 
-  const ticks: JSX.Element[] = [];
+  const ticks: ReactElement[] = [];
   for (let i = 0; i < 60; i++) {
     const angle = (i * 6 - 90) * (Math.PI / 180);
     const isMajor = i % 5 === 0;
@@ -156,7 +157,7 @@ export function AnalogClock({ time, design = 'classic', color, accentColor }: An
     );
   }
 
-  const numbers: JSX.Element[] = [];
+  const numbers: ReactElement[] = [];
   if (theme.showNumbers || theme.roman) {
     for (let i = 0; i < 12; i++) {
       const angle = (i * 30 - 60) * (Math.PI / 180);
