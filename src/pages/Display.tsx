@@ -653,6 +653,10 @@ export function Display({ synagogueId }: Props) {
       </main>
       )}
 
+      <div className="display-branding-footer">
+        screensmart.co.il · 052-4521527
+      </div>
+
       {showExit ? (
         <div className="exit-modal">
           <div className="exit-card">
