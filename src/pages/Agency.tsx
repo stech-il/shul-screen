@@ -13,6 +13,7 @@ import {
 } from '../lib/license';
 import { fetchMailStatus, notifyTrialStarted, sendTestMail } from '../lib/notifications';
 import { fetchInquiries } from '../lib/inquiries';
+import { startOrefDrill, stopOrefDrill } from '../lib/orefAlerts';
 import { InquiriesPanel } from '../components/InquiriesPanel';
 import { DiskFilesPanel } from '../components/DiskFilesPanel';
 import { CouponsPanel } from '../components/CouponsPanel';
@@ -145,6 +146,9 @@ export function Agency() {
   } | null>(null);
   const [inquiryUnread, setInquiryUnread] = useState(0);
   const [agencyView, setAgencyView] = useState<'shuls' | 'inquiries' | 'settings'>('shuls');
+  const [orefTestId, setOrefTestId] = useState('');
+  const [orefTestSeconds, setOrefTestSeconds] = useState('60');
+  const [orefTestMsg, setOrefTestMsg] = useState('');
 
   const [heartbeats, setHeartbeats] = useState<ScreenHeartbeat[]>([]);
 
@@ -980,6 +984,75 @@ export function Agency() {
           </div>
 
           <DiskFilesPanel />
+
+          <div className="side-card">
+            <h2>בדיקת התראת פיקוד העורף</h2>
+            <p className="hint">
+              מפעיל מסך אדום על מסך התצוגה של בית הכנסת שנבחר — לשימוש מנהל מערכת בלבד.
+              המסך צריך להיות פתוח (אונליין) כדי לראות את הבדיקה.
+            </p>
+            <label>
+              בית כנסת / מזהה מסך
+              <select value={orefTestId} onChange={(e) => setOrefTestId(e.target.value)}>
+                <option value="">— בחר —</option>
+                {shuls.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.id})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              משך הבדיקה (שניות)
+              <select value={orefTestSeconds} onChange={(e) => setOrefTestSeconds(e.target.value)}>
+                <option value="30">30</option>
+                <option value="60">60</option>
+                <option value="120">120</option>
+              </select>
+            </label>
+            <div className="row-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={!orefTestId}
+                onClick={() => {
+                  void (async () => {
+                    setOrefTestMsg('');
+                    const city = getCity(shuls.find((s) => s.id === orefTestId)?.cityId || '');
+                    const area = city?.name || 'בדיקת מערכת';
+                    const res = await startOrefDrill({
+                      synagogueId: orefTestId,
+                      seconds: Number(orefTestSeconds) || 60,
+                      areas: [area, 'בדיקת מערכת'],
+                      title: 'ירי רקטות וטילים',
+                      desc: 'זוהי התראת בדיקה — לא אזעקה אמיתית',
+                    });
+                    setOrefTestMsg(
+                      res.ok
+                        ? `הופעלה בדיקה על מסך ${orefTestId} ל־${orefTestSeconds} שניות`
+                        : res.error || 'שגיאה',
+                    );
+                  })();
+                }}
+              >
+                הפעל התראת בדיקה
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={!orefTestId}
+                onClick={() => {
+                  void (async () => {
+                    await stopOrefDrill(orefTestId);
+                    setOrefTestMsg(`כובתה בדיקה למסך ${orefTestId}`);
+                  })();
+                }}
+              >
+                כבה עכשיו
+              </button>
+            </div>
+            {orefTestMsg ? <p className="hint" style={{ marginTop: '0.65rem' }}>{orefTestMsg}</p> : null}
+          </div>
 
           <form className="side-card" onSubmit={(e) => void onSaveAdminEmail(e)}>
             <h2>ברירת מחדל — חיוב ומייל</h2>

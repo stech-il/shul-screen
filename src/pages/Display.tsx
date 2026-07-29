@@ -23,6 +23,7 @@ import { verifyPin } from '../lib/auth';
 import { getModeInfo } from '../lib/modes';
 import {
   categoryLabel,
+  fetchOrefDrill,
   subscribeOrefAlerts,
   type MatchedOrefAlert,
 } from '../lib/orefAlerts';
@@ -65,6 +66,7 @@ export function Display({ synagogueId }: Props) {
   const [exitPin, setExitPin] = useState('');
   const [showExit, setShowExit] = useState(false);
   const [orefMatch, setOrefMatch] = useState<MatchedOrefAlert | null>(null);
+  const [orefDrill, setOrefDrill] = useState<MatchedOrefAlert | null>(null);
   /** After first entrance animations finish — prevents re-blink on config/weather updates */
   const [settled, setSettled] = useState(false);
   const [missing, setMissing] = useState(false);
@@ -155,6 +157,40 @@ export function Display({ synagogueId }: Props) {
       if (match) trackEvent(config.id, 'oref_alert', match.matchedAreas.join(','));
     }, 3000);
   }, [config?.cityId, config?.showOrefAlerts, config?.orefAreaExtra, config?.modes.orefSound, config?.modes.muteOrefOnShabbat, config?.id]);
+
+  // Platform-admin Homefront drill — overlays this screen for testing
+  useEffect(() => {
+    if (!config?.id) return;
+    let stopped = false;
+    let playedForId = '';
+    async function tick() {
+      const drill = await fetchOrefDrill(config!.id);
+      if (stopped) return;
+      if (drill) {
+        setOrefDrill({
+          alert: drill.alert,
+          matchedAreas: drill.alert.data,
+          fetchedAt: new Date().toISOString(),
+        });
+        if (playedForId !== drill.alert.id && config!.modes.orefSound) {
+          playedForId = drill.alert.id;
+          const onShabbat = new Date().getDay() === 6;
+          if (!(config!.modes.muteOrefOnShabbat && onShabbat)) {
+            playOrefTone();
+          }
+        }
+      } else {
+        setOrefDrill(null);
+        playedForId = '';
+      }
+    }
+    void tick();
+    const id = window.setInterval(() => void tick(), 2000);
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+    };
+  }, [config?.id, config?.modes.orefSound, config?.modes.muteOrefOnShabbat]);
 
   // Heartbeat as soon as the route id is known (don't wait for cloud config),
   // so Agency can see "online" even while the screen is still loading.
@@ -460,15 +496,18 @@ export function Display({ synagogueId }: Props) {
         </div>
       ) : null}
 
-      {orefMatch ? (
-        <div className="oref-overlay" role="alert">
-          <p className="oref-label">פיקוד העורף</p>
+      {orefDrill || orefMatch ? (
+        <div className={`oref-overlay${orefDrill ? ' is-test' : ''}`} role="alert">
+          <p className="oref-label">{orefDrill ? 'בדיקת מערכת · פיקוד העורף' : 'פיקוד העורף'}</p>
           <p className="oref-title">
-            {categoryLabel(orefMatch.alert.cat, orefMatch.alert.title)}
+            {categoryLabel(
+              (orefDrill || orefMatch)!.alert.cat,
+              (orefDrill || orefMatch)!.alert.title,
+            )}
           </p>
-          <p className="oref-areas">{orefMatch.matchedAreas.join(' · ')}</p>
-          {orefMatch.alert.desc ? (
-            <p className="oref-desc">{orefMatch.alert.desc}</p>
+          <p className="oref-areas">{(orefDrill || orefMatch)!.matchedAreas.join(' · ')}</p>
+          {(orefDrill || orefMatch)!.alert.desc ? (
+            <p className="oref-desc">{(orefDrill || orefMatch)!.alert.desc}</p>
           ) : null}
         </div>
       ) : null}

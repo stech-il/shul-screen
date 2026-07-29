@@ -24,6 +24,7 @@ import {
 } from './server/cloudStore.mjs';
 import { billingConfigured, handleBilling, startBillingCron } from './server/billing.mjs';
 import { handleBackups, startBackupCron } from './server/backups.mjs';
+import { handleOrefDrill } from './server/orefDrill.mjs';
 import {
   handleNotifications,
   startNotificationCron,
@@ -367,6 +368,12 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   if (url.pathname === '/api/oref/alerts') {
     proxyOref(res);
+    return;
+  }
+  if (url.pathname.startsWith('/api/oref/drill')) {
+    void handleOrefDrill(req, res, url).then((handled) => {
+      if (!handled) sendJson(res, 404, { error: 'not found' });
+    });
     return;
   }
   if (url.pathname === '/healthz') {

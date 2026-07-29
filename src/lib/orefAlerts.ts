@@ -172,6 +172,58 @@ export function matchAlertsForCity(
 
 export type OrefListener = (match: MatchedOrefAlert | null, err?: string) => void;
 
+export interface OrefDrillState {
+  synagogueId: string;
+  alert: OrefAlert;
+  expiresAt: number;
+  remainingSec: number;
+  isTest: true;
+}
+
+export async function fetchOrefDrill(synagogueId: string): Promise<OrefDrillState | null> {
+  const id = encodeURIComponent(String(synagogueId || '').trim());
+  if (!id) return null;
+  try {
+    const res = await fetch(cloudUrl(`/api/oref/drill/${id}`), { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { drill?: OrefDrillState | null };
+    return data.drill ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function startOrefDrill(body: {
+  synagogueId: string;
+  title?: string;
+  areas?: string[];
+  seconds?: number;
+  desc?: string;
+}): Promise<{ ok: boolean; error?: string; drill?: OrefDrillState }> {
+  try {
+    const res = await fetch(cloudUrl('/api/oref/drill'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || `HTTP ${res.status}` };
+    return { ok: true, drill: data.drill };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'שגיאת רשת' };
+  }
+}
+
+export async function stopOrefDrill(synagogueId: string): Promise<void> {
+  const id = encodeURIComponent(String(synagogueId || '').trim());
+  if (!id) return;
+  try {
+    await fetch(cloudUrl(`/api/oref/drill/${id}`), { method: 'DELETE', cache: 'no-store' });
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Poll oref every `intervalMs` and notify when city is in an active alert */
 export function subscribeOrefAlerts(
   cityNames: string[],

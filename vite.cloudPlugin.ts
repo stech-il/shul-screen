@@ -21,6 +21,19 @@ export function cloudApiPlugin(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         try {
           const url = req.url || '';
+          if (url.startsWith('/api/oref/drill')) {
+            const drill = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/orefDrill.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            const handled = await drill.handleOrefDrill(req, res, parsed);
+            if (!handled) {
+              res.statusCode = 404;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ error: 'not found' }));
+            }
+            return;
+          }
           if (url.startsWith('/api/billing')) {
             const billing = await import(
               /* @vite-ignore */ pathToFileURL(resolve('server/billing.mjs')).href
