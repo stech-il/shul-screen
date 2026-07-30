@@ -289,6 +289,16 @@ export function DesignStudio({
   }
 
   async function pickSaved(template: SavedDesignTemplate) {
+    if (
+      !(await askConfirm({
+        title: t('design.confirmApplyTitle'),
+        message: t('design.confirmApplyTemplate', { name: template.name }),
+        confirmLabel: t('design.applyTemplate'),
+        cancelLabel: t('common.cancel'),
+      }))
+    ) {
+      return;
+    }
     const applied = await applyDesignTemplate(template);
     onChange(applied);
     onStatus?.(t('design.templateApplied', { name: template.name }));

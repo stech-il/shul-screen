@@ -172,6 +172,13 @@ export function cloudApiPlugin(): Plugin {
             return;
           }
 
+          const mediaUsage = pathOnly.match(/^\/api\/cloud\/media\/([^/]+)\/usage$/);
+          if (mediaUsage && req.method === 'GET') {
+            const synagogueId = decodeURIComponent(mediaUsage[1]);
+            send(200, { ok: true, ...store.getMediaUsage(synagogueId) });
+            return;
+          }
+
           const mediaPost = pathOnly.match(/^\/api\/cloud\/media\/([^/]+)$/);
           if (mediaPost && req.method === 'POST') {
             const synagogueId = decodeURIComponent(mediaPost[1]);
@@ -185,14 +192,26 @@ export function cloudApiPlugin(): Plugin {
               send(400, { error: 'missing dataBase64' });
               return;
             }
-            const buffer = Buffer.from(body.dataBase64, 'base64');
-            const saved = await store.putMediaFile(
-              synagogueId,
-              body.fileName || `file-${Date.now()}.bin`,
-              buffer,
-              body.contentType || 'application/octet-stream',
-            );
-            send(200, { ok: true, url: saved.url, fileName: saved.fileName, bytes: saved.bytes });
+            try {
+              const buffer = Buffer.from(body.dataBase64, 'base64');
+              const saved = await store.putMediaFile(
+                synagogueId,
+                body.fileName || `file-${Date.now()}.bin`,
+                buffer,
+                body.contentType || 'application/octet-stream',
+              );
+              send(200, {
+                ok: true,
+                url: saved.url,
+                fileName: saved.fileName,
+                bytes: saved.bytes,
+                usedBytes: saved.usedBytes,
+                limitBytes: saved.limitBytes,
+              });
+            } catch (err) {
+              const msg = String((err as Error)?.message || err);
+              send(msg.includes('מכסת האחסון') ? 413 : 500, { error: msg });
+            }
             return;
           }
 

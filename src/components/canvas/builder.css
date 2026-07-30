@@ -258,15 +258,16 @@
   flex: 1 1 0;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: scroll;
+  overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   scrollbar-gutter: stable;
-  padding: 0.65rem 0.7rem 1.25rem;
+  padding: 0.65rem 0.7rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  align-items: stretch;
 }
 
 .cb-el-field {
@@ -387,7 +388,7 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-/* Editor panel — right sidebar; must shrink so .cb-el-body can scroll */
+/* Editor panel — right sidebar; must fill column height so .cb-el-body can scroll */
 .cb-inspector-el {
   position: relative !important;
   inset: auto !important;
@@ -398,8 +399,8 @@
   width: auto !important;
   min-width: 0 !important;
   min-height: 0 !important;
-  height: auto !important;
-  max-height: none !important;
+  height: 100% !important;
+  max-height: 100% !important;
   align-self: stretch;
   z-index: 5;
   box-shadow: none;
@@ -688,15 +689,16 @@
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  padding: 0.75rem 0.85rem 1.25rem;
+  padding: 0.75rem 0.85rem 1.5rem;
   overflow-x: hidden;
-  overflow-y: scroll;
+  overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   scrollbar-gutter: stable;
   flex: 1 1 0;
   min-height: 0;
+  align-items: stretch;
 }
 
 .cb-el-quick-size {
@@ -807,7 +809,11 @@
   border: 1px solid var(--line, rgba(28, 49, 64, 0.1));
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.55);
-  overflow: hidden;
+  /* Do not clip open accordion — .cb-el-body scrolls the panel */
+  overflow: visible;
+  flex: 0 0 auto;
+  height: auto;
+  max-height: none;
 }
 .cb-sec > summary {
   list-style: none;
@@ -816,6 +822,7 @@
   font-weight: 600;
   padding: 0.45rem 0.6rem;
   user-select: none;
+  border-radius: 8px;
 }
 .cb-sec > summary::-webkit-details-marker {
   display: none;
@@ -833,7 +840,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  padding: 0 0.6rem 0.65rem;
+  padding: 0 0.6rem 0.75rem;
+  overflow: visible;
+  height: auto;
+  max-height: none;
 }
 
 .cb-inspector-head {

@@ -42,6 +42,58 @@
   padding: 0 0.25rem;
 }
 
+.mg-quota {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: #f4f7fb;
+  border: 1px solid rgba(11, 28, 58, 0.1);
+}
+
+.mg-quota.is-tight {
+  background: #fff7e8;
+  border-color: rgba(138, 90, 18, 0.35);
+}
+
+.mg-quota-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #3d4f63;
+}
+
+.mg-quota-row strong {
+  color: #0b1c3a;
+  font-variant-numeric: tabular-nums;
+}
+
+.mg-quota-bar {
+  margin-top: 0.45rem;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(11, 28, 58, 0.1);
+  overflow: hidden;
+}
+
+.mg-quota-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #1c5c3e, #c9a227);
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+.mg-quota.is-tight .mg-quota-bar span {
+  background: linear-gradient(90deg, #a35c12, #8f2f2f);
+}
+
+.mg-quota-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: #6b7a80;
+}
+
 .mg-toolbar {
   display: flex;
   flex-wrap: wrap;

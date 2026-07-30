@@ -4,10 +4,68 @@ import { cloudUrl } from './apiOrigin';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 8 * 1024 * 1024;
+/** Soft mirror of server MEDIA_QUOTA_BYTES — authoritative check is server-side. */
+export const MEDIA_QUOTA_BYTES = 30 * 1024 * 1024;
 const LOCAL_IMAGE_MAX_EDGE = 1920;
 const LOCAL_IMAGE_QUALITY = 0.82;
 export const MEDIA_BUCKET = 'shul-media';
+
+export type MediaUsage = {
+  usedBytes: number;
+  limitBytes: number;
+  remainingBytes: number;
+  fileCount: number;
+};
+
+export async function fetchMediaUsage(synagogueId: string): Promise<MediaUsage> {
+  const res = await fetch(
+    cloudUrl(`/api/cloud/media/${encodeURIComponent(synagogueId)}/usage?_=${Date.now()}`),
+    { cache: 'no-store' },
+  );
+  const body = (await res.json().catch(() => ({}))) as Partial<MediaUsage> & {
+    ok?: boolean;
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.error || `שגיאת אחסון ${res.status}`);
+  }
+  const limitBytes = Number(body.limitBytes) > 0 ? Number(body.limitBytes) : MEDIA_QUOTA_BYTES;
+  const usedBytes = Math.max(0, Number(body.usedBytes) || 0);
+  return {
+    usedBytes,
+    limitBytes,
+    remainingBytes:
+      body.remainingBytes != null
+        ? Math.max(0, Number(body.remainingBytes))
+        : Math.max(0, limitBytes - usedBytes),
+    fileCount: Math.max(0, Number(body.fileCount) || 0),
+  };
+}
+
+export function formatMediaBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isQuotaError(message: string): boolean {
+  return /מכסת האחסון|quota|413/i.test(message);
+}
+
+async function assertScreenQuota(synagogueId: string, incomingBytes: number): Promise<void> {
+  try {
+    const usage = await fetchMediaUsage(synagogueId);
+    if (usage.usedBytes + incomingBytes > usage.limitBytes) {
+      throw new Error(
+        `מכסת האחסון למסך מלאה (${formatMediaBytes(usage.usedBytes)} מתוך ${formatMediaBytes(usage.limitBytes)}). מחקו קבצים ישנים מהגלריה ונסו שוב.`,
+      );
+    }
+  } catch (err) {
+    if (err instanceof Error && isQuotaError(err.message)) throw err;
+    /* usage endpoint optional — server still enforces */
+  }
+}
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -180,6 +238,7 @@ export async function uploadMedia(
   }
   assertSize(file, kind);
   report(onProgress, 0, 'מתחיל...');
+  await assertScreenQuota(synagogueId, file.size);
 
   const sb = getSupabase();
   if (sb && isSupabaseConfigured && navigator.onLine) {
@@ -201,7 +260,9 @@ export async function uploadMedia(
       report(onProgress, 40, `Supabase נכשל — מעלה לענן המערכת...`);
       try {
         return await uploadToServerCloud(synagogueId, file, kind, folder, onProgress, message);
-      } catch {
+      } catch (cloudErr) {
+        const cloudMsg = cloudErr instanceof Error ? cloudErr.message : message;
+        if (isQuotaError(cloudMsg)) throw cloudErr instanceof Error ? cloudErr : new Error(cloudMsg);
         const url =
           kind === 'image'
             ? await fileToOptimizedDataUrl(file, (p, l) =>
@@ -224,6 +285,7 @@ export async function uploadMedia(
       return await uploadToServerCloud(synagogueId, file, kind, folder, onProgress);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'העלאה נכשלה';
+      if (isQuotaError(message)) throw err instanceof Error ? err : new Error(message);
       report(onProgress, 50, 'שומר מקומית...');
       const url =
         kind === 'image'
@@ -282,6 +344,7 @@ async function uploadToServerCloud(
   }
 
   report(onProgress, 55, 'מעלה לענן...');
+  await assertScreenQuota(synagogueId, blob.size);
   const buf = await blob.arrayBuffer();
   const bytes = new Uint8Array(buf);
   let binary = '';
@@ -422,6 +485,7 @@ export async function uploadFont(
     throw new Error('קובץ הפונט גדול מדי (עד 4MB)');
   }
   report(onProgress, 0, 'מתחיל...');
+  await assertScreenQuota(synagogueId, file.size);
 
   const sb = getSupabase();
   if (sb && isSupabaseConfigured && navigator.onLine) {

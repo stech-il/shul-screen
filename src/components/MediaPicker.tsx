@@ -5,7 +5,7 @@ import {
   guessMediaKind,
   removeFromGallery,
 } from '../lib/gallery';
-import { uploadMedia, type MediaKind } from '../lib/media';
+import { uploadMedia, fetchMediaUsage, formatMediaBytes, type MediaKind, type MediaUsage } from '../lib/media';
 import { useI18n } from '../i18n';
 import './MediaPicker.css';
 
@@ -46,6 +46,7 @@ export function MediaGalleryModal({
   const [progressLabel, setProgressLabel] = useState('');
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('');
+  const [usage, setUsage] = useState<MediaUsage | null>(null);
   const titleId = useId();
 
   useEffect(() => {
@@ -62,6 +63,24 @@ export function MediaGalleryModal({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose, uploading]);
+
+  useEffect(() => {
+    if (!open || !synagogueId) {
+      setUsage(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchMediaUsage(synagogueId)
+      .then((u) => {
+        if (!cancelled) setUsage(u);
+      })
+      .catch(() => {
+        if (!cancelled) setUsage(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, synagogueId, gallery.length]);
 
   if (!open) return null;
 
@@ -133,6 +152,9 @@ export function MediaGalleryModal({
         ? t('media.uploadedRemote')
         : r.warning ?? t('media.addedLocal');
       onStatus?.(msg);
+      void fetchMediaUsage(synagogueId)
+        .then(setUsage)
+        .catch(() => {});
       if (!manageOnly) {
         // short delay so user sees 100%
         await new Promise((res) => setTimeout(res, 280));
@@ -173,6 +195,28 @@ export function MediaGalleryModal({
             ×
           </button>
         </header>
+
+        {usage ? (
+          <div
+            className={`mg-quota${usage.remainingBytes < 2 * 1024 * 1024 ? ' is-tight' : ''}`}
+            role="status"
+          >
+            <div className="mg-quota-row">
+              <span>{t('media.storageLabel')}</span>
+              <strong>
+                {formatMediaBytes(usage.usedBytes)} / {formatMediaBytes(usage.limitBytes)}
+              </strong>
+            </div>
+            <div className="mg-quota-bar" aria-hidden="true">
+              <span
+                style={{
+                  width: `${Math.min(100, (usage.usedBytes / Math.max(1, usage.limitBytes)) * 100)}%`,
+                }}
+              />
+            </div>
+            <p className="mg-quota-hint">{t('media.storageHint')}</p>
+          </div>
+        ) : null}
 
         <div className="mg-toolbar">
           <button

@@ -359,7 +359,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
           target.isContentEditable);
       if (key === 's') {
         e.preventDefault();
-        void onSave(t('admin.publishCtrlS'));
+        void onSave(t('admin.saveSummary'));
         return;
       }
       if (typing) return;
@@ -1117,7 +1117,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
           <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
             {t('admin.liveScreen')}
           </Link>
-          <span className="admin-quick-hint">{t('admin.publishHint')}</span>
         </div>
         ) : null}
 
@@ -1382,10 +1381,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
 
                 <section className="card">
                   <h2>{t('admin.kioskExitTitle')}</h2>
-                  <p className="hint">
-                    {t('admin.kioskHint')}{' '}
-                    {config.kioskExitPinHash ? t('admin.pinSet') : t('admin.pinUnset')}
-                  </p>
                   <form className="inline-form" onSubmit={setKioskExitPin}>
                     <input
                       type="password"
@@ -1822,7 +1817,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 <em>{t('admin.upToDate')}</em>
               )}
             </div>
-            <p className="hint">{t('admin.contentHint')}</p>
             {config.blocks.length === 0 ? (
               <div className="admin-empty">
                 <p>{t('admin.noBlocks')}</p>

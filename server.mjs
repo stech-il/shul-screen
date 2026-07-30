@@ -20,6 +20,7 @@ import {
   putDesignTemplates,
   putHeartbeat,
   putMediaFile,
+  getMediaUsage,
   statusPayload,
 } from './server/cloudStore.mjs';
 import { billingConfigured, handleBilling, startBillingCron } from './server/billing.mjs';
@@ -245,6 +246,18 @@ async function handleCloud(req, res, url) {
     return;
   }
 
+  // GET /api/cloud/media/:synagogueId/usage
+  const mediaUsage = url.pathname.match(/^\/api\/cloud\/media\/([^/]+)\/usage$/);
+  if (mediaUsage && req.method === 'GET') {
+    try {
+      const synagogueId = decodeURIComponent(mediaUsage[1]);
+      sendJson(res, 200, { ok: true, ...getMediaUsage(synagogueId) });
+    } catch (err) {
+      sendJson(res, 500, { error: String(err?.message || err) });
+    }
+    return;
+  }
+
   // POST /api/cloud/media/:synagogueId  { fileName, contentType, dataBase64 }
   const mediaPost = url.pathname.match(/^\/api\/cloud\/media\/([^/]+)$/);
   if (mediaPost && req.method === 'POST') {
@@ -261,9 +274,18 @@ async function handleCloud(req, res, url) {
       }
       const buffer = Buffer.from(dataBase64, 'base64');
       const saved = await putMediaFile(synagogueId, fileName, buffer, contentType);
-      sendJson(res, 200, { ok: true, url: saved.url, fileName: saved.fileName, bytes: saved.bytes });
+      sendJson(res, 200, {
+        ok: true,
+        url: saved.url,
+        fileName: saved.fileName,
+        bytes: saved.bytes,
+        usedBytes: saved.usedBytes,
+        limitBytes: saved.limitBytes,
+      });
     } catch (err) {
-      sendJson(res, 500, { error: String(err?.message || err) });
+      const msg = String(err?.message || err);
+      const quota = msg.includes('מכסת האחסון');
+      sendJson(res, quota ? 413 : 500, { error: msg });
     }
     return;
   }

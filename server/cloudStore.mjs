@@ -674,6 +674,8 @@ export async function changeSynagogueId(oldIdRaw, newIdRaw) {
 // —— Binary media files on persistent disk (Render Disk / DATA_DIR) ——
 const MEDIA_PREFIX = 'media';
 const MAX_MEDIA_BYTES = 8 * 1024 * 1024;
+/** Total media storage allowed per synagogue screen. */
+export const MEDIA_QUOTA_BYTES = 30 * 1024 * 1024;
 const MEDIA_ROOT = path.join(ROOT_DIR, MEDIA_PREFIX);
 
 function safeMediaName(name) {
@@ -690,6 +692,32 @@ function localMediaDir(synagogueId) {
 
 function localMediaPath(synagogueId, fileName) {
   return path.join(localMediaDir(synagogueId), safeMediaName(fileName));
+}
+
+/** Sum on-disk media usage for one synagogue. */
+export function getMediaUsage(synagogueId) {
+  const dir = localMediaDir(synagogueId);
+  let usedBytes = 0;
+  let fileCount = 0;
+  if (fs.existsSync(dir)) {
+    for (const name of fs.readdirSync(dir)) {
+      try {
+        const st = fs.statSync(path.join(dir, name));
+        if (!st.isFile()) continue;
+        usedBytes += st.size;
+        fileCount += 1;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return {
+    synagogueId: String(synagogueId || ''),
+    usedBytes,
+    fileCount,
+    limitBytes: MEDIA_QUOTA_BYTES,
+    remainingBytes: Math.max(0, MEDIA_QUOTA_BYTES - usedBytes),
+  };
 }
 
 function guessContentType(fileName) {
@@ -714,6 +742,7 @@ function guessContentType(fileName) {
 /**
  * Store a media file on the persistent disk. Returns a public API path.
  * (Does NOT use GitHub — binaries belong on the Render disk.)
+ * Enforces per-file MAX_MEDIA_BYTES and per-screen MEDIA_QUOTA_BYTES.
  */
 export async function putMediaFile(synagogueId, fileName, buffer, contentType) {
   if (!Buffer.isBuffer(buffer)) buffer = Buffer.from(buffer);
@@ -724,7 +753,25 @@ export async function putMediaFile(synagogueId, fileName, buffer, contentType) {
   const safe = safeMediaName(fileName);
   const dir = localMediaDir(synagogueId);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(localMediaPath(synagogueId, safe), buffer);
+  const target = localMediaPath(synagogueId, safe);
+  let replacing = 0;
+  if (fs.existsSync(target)) {
+    try {
+      replacing = fs.statSync(target).size;
+    } catch {
+      replacing = 0;
+    }
+  }
+  const usage = getMediaUsage(synagogueId);
+  const nextUsed = usage.usedBytes - replacing + buffer.length;
+  if (nextUsed > MEDIA_QUOTA_BYTES) {
+    const usedMb = (usage.usedBytes / (1024 * 1024)).toFixed(1);
+    const limitMb = Math.round(MEDIA_QUOTA_BYTES / (1024 * 1024));
+    throw new Error(
+      `מכסת האחסון למסך מלאה (${usedMb}MB מתוך ${limitMb}MB). מחקו קבצים ישנים מהגלריה ונסו שוב.`,
+    );
+  }
+  fs.writeFileSync(target, buffer);
 
   const url = `/api/cloud/media/${encodeURIComponent(synagogueId)}/${encodeURIComponent(safe)}`;
   return {
@@ -732,6 +779,8 @@ export async function putMediaFile(synagogueId, fileName, buffer, contentType) {
     fileName: safe,
     bytes: buffer.length,
     contentType: contentType || guessContentType(safe),
+    usedBytes: nextUsed,
+    limitBytes: MEDIA_QUOTA_BYTES,
   };
 }
 
