@@ -37,7 +37,7 @@ export const en: DeepString<typeof he> = {
     title: 'Screen ID not found',
     lead: 'No synagogue matches the ID you entered.',
     leadWithId: 'No synagogue with ID “{id}” exists in the system.',
-    hint: 'Double-check the number with your provider, or contact support.',
+    hint: 'Check the number with customer service: 052-4521527',
     backHome: 'Back to home',
     backManage: 'Back to manage',
     whatsapp: 'WhatsApp support',
