@@ -101,9 +101,7 @@ app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml
 
 # Android signing
-android/keystore.properties
-android/**/*.jks
-android/**/*.keystore
-*.jks
-*.keystore
+keystore.properties
+**/*.jks
+**/*.keystore
 
