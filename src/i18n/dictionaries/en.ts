@@ -258,7 +258,7 @@ export const en: DeepString<typeof he> = {
     cloudLocal: 'Local sync',
     newShulName: 'New synagogue',
     missingShul: 'Screen ID {id} was not found',
-    missingShulHint: 'Only the agency can create a new synagogue. Check the number or go back.',
+    missingShulHint: 'Check the number or go back.',
     canvasLayoutHint: 'Layout set to free canvas — click «Publish to screen» to update the TV',
     publishCtrlS: 'Publish to screen (Ctrl+S)',
     itemTitle: 'Title / note',
