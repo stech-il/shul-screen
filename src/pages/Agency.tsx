@@ -36,6 +36,7 @@ import { fetchHeartbeatsFromCloud, findHeartbeat, isScreenOnline } from '../lib/
 import { BrandLogo } from '../components/BrandLogo';
 import { ScreenIdBadge } from '../components/ScreenIdBadge';
 import { SiteFooter } from '../components/SiteFooter';
+import { useAppNotice } from '../components/AppNotice';
 import {
   changeScreenId,
   deleteSynagogue,
@@ -101,6 +102,7 @@ type Modal =
 
 export function Agency() {
   const navigate = useNavigate();
+  const { confirm: askConfirm } = useAppNotice();
   const [platformOk, setPlatformOk] = useState(() => isPlatformAdminLoggedIn());
   const [tick, setTick] = useState(0);
   const [msg, setMsg] = useState('');
@@ -419,7 +421,15 @@ export function Agency() {
   }
 
   async function onDeletePlatformUser(username: string) {
-    if (!confirm(`למחוק את משתמש מנהל-העל «${username}»?`)) return;
+    if (
+      !(await askConfirm({
+        message: `למחוק את משתמש מנהל-העל «${username}»?`,
+        confirmLabel: 'מחק',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     setPlatUserMsg('');
     const result = await deletePlatformAccount(username);
     if (!result.ok) {
@@ -543,7 +553,7 @@ export function Agency() {
 
   async function billingCancel() {
     if (!modal || modal.kind !== 'billing') return;
-    if (!confirm(`לבטל את הוראת הקבע של «${modal.config.name}»?`)) return;
+    if (!(await askConfirm(`לבטל את הוראת הקבע של «${modal.config.name}»?`))) return;
     setBusy(true);
     setBillingMsg('');
     try {
@@ -589,9 +599,9 @@ export function Agency() {
   async function onRestoreBackup(backupId: string) {
     if (!modal || modal.kind !== 'backups') return;
     if (
-      !confirm(
+      !(await askConfirm(
         `לשחזר את «${modal.config.name}» מגיבוי זה?\nהמצב הנוכחי יישמר אוטומטית כגיבוי לפני השחזור.`,
-      )
+      ))
     ) {
       return;
     }
@@ -753,6 +763,7 @@ export function Agency() {
     const adminPass = generateExclusiveAdminPassword();
     const config = await createDefaultConfig(id, name.trim(), cityId, adminPass, adminUser);
     config.contactEmail = email;
+    config.signupSource = 'agency';
     config.license = issueScreenLicense(id, 'trial', name.trim(), {
       durationDays: TRIAL_DAYS,
     });
@@ -829,7 +840,15 @@ export function Agency() {
       setMsg('אין רישיון להסרה');
       return;
     }
-    if (!confirm(`להסיר את הרישיון של «${config.name}»? המסך יינעל עד הפעלה מחדש.`)) return;
+    if (
+      !(await askConfirm({
+        message: `להסיר את הרישיון של «${config.name}»? המסך יינעל עד הפעלה מחדש.`,
+        confirmLabel: 'הסר רישיון',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     setBusy(true);
     const next = { ...config, license: undefined };
     await saveConfig(next, undefined, {
@@ -867,9 +886,9 @@ export function Agency() {
       return;
     }
     if (
-      !confirm(
+      !(await askConfirm(
         `להמיר את מזהה «${modal.config.id}» למספר ${nextId}?\nכתובות ישנות (/display/… עם המזהה הישן) יפסיקו לעבוד — עדכנו קיוסקים וקישורים.`,
-      )
+      ))
     ) {
       return;
     }
@@ -891,9 +910,9 @@ export function Agency() {
       return;
     }
     if (
-      !confirm(
+      !(await askConfirm(
         `להמיר ${legacy.length} מסכים עם מזהה מילולי למספרים?\nיש לעדכן אחרי זה קישורי קיוסק /display.`,
-      )
+      ))
     ) {
       return;
     }

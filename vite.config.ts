@@ -88,6 +88,13 @@ export default defineConfig({
             },
           },
           {
+            urlPattern: /\/api\/signup\/.*/i,
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'signup-api',
+            },
+          },
+          {
             urlPattern: /^https:\/\/api\.open-meteo\.com\/.*/i,
             handler: 'NetworkFirst',
             options: {

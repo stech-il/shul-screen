@@ -19,6 +19,7 @@ import {
 } from '../lib/customFonts';
 import { uploadFont } from '../lib/media';
 import { useI18n } from '../i18n';
+import { useAppNotice } from './AppNotice';
 import { MediaPickerField } from './MediaPicker';
 import type {
   CustomFont,
@@ -205,6 +206,7 @@ export function DesignStudio({
   onRequestCustomDesign,
 }: Props) {
   const { t, dateTag } = useI18n();
+  const { confirm: askConfirm } = useAppNotice();
   const d = config.design;
   const customFonts = config.media?.customFonts ?? [];
   const gallery = config.media?.gallery ?? [];
@@ -267,8 +269,16 @@ export function DesignStudio({
     }
   }
 
-  function onRemoveFont(font: CustomFont) {
-    if (!confirm(t('design.confirmDeleteFont', { name: font.name }))) return;
+  async function onRemoveFont(font: CustomFont) {
+    if (
+      !(await askConfirm({
+        message: t('design.confirmDeleteFont', { name: font.name }),
+        confirmLabel: 'מחק',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     const next = customFonts.filter((f) => f.id !== font.id);
     setCustomFonts(next);
     const patch: Partial<DesignSettings> = {};
@@ -313,7 +323,15 @@ export function DesignStudio({
       onStatus?.(t('design.cannotDeleteSeed'));
       return;
     }
-    if (!confirm(t('design.confirmDeleteTemplate', { name }))) return;
+    if (
+      !(await askConfirm({
+        message: t('design.confirmDeleteTemplate', { name }),
+        confirmLabel: 'מחק',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     await deleteDesignTemplate(synagogueId, id);
     setSaved(await loadDesignTemplates(synagogueId));
     onStatus?.(t('design.templateDeleted', { name }));

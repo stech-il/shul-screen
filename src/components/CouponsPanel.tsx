@@ -6,9 +6,11 @@ import {
   saveCoupon,
   type BillingCoupon,
 } from '../lib/billing';
+import { useAppNotice } from './AppNotice';
 import './CouponsPanel.css';
 
 export function CouponsPanel() {
+  const { confirm: askConfirm } = useAppNotice();
   const [items, setItems] = useState<BillingCoupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
@@ -62,7 +64,15 @@ export function CouponsPanel() {
   }
 
   async function onDelete(c: BillingCoupon) {
-    if (!confirm(`למחוק / לבטל את הקופון «${c.code}»?`)) return;
+    if (
+      !(await askConfirm({
+        message: `למחוק / לבטל את הקופון «${c.code}»?`,
+        confirmLabel: 'בטל קופון',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     setBusy(true);
     try {
       await deleteCoupon(c.code);

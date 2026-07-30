@@ -2,8 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BrandLogo } from '../components/BrandLogo';
 import { SiteFooter } from '../components/SiteFooter';
+import { CITIES } from '../data/cities';
 import { LangSwitch, useI18n } from '../i18n';
 import { submitInquiry } from '../lib/inquiries';
+import { startTrialSignup, type TrialSignupResult } from '../lib/trialSignup';
 import './Landing.css';
 
 const WHATSAPP = 'https://wa.me/972524521527';
@@ -151,6 +153,7 @@ type FormStatus = 'idle' | 'sending' | 'success' | 'error';
 
 export function Landing() {
   const { t, dir, locale } = useI18n();
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -160,7 +163,16 @@ export function Landing() {
   const [formError, setFormError] = useState('');
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginShulId, setLoginShulId] = useState('');
-  const navigate = useNavigate();
+
+  const [trialName, setTrialName] = useState('');
+  const [trialPhone, setTrialPhone] = useState('');
+  const [trialEmail, setTrialEmail] = useState('');
+  const [trialShul, setTrialShul] = useState('');
+  const [trialCity, setTrialCity] = useState('petah-tikva');
+  const [trialNotes, setTrialNotes] = useState('');
+  const [trialStatus, setTrialStatus] = useState<FormStatus>('idle');
+  const [trialError, setTrialError] = useState('');
+  const [trialResult, setTrialResult] = useState<TrialSignupResult | null>(null);
 
   useEffect(() => {
     document.title = t('landing.seoTitle');
@@ -214,6 +226,38 @@ export function Landing() {
     }
   }
 
+  async function onTrialSubmit(e: FormEvent) {
+    e.preventDefault();
+    setTrialError('');
+    setTrialResult(null);
+    if (
+      trialName.trim().length < 2 ||
+      trialPhone.replace(/\D/g, '').length < 9 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trialEmail.trim()) ||
+      trialShul.trim().length < 2
+    ) {
+      setTrialStatus('error');
+      setTrialError(t('landing.trialRequired'));
+      return;
+    }
+    setTrialStatus('sending');
+    try {
+      const result = await startTrialSignup({
+        contactName: trialName.trim(),
+        phone: trialPhone.trim(),
+        email: trialEmail.trim(),
+        synagogueName: trialShul.trim(),
+        cityId: trialCity,
+        notes: trialNotes.trim() || undefined,
+      });
+      setTrialResult(result);
+      setTrialStatus('success');
+    } catch (err) {
+      setTrialStatus('error');
+      setTrialError(err instanceof Error ? err.message : t('landing.trialError'));
+    }
+  }
+
   return (
     <div className="landing" dir={dir} lang={locale}>
       <header className="landing-topbar">
@@ -227,6 +271,7 @@ export function Landing() {
           <a href="#preview">{t('landing.navPreview')}</a>
           <a href="#manage">{t('landing.navSystem')}</a>
           <a href="#pricing">{t('landing.navPricing')}</a>
+          <a href="#trial">{t('landing.navTrial')}</a>
           <Link to="/guide">{t('landing.navGuide')}</Link>
         </nav>
         <div className="landing-topbar-actions">
@@ -298,8 +343,8 @@ export function Landing() {
             <h1>{t('landing.h1')}</h1>
             <p className="landing-lead">{t('landing.lead')}</p>
             <div className="landing-cta-row">
-              <a className="landing-btn primary lg" href={WHATSAPP} target="_blank" rel="noreferrer">
-                {t('landing.orderNow')}
+              <a className="landing-btn primary lg" href="#trial">
+                {t('landing.startTrial')}
               </a>
               <a className="landing-btn ghost-light lg" href="#features">
                 {t('landing.whatIncludes')}
@@ -441,10 +486,153 @@ export function Landing() {
               <li>{t('landing.priceInc2')}</li>
               <li>{t('landing.priceInc3')}</li>
             </ul>
-            <a className="landing-btn primary lg" href={WHATSAPP} target="_blank" rel="noreferrer">
-              {t('landing.orderWhatsapp')}
+            <a className="landing-btn primary lg" href="#trial">
+              {t('landing.startTrial')}
             </a>
             <p className="landing-hardware-note">{t('landing.hardwareNote')}</p>
+          </div>
+        </section>
+
+        <section className="landing-trial" id="trial" aria-labelledby="trial-title">
+          <div className="landing-trial-inner">
+            <p className="landing-kicker">{t('landing.trialKicker')}</p>
+            <h2 id="trial-title">{t('landing.trialTitle')}</h2>
+            <p className="landing-section-lead">{t('landing.trialLead')}</p>
+
+            {trialStatus === 'success' && trialResult ? (
+              <div className="landing-trial-success" role="status">
+                <h3>{t('landing.trialSuccessTitle')}</h3>
+                <p className={trialResult.mailOk ? 'ok' : 'warn'}>
+                  {trialResult.mailOk
+                    ? t('landing.trialSuccessMail')
+                    : t('landing.trialSuccessMailFail')}
+                </p>
+                <dl className="landing-trial-creds">
+                  <div>
+                    <dt>{t('landing.trialScreenId')}</dt>
+                    <dd dir="ltr">{trialResult.synagogueId}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('landing.trialUsername')}</dt>
+                    <dd dir="ltr">{trialResult.username}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('landing.trialPassword')}</dt>
+                    <dd dir="ltr">{trialResult.password}</dd>
+                  </div>
+                </dl>
+                <div className="landing-cta-row">
+                  <Link
+                    className="landing-btn primary lg"
+                    to={`/login/${encodeURIComponent(trialResult.synagogueId)}`}
+                  >
+                    {t('landing.trialOpenAdmin')}
+                  </Link>
+                  <Link
+                    className="landing-btn outline lg"
+                    to={`/display/${encodeURIComponent(trialResult.synagogueId)}`}
+                  >
+                    {t('landing.trialOpenDisplay')}
+                  </Link>
+                  <Link
+                    className="landing-btn ghost-light lg"
+                    to={`/login/${encodeURIComponent(trialResult.synagogueId)}?billing=1`}
+                  >
+                    {t('landing.trialOpenBilling')}
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <form className="landing-lead-form landing-trial-form" onSubmit={(e) => void onTrialSubmit(e)} noValidate>
+                <label>
+                  <span>{t('landing.trialName')}</span>
+                  <input
+                    name="trialName"
+                    autoComplete="name"
+                    required
+                    minLength={2}
+                    value={trialName}
+                    onChange={(e) => setTrialName(e.target.value)}
+                    disabled={trialStatus === 'sending'}
+                  />
+                </label>
+                <label>
+                  <span>{t('landing.trialPhone')}</span>
+                  <input
+                    name="trialPhone"
+                    type="tel"
+                    autoComplete="tel"
+                    dir="ltr"
+                    required
+                    minLength={9}
+                    value={trialPhone}
+                    onChange={(e) => setTrialPhone(e.target.value)}
+                    disabled={trialStatus === 'sending'}
+                  />
+                </label>
+                <label>
+                  <span>{t('landing.trialEmail')}</span>
+                  <input
+                    name="trialEmail"
+                    type="email"
+                    autoComplete="email"
+                    dir="ltr"
+                    required
+                    value={trialEmail}
+                    onChange={(e) => setTrialEmail(e.target.value)}
+                    disabled={trialStatus === 'sending'}
+                  />
+                </label>
+                <label>
+                  <span>{t('landing.trialShul')}</span>
+                  <input
+                    name="trialShul"
+                    autoComplete="organization"
+                    required
+                    minLength={2}
+                    value={trialShul}
+                    onChange={(e) => setTrialShul(e.target.value)}
+                    disabled={trialStatus === 'sending'}
+                  />
+                </label>
+                <label>
+                  <span>{t('landing.trialCity')}</span>
+                  <select
+                    name="trialCity"
+                    value={trialCity}
+                    onChange={(e) => setTrialCity(e.target.value)}
+                    disabled={trialStatus === 'sending'}
+                    required
+                  >
+                    {CITIES.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="landing-trial-notes">
+                  <span>{t('landing.trialNotes')}</span>
+                  <textarea
+                    name="trialNotes"
+                    rows={3}
+                    value={trialNotes}
+                    onChange={(e) => setTrialNotes(e.target.value)}
+                    disabled={trialStatus === 'sending'}
+                  />
+                </label>
+                <div className="landing-lead-actions">
+                  <button className="landing-btn primary lg" type="submit" disabled={trialStatus === 'sending'}>
+                    {trialStatus === 'sending' ? t('landing.trialSending') : t('landing.trialSubmit')}
+                  </button>
+                </div>
+                {trialStatus === 'error' ? (
+                  <p className="landing-form-msg err" role="alert">
+                    {trialError || t('landing.trialError')}
+                  </p>
+                ) : null}
+              </form>
+            )}
           </div>
         </section>
 

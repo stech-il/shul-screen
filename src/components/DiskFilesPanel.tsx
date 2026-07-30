@@ -7,6 +7,7 @@ import {
   type DiskFileGroup,
   type DiskInventory,
 } from '../lib/diskFiles';
+import { useAppNotice } from './AppNotice';
 import './DiskFilesPanel.css';
 
 const KIND_SHORT: Record<string, string> = {
@@ -38,6 +39,7 @@ function kindLabel(kind: string): string {
 }
 
 export function DiskFilesPanel() {
+  const { confirm: askConfirm } = useAppNotice();
   const [data, setData] = useState<DiskInventory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -84,7 +86,15 @@ export function DiskFilesPanel() {
   }, [data, kindFilter, query]);
 
   async function onDeleteFile(relative: string, name: string) {
-    if (!confirm(`למחוק את הקובץ «${name}» מהדיסק?\nפעולה זו אינה הפיכה.`)) return;
+    if (
+      !(await askConfirm({
+        message: `למחוק את הקובץ «${name}» מהדיסק?\nפעולה זו אינה הפיכה.`,
+        confirmLabel: 'מחק',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     setBusy(relative);
     setMsg('');
     try {
@@ -101,9 +111,11 @@ export function DiskFilesPanel() {
   async function onDeleteFolder(group: DiskFileGroup) {
     if (!group.synagogueId) return;
     if (
-      !confirm(
-        `למחוק את כל ${group.files.length} הקבצים בתיקייה «${group.kind}/${group.synagogueId}»?\nסה״כ ${formatBytes(group.bytes)}.`,
-      )
+      !(await askConfirm({
+        message: `למחוק את כל ${group.files.length} הקבצים בתיקייה «${group.kind}/${group.synagogueId}»?\nסה״כ ${formatBytes(group.bytes)}.`,
+        confirmLabel: 'מחק הכל',
+        danger: true,
+      }))
     ) {
       return;
     }

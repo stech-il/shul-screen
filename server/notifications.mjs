@@ -134,7 +134,7 @@ export async function notifyTrialStarted(synagogueId, opts = {}) {
     ? `\nפרטי כניסה לניהול המסך:\nשם משתמש: ${username}\nסיסמה: ${password}\nקישור לניהול: ${loginUrl || '—'}\nקישור למסך החי: ${displayUrl || '—'}\n`
     : '';
 
-  const text = `שלום,\n\nבית הכנסת «${name}» נפתח במערכת screensmart עם תקופת ניסיון של ${TRIAL_DAYS} ימים.\nהניסיון בתוקף עד ${until}.\n${credsText}\nלאחר תקופת הניסיון יש להפעיל מנוי כדי שהמסך ימשיך לפעול.\n`;
+  const text = `שלום,\n\nבית הכנסת «${name}» נפתח במערכת screensmart עם תקופת ניסיון של ${TRIAL_DAYS} ימים.\nהניסיון בתוקף עד ${until}.\n${credsText}\nתקבלו תזכורת במייל בכל יום עד להפעלת מנוי.\nבתום הניסיון ללא מנוי — החשבון יימחק אוטומטית.\n`;
 
   const credsHtml = hasCreds
     ? `<div style="margin:20px 0;padding:18px;background:#f4f8f6;border:1px solid #d5e5dc;border-radius:10px">
@@ -156,7 +156,7 @@ export async function notifyTrialStarted(synagogueId, opts = {}) {
      <p>בית הכנסת <strong>«${escapeHtml(name)}»</strong> נפתח במערכת <strong>screensmart</strong>.</p>
      <p>תקופת ניסיון של <strong>${TRIAL_DAYS} ימים</strong> בתוקף עד <strong>${escapeHtml(until)}</strong>.</p>
      ${credsHtml}
-     <p style="margin-top:18px;color:#5f737a;font-size:14px">בתום הניסיון יש להפעיל מנוי חודשי כדי שהמסך ימשיך לפעול.</p>`,
+     <p style="margin-top:18px;color:#5f737a;font-size:14px">תקבלו תזכורת במייל בכל יום עד להפעלת מנוי. בתום הניסיון ללא מנוי — החשבון יימחק אוטומטית.</p>`,
   );
 
   return dispatch(synagogueId, `trial-started:${license?.expiresAt || 'x'}`, {
@@ -177,22 +177,34 @@ function escapeHtml(s) {
 }
 
 export async function notifyTrialEnding(synagogueId, daysLeft) {
-  const { name, license } = await resolveRecipient(synagogueId);
+  const { name, license, config } = await resolveRecipient(synagogueId);
   const until = formatDateHe(license?.expiresAt);
+  const selfServe = config?.signupSource === 'landing';
+  const deleteNote = selfServe
+    ? daysLeft <= 0
+      ? 'חשבון הניסיון יימחק אוטומטית אם לא יופעל מנוי.'
+      : 'בתום הניסיון ללא מנוי — החשבון והמסך יימחקו אוטומטית.'
+    : daysLeft <= 0
+      ? 'המסך נעול עד להפעלת מנוי.'
+      : 'מומלץ להפעיל מנוי חודשי לפני שהמסך יינעל.';
+
   const subject =
     daysLeft <= 0
       ? `תקופת הניסיון הסתיימה — ${name}`
-      : `תזכורת: הניסיון מסתיים בעוד ${daysLeft} ימים — ${name}`;
+      : `תזכורת יומית: הניסיון מסתיים בעוד ${daysLeft} ימים — ${name}`;
   const text =
     daysLeft <= 0
-      ? `שלום,\n\nתקופת הניסיון של «${name}» הסתיימה (${until}). המסך נעול עד להפעלת מנוי.\n`
-      : `שלום,\n\nתקופת הניסיון של «${name}» מסתיימת בעוד ${daysLeft} ימים (עד ${until}).\nמומלץ להפעיל מנוי חודשי לפני הנעילה.\n`;
+      ? `שלום,\n\nתקופת הניסיון של «${name}» הסתיימה (${until}).\n${deleteNote}\nלהפעלת מנוי היכנסו לפאנל הניהול ← חיוב.\n`
+      : `שלום,\n\nתזכורת יומית: תקופת הניסיון של «${name}» מסתיימת בעוד ${daysLeft} ימים (עד ${until}).\n${deleteNote}\nלהפעלת מנוי היכנסו לפאנל הניהול ← חיוב.\n`;
   const html = wrapHtml(
-    daysLeft <= 0 ? 'תקופת הניסיון הסתיימה' : 'הניסיון עומד להסתיים',
+    daysLeft <= 0 ? 'תקופת הניסיון הסתיימה' : 'תזכורת יומית — הניסיון',
     daysLeft <= 0
-      ? `<p>תקופת הניסיון של <strong>«${name}»</strong> הסתיימה (${until}).</p><p>המסך נעול עד להפעלת מנוי חודשי.</p>`
-      : `<p>תקופת הניסיון של <strong>«${name}»</strong> מסתיימת בעוד <strong>${daysLeft} ימים</strong> (עד ${until}).</p>
-         <p>מומלץ להפעיל מנוי חודשי לפני שהמסך יינעל.</p>`,
+      ? `<p>תקופת הניסיון של <strong>«${escapeHtml(name)}»</strong> הסתיימה (${escapeHtml(until)}).</p>
+         <p>${escapeHtml(deleteNote)}</p>
+         <p>להפעלת מנוי היכנסו לפאנל הניהול ← חיוב.</p>`
+      : `<p>תזכורת יומית: תקופת הניסיון של <strong>«${escapeHtml(name)}»</strong> מסתיימת בעוד <strong>${daysLeft} ימים</strong> (עד ${escapeHtml(until)}).</p>
+         <p>${escapeHtml(deleteNote)}</p>
+         <p>להפעלת מנוי היכנסו לפאנל הניהול ← חיוב.</p>`,
   );
   const key =
     daysLeft <= 0
@@ -270,14 +282,12 @@ export async function runNotificationCycle() {
 
     try {
       if (lic.plan === 'trial') {
+        // Daily reminder every day of the trial (and once when expired).
         if (left <= 0) {
           const r = await notifyTrialEnding(cfg.id, 0);
           if (r.ok && !r.skipped) sent += 1;
-        } else if (left <= 1) {
-          const r = await notifyTrialEnding(cfg.id, 1);
-          if (r.ok && !r.skipped) sent += 1;
-        } else if (left <= 3) {
-          const r = await notifyTrialEnding(cfg.id, 3);
+        } else if (left <= TRIAL_DAYS) {
+          const r = await notifyTrialEnding(cfg.id, left);
           if (r.ok && !r.skipped) sent += 1;
         }
       } else if (!lic.locked) {
@@ -350,13 +360,23 @@ export function startNotificationCron() {
       void runNotificationCycle()
         .then((r) => console.log('Notifications: daily done', r))
         .catch((err) => console.error('Notifications: daily failed', err))
-        .finally(() => schedule());
+        .finally(() => {
+          void import('./trialSignup.mjs')
+            .then((m) => m.purgeExpiredLandingTrials())
+            .then((r) => console.log('Trial signup: daily purge', r))
+            .catch((err) => console.error('Trial signup: purge failed', err))
+            .finally(() => schedule());
+        });
     }, delay);
   };
   // Catch-up shortly after boot
   setTimeout(() => {
     void runNotificationCycle()
       .then((r) => console.log('Notifications: startup scan', r))
+      .catch(() => {});
+    void import('./trialSignup.mjs')
+      .then((m) => m.purgeExpiredLandingTrials())
+      .then((r) => console.log('Trial signup: startup purge', r))
       .catch(() => {});
   }, 90_000);
   schedule();

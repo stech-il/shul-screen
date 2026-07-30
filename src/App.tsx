@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { AppNoticeProvider } from './components/AppNotice';
 import { I18nProvider } from './i18n';
 import { isAndroidKiosk } from './lib/androidKiosk';
 import { isManageShellBuild, markManageSession } from './lib/manageApp';
@@ -53,6 +54,7 @@ function AdminRoute({ manageMode = false }: { manageMode?: boolean }) {
 export default function App() {
   return (
     <I18nProvider>
+      <AppNoticeProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomeRoute />} />
@@ -85,6 +87,7 @@ export default function App() {
           />
         </Routes>
       </BrowserRouter>
+      </AppNoticeProvider>
     </I18nProvider>
   );
 }

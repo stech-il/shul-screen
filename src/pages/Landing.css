@@ -257,6 +257,10 @@
   scroll-margin-top: calc(var(--landing-topbar-h) + 0.5rem);
 }
 
+.landing-trial {
+  scroll-margin-top: calc(var(--landing-topbar-h) + 0.5rem);
+}
+
 .landing-hero-media {
   position: absolute;
   inset: 0;
@@ -1145,6 +1149,119 @@ h2 {
 
 .landing-admin-link a:hover {
   border-bottom-color: rgba(245, 247, 250, 0.5);
+}
+
+.landing-trial {
+  padding: clamp(3.5rem, 8vw, 6rem) clamp(1.25rem, 4vw, 3rem);
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(201, 162, 39, 0.12), transparent 55%),
+    linear-gradient(180deg, #f7f5f0 0%, #efebe3 100%);
+  color: #122033;
+}
+
+.landing-trial-inner {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.landing-trial .landing-kicker {
+  color: #8a6a16;
+}
+
+.landing-trial h2 {
+  margin: 0.35rem 0 0.75rem;
+  font-family: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
+  font-size: clamp(1.75rem, 4vw, 2.4rem);
+  color: #0b1c3a;
+  line-height: 1.2;
+}
+
+.landing-trial .landing-section-lead {
+  margin: 0 0 1.75rem;
+  color: #5a6b7d;
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.landing-trial-form select {
+  width: 100%;
+  min-height: 2.85rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 28, 58, 0.18);
+  background: #fff;
+  font: inherit;
+  color: #122033;
+}
+
+.landing-trial-notes {
+  grid-column: 1 / -1;
+}
+
+.landing-trial-success {
+  background: #fff;
+  border: 1px solid rgba(11, 28, 58, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem 1.35rem;
+  box-shadow: 0 16px 40px rgba(11, 28, 58, 0.08);
+}
+
+.landing-trial-success h3 {
+  margin: 0 0 0.5rem;
+  font-family: 'Frank Ruhl Libre', Georgia, serif;
+  font-size: 1.45rem;
+  color: #0b1c3a;
+}
+
+.landing-trial-success .ok {
+  color: #2d6a4f;
+  font-weight: 600;
+}
+
+.landing-trial-success .warn {
+  color: #8a5a12;
+  font-weight: 600;
+}
+
+.landing-trial-creds {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.25rem 0 1.5rem;
+}
+
+.landing-trial-creds div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  padding: 0.7rem 0.85rem;
+  background: #f4f8f6;
+  border-radius: 10px;
+  border: 1px solid #d5e5dc;
+}
+
+.landing-trial-creds dt {
+  margin: 0;
+  color: #5f737a;
+  font-size: 0.9rem;
+}
+
+.landing-trial-creds dd {
+  margin: 0;
+  font-family: Consolas, 'Courier New', monospace;
+  font-weight: 700;
+  color: #0b1c3a;
+}
+
+.landing-trial .landing-btn.outline {
+  color: #0b1c3a;
+  border-color: rgba(11, 28, 58, 0.28);
+}
+
+.landing-trial .landing-btn.ghost-light {
+  color: #0b1c3a;
+  border-color: rgba(11, 28, 58, 0.18);
+  background: transparent;
 }
 
 .landing .site-footer {

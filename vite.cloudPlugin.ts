@@ -58,6 +58,27 @@ export function cloudApiPlugin(): Plugin {
             await inquiries.handleInquiries(req, res, parsed);
             return;
           }
+          if (url.startsWith('/api/signup')) {
+            const signup = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/trialSignup.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            await signup.handleTrialSignup(req, res, parsed);
+            return;
+          }
+          if (url.startsWith('/api/auth')) {
+            const auth = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/passwordReset.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            const handled = await auth.handlePasswordReset(req, res, parsed);
+            if (!handled) {
+              res.statusCode = 404;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ error: 'not found' }));
+            }
+            return;
+          }
           if (url.startsWith('/api/cloud/backups/')) {
             const backups = await import(
               /* @vite-ignore */ pathToFileURL(resolve('server/backups.mjs')).href

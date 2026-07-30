@@ -4,6 +4,7 @@ import { BillingCard } from '../components/BillingCard';
 import { DesignStudio } from '../components/DesignStudio';
 import { CanvasBuilder } from '../components/canvas/CanvasBuilder';
 import { InquiriesPanel } from '../components/InquiriesPanel';
+import { useAppNotice } from '../components/AppNotice';
 import { BrandLogo } from '../components/BrandLogo';
 import { NotFoundScreen } from '../components/NotFoundScreen';
 import { ScreenIdBadge } from '../components/ScreenIdBadge';
@@ -126,6 +127,7 @@ function uid() {
 
 export function Admin({ synagogueId, manageMode = false }: Props) {
   const { t, dir, locale, dateTag } = useI18n();
+  const { toast, confirm: askConfirm } = useAppNotice();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [config, setConfigRaw] = useState<SynagogueConfig | null>(null);
@@ -190,7 +192,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       })),
     [t, manageMode],
   );
-  const [toast, setToast] = useState<string | null>(null);
   const [collapsedBlocks, setCollapsedBlocks] = useState<Record<string, boolean>>({});
   const [kioskPin, setKioskPin] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -284,7 +285,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         if (!(await isBiometricAvailable())) return;
         if (cancelled) return;
         sessionStorage.setItem('screensmart.bioAsk', '1');
-        if (!confirm(t('manage.enableBiometricAsk'))) return;
+        if (!(await askConfirm(t('manage.enableBiometricAsk')))) return;
         const r = await authenticateWithBiometric(t('manage.biometricEnableReason'));
         if (cancelled) return;
         if (r.ok) await setBiometricEnabled(true);
@@ -295,7 +296,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [manageMode, session, synagogueId, t]);
+  }, [manageMode, session, synagogueId, t, askConfirm]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -345,12 +346,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   }, [synagogueId, tab]);
 
   useEffect(() => {
-    if (!toast) return;
-    const toastTimer = window.setTimeout(() => setToast(null), 3200);
-    return () => window.clearTimeout(toastTimer);
-  }, [toast]);
-
-  useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
@@ -368,6 +363,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         return;
       }
       if (typing) return;
+      if (tab !== 'design' && tab !== 'canvas') return;
       if (key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undoEdit();
@@ -807,7 +803,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     setStatus(t('admin.userUpdated'));
   }
 
-  function removeMember(member: Member) {
+  async function removeMember(member: Member) {
     if (!isOwner || !config) return;
     if (member.id === session?.memberId) {
       setStatus(t('admin.cantDeleteSelf'));
@@ -818,7 +814,15 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       setStatus(t('admin.needOneOwner'));
       return;
     }
-    if (!confirm(t('admin.confirmDeleteUser', { name: member.username || member.name }))) return;
+    if (
+      !(await askConfirm({
+        message: t('admin.confirmDeleteUser', { name: member.username || member.name }),
+        confirmLabel: 'מחק',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     if (editMemberId === member.id) setEditMemberId(null);
     update({ members: config.members.filter((x) => x.id !== member.id) });
     setStatus(t('admin.userDeleted'));
@@ -853,8 +857,8 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   }
 
   async function onSave(summary = t('admin.saveSummary')) {
-    if (!config) return;
-    if (!confirm(t('admin.confirmPublish'))) return;
+    if (!config || saving || !dirty) return;
+    if (!(await askConfirm(t('admin.confirmPublish')))) return;
     setSaving(true);
     let toSave = config;
     // Bootstrap owner if members empty after first owner login
@@ -880,10 +884,11 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     setPreviewKey((k) => k + 1);
     if (!result.ok) {
       setStatus(result.error ?? t('admin.saveFail'));
+      toast(result.error ?? t('admin.saveFail'), 'error');
     } else if (!result.online) {
       setDirty(false);
       setStatus(t('admin.savedOffline'));
-      setToast(t('admin.toastOffline'));
+      toast(t('admin.toastOffline'), 'warn');
     } else if (result.pending) {
       setDirty(false);
       setStatus(
@@ -891,11 +896,11 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
           ? t('admin.savedSyncFail', { error: result.error })
           : t('admin.savedWaiting'),
       );
-      setToast(t('admin.toastWaiting'));
+      toast(t('admin.toastWaiting'), 'warn');
     } else {
       setDirty(false);
       setStatus(t('admin.savedPublished'));
-      setToast(t('admin.toastPublished'));
+      toast(t('admin.toastPublished'), 'success');
     }
   }
 
@@ -912,12 +917,12 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     const entry = getHistoryEntry(synagogueId, entryId);
     if (!entry || !isOwner) return;
     if (
-      !confirm(
+      !(await askConfirm(
         t('admin.confirmRestore', {
           rev: entry.revision,
           date: new Date(entry.at).toLocaleString(dateTag),
         }),
-      )
+      ))
     ) {
       return;
     }
@@ -927,8 +932,8 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     setTab('settings');
   }
 
-  function logout() {
-    if (dirty && !confirm(t('admin.confirmLeave'))) return;
+  async function logout() {
+    if (dirty && !(await askConfirm(t('admin.confirmLeave')))) return;
     clearSession();
     navigate(manageMode ? '/manage' : loginPathFor(synagogueId, manageMode));
   }
@@ -1026,26 +1031,30 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
               {t('admin.installGuide')}
             </Link>
           ) : null}
-          <button
-            className="btn ghost"
-            type="button"
-            onClick={undoEdit}
-            disabled={!undo.canUndo}
-            title={t('admin.undoTitle')}
-            aria-label={t('admin.undoAria')}
-          >
-            {t('admin.undo')}
-          </button>
-          <button
-            className="btn ghost"
-            type="button"
-            onClick={redoEdit}
-            disabled={!undo.canRedo}
-            title={t('admin.redoTitle')}
-            aria-label={t('admin.redoAria')}
-          >
-            {t('admin.redo')}
-          </button>
+          {!manageMode && (tab === 'design' || tab === 'canvas') ? (
+            <>
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={undoEdit}
+                disabled={!undo.canUndo}
+                title={t('admin.undoTitle')}
+                aria-label={t('admin.undoAria')}
+              >
+                {t('admin.undo')}
+              </button>
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={redoEdit}
+                disabled={!undo.canRedo}
+                title={t('admin.redoTitle')}
+                aria-label={t('admin.redoAria')}
+              >
+                {t('admin.redo')}
+              </button>
+            </>
+          ) : null}
           <button className="btn ghost" type="button" onClick={logout}>
             {t('admin.logout')}
           </button>
@@ -1053,18 +1062,12 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
             className={`btn primary ${dirty ? 'dirty' : ''}`}
             type="button"
             onClick={() => void onSave()}
-            disabled={saving}
+            disabled={saving || !dirty}
           >
             {saving ? t('admin.saving') : dirty ? t('admin.publishDirty') : t('admin.publish')}
           </button>
         </div>
       </header>
-
-      {toast ? (
-        <div className="admin-toast" role="status">
-          {toast}
-        </div>
-      ) : null}
 
       <div className={`admin-body${tab === 'canvas' ? ' is-canvas' : ''}`}>
         <nav className="admin-tabs" aria-label={t('admin.navAria')}>
@@ -1532,9 +1535,11 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                   type="button"
                   className={`preset-card ${config.nusach === nusachTpl.id ? 'active' : ''}`}
                   onClick={() => {
-                    if (!confirm(t('admin.confirmNusach'))) return;
-                    setConfig((c) => (c ? applyNusachTemplate(c, nusachTpl.id) : c));
-                    setStatus(t('admin.nusachApplied', { name: nusachTpl.name }));
+                    void (async () => {
+                      if (!(await askConfirm(t('admin.confirmNusach')))) return;
+                      setConfig((c) => (c ? applyNusachTemplate(c, nusachTpl.id) : c));
+                      setStatus(t('admin.nusachApplied', { name: nusachTpl.name }));
+                    })();
                   }}
                 >
                   <strong>{nusachTpl.name}</strong>

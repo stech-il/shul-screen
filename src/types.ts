@@ -299,6 +299,12 @@ export interface SynagogueConfig {
   kioskExitPinHash?: string;
   /** Contact email for trial/payment notifications */
   contactEmail?: string;
+  /** Phone from self-serve / agency onboarding */
+  contactPhone?: string;
+  /** Contact person name */
+  contactName?: string;
+  /** How the screen was created — landing trials are auto-purged after expiry */
+  signupSource?: 'landing' | 'agency';
   license?: LicenseInfo;
   updatedAt: string;
   revision: number;

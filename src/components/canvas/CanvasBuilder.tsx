@@ -13,6 +13,7 @@ import { CANVAS_REF_WIDTH } from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { fontSelectOptions } from '../../lib/customFonts';
 import { useI18n } from '../../i18n';
+import { useAppNotice } from '../AppNotice';
 import { MediaGalleryModal } from '../MediaPicker';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ElementorWidgetPanel, type ElementorTab } from './ElementorWidgetPanel';
@@ -133,6 +134,7 @@ export function CanvasBuilder({
   onInteractionEnd,
 }: Props) {
   const { t, dir } = useI18n();
+  const { confirm: askConfirm } = useAppNotice();
   const widgetLabel = (type: CanvasWidgetType) => t(`widgets.${type}`);
   const stageRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -493,12 +495,12 @@ export function CanvasBuilder({
               type="button"
               className="btn ghost"
               onClick={() => {
-                if (!confirm(t('canvas.confirmReset'))) {
-                  return;
-                }
-                onChange(defaultCanvas());
-                setSelectedId(null);
-                onStatus?.(t('canvas.resetDone'));
+                void (async () => {
+                  if (!(await askConfirm(t('canvas.confirmReset')))) return;
+                  onChange(defaultCanvas());
+                  setSelectedId(null);
+                  onStatus?.(t('canvas.resetDone'));
+                })();
               }}
             >
               {t('canvas.resetLayout')}
