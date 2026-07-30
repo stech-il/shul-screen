@@ -16,6 +16,7 @@ import { saveManageScreenId } from '../lib/manageAuth';
 import type { SynagogueConfig } from '../types';
 import { SiteFooter } from '../components/SiteFooter';
 import { BrandLogo } from '../components/BrandLogo';
+import { NotFoundScreen } from '../components/NotFoundScreen';
 import { ScreenIdBadge } from '../components/ScreenIdBadge';
 import { useI18n, LangSwitch } from '../i18n';
 import './Admin.css';
@@ -188,21 +189,10 @@ export function Login() {
 
   if (missing || !config) {
     return (
-      <div className="admin" dir={dir} lang={locale}>
-        <div className="login-card">
-          <BrandLogo size="md" className="login-brand-logo" />
-          <p className="eyebrow">{t('login.title')}</p>
-          <h1>{t('login.missingShul', { id })}</h1>
-          <div className="admin-id-row">
-            <ScreenIdBadge id={id} size="lg" copyable />
-          </div>
-          <p className="hint">{t('login.missingShulHint')}</p>
-          <Link className="btn primary" to="/">
-            {t('login.backHome')}
-          </Link>
-        </div>
-        <SiteFooter />
-      </div>
+      <NotFoundScreen
+        screenId={id}
+        homeTo={manageLogin || preferManageRoutes() ? '/manage' : '/'}
+      />
     );
   }
 

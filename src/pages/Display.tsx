@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BrandLogo } from '../components/BrandLogo';
+import { NotFoundScreen } from '../components/NotFoundScreen';
 import { CandleTimesBoard } from '../components/CandleTimesBoard';
 import { CanvasStage } from '../components/canvas/CanvasStage';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
@@ -288,25 +289,7 @@ export function Display({ synagogueId }: Props) {
   }, [autoKiosk, kioskOn, isAndroidNative]);
 
   if (missing) {
-    return (
-      <div className="display license-lock" dir="rtl" lang="he">
-        <div className="license-lock-card">
-          <BrandLogo size="md" className="license-lock-logo" />
-          <h1>מזהה מסך לא נמצא</h1>
-          <p className="license-lock-reason">
-            אין בית כנסת עם המזהה «{synagogueId}» במערכת.
-          </p>
-          <p className="license-lock-help">
-            בדקו את המספר עם הספק. בית כנסת חדש נוצר רק מפאנל הסוכנות.
-          </p>
-          <div className="license-lock-actions">
-            <Link className="btn primary" to="/">
-              חזרה לדף הבית
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+    return <NotFoundScreen screenId={synagogueId} />;
   }
 
   if (!config) {

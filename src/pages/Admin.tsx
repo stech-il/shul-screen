@@ -5,6 +5,7 @@ import { DesignStudio } from '../components/DesignStudio';
 import { CanvasBuilder } from '../components/canvas/CanvasBuilder';
 import { InquiriesPanel } from '../components/InquiriesPanel';
 import { BrandLogo } from '../components/BrandLogo';
+import { NotFoundScreen } from '../components/NotFoundScreen';
 import { ScreenIdBadge } from '../components/ScreenIdBadge';
 import { SiteFooter } from '../components/SiteFooter';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
@@ -439,16 +440,11 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
 
   if (missingShul) {
     return (
-      <div className="admin" dir={dir} lang={locale}>
-        <div className="login-card">
-          <BrandLogo size="sm" className="admin-brand-logo" />
-          <h1>{t('admin.missingShul', { id: synagogueId })}</h1>
-          <p className="hint">{t('admin.missingShulHint')}</p>
-          <Link className="btn primary" to="/agency">
-            {t('admin.backToAgency')}
-          </Link>
-        </div>
-      </div>
+      <NotFoundScreen
+        screenId={synagogueId}
+        homeTo={manageMode ? '/manage' : '/agency'}
+        homeLabel={manageMode ? t('notFound.backManage') : t('admin.backToAgency')}
+      />
     );
   }
 

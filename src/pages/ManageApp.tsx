@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BrandLogo } from '../components/BrandLogo';
+import { NotFoundScreen } from '../components/NotFoundScreen';
 import { SiteFooter } from '../components/SiteFooter';
 import { canEditContent, loadSession } from '../lib/auth';
 import {
@@ -13,6 +14,7 @@ import {
 } from '../lib/manageAuth';
 import { markManageSession, loginPathFor, adminPathFor } from '../lib/manageApp';
 import { isValidScreenId, normalizeScreenId } from '../lib/screenId';
+import { pullFromCloud } from '../lib/storage';
 import { useI18n, LangSwitch } from '../i18n';
 import './ManageApp.css';
 
@@ -26,6 +28,8 @@ export function ManageHome() {
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioEnabled, setBioEnabled] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
+  const [checkingId, setCheckingId] = useState(false);
+  const [notFoundId, setNotFoundId] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +102,19 @@ export function ManageHome() {
       return;
     }
     markManageSession();
+    setCheckingId(true);
+    try {
+      const remote = await pullFromCloud(id);
+      if (!remote?.config) {
+        setNotFoundId(id);
+        return;
+      }
+    } catch {
+      setError(t('manage.lookupFailed'));
+      return;
+    } finally {
+      setCheckingId(false);
+    }
     await saveManageScreenId(id);
     const session = loadSession();
     if (session && session.synagogueId === id && canEditContent(session.role)) {
@@ -130,6 +147,19 @@ export function ManageHome() {
     }
     await setBiometricEnabled(false);
     setBioEnabled(false);
+  }
+
+  if (notFoundId) {
+    return (
+      <NotFoundScreen
+        screenId={notFoundId}
+        homeLabel={t('notFound.backManage')}
+        onHomeClick={() => {
+          setNotFoundId('');
+          setError('');
+        }}
+      />
+    );
   }
 
   if (booting) {
@@ -205,8 +235,8 @@ export function ManageHome() {
             />
           </label>
           {error ? <p className="manage-home-error">{error}</p> : null}
-          <button type="submit" className="btn primary">
-            {t('manage.continue')}
+          <button type="submit" className="btn primary" disabled={checkingId}>
+            {checkingId ? t('common.loading') : t('manage.continue')}
           </button>
         </form>
         {bioAvailable ? (

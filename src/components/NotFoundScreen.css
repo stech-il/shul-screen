@@ -1,0 +1,172 @@
+.nf-page {
+  --navy: #0b1c3a;
+  --navy-deep: #061225;
+  --gold: #c9a227;
+  --ink: #122033;
+  --muted: #5a6b7d;
+  --line: rgba(11, 28, 58, 0.12);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  color: #f7f9fc;
+  font-family: Heebo, Rubik, sans-serif;
+  background:
+    radial-gradient(ellipse 70% 45% at 85% 0%, rgba(201, 162, 39, 0.18), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 10% 100%, rgba(20, 48, 90, 0.55), transparent 50%),
+    linear-gradient(165deg, var(--navy-deep), var(--navy) 55%, #0e2748);
+}
+
+.nf-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 3vw, 2rem);
+}
+
+.nf-top .brand-logo-word {
+  color: #fff;
+}
+
+.nf-card {
+  width: min(440px, calc(100% - 2rem));
+  margin: 1.5rem auto 2rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.97);
+  color: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  animation: nf-in 0.45s ease both;
+}
+
+@keyframes nf-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.nf-code {
+  margin: 0;
+  font-family: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
+  font-size: clamp(3.5rem, 12vw, 5rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+  background: linear-gradient(135deg, var(--navy), #1a4a7a 50%, var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.nf-kicker {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.nf-card h1 {
+  margin: 0;
+  font-family: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
+  font-size: clamp(1.45rem, 4vw, 1.85rem);
+  line-height: 1.25;
+  color: var(--navy);
+}
+
+.nf-id {
+  margin: 0.35rem 0;
+}
+
+.nf-lead {
+  margin: 0.25rem 0 0;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.nf-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.nf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+.nf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.65rem 1.15rem;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  flex: 1 1 140px;
+}
+
+.nf-btn.primary {
+  background: var(--navy);
+  color: #fff;
+}
+
+.nf-btn.primary:hover {
+  background: #14305a;
+}
+
+.nf-btn.ghost {
+  background: transparent;
+  color: var(--navy);
+  border-color: var(--line);
+}
+
+.nf-btn.ghost:hover {
+  border-color: var(--navy);
+}
+
+.nf-phone {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.nf-phone:hover {
+  color: var(--navy);
+}
+
+.nf-page .site-footer {
+  margin-top: auto;
+  padding: 1.5rem 1rem 2rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.nf-page .site-footer a {
+  color: #fff;
+}
