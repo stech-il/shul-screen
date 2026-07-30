@@ -25,8 +25,11 @@ import {
   isPlatformAdminLoggedIn,
   listPlatformAccounts,
   loadPlatformSession,
+  platformDisplayName,
   resetPlatformAccountPassword,
   touchPlatformSession,
+  updatePlatformAccountProfile,
+  type PlatformAccountPublic,
 } from '../lib/platformAuth';
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
 import { fetchHeartbeatsFromCloud, findHeartbeat, isScreenOnline } from '../lib/analytics';
@@ -111,12 +114,19 @@ export function Agency() {
   const [curPass, setCurPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [pwdMsg, setPwdMsg] = useState('');
-  const [platformUsers, setPlatformUsers] = useState<string[]>([]);
-  const [platUserForm, setPlatUserForm] = useState({ username: '', password: '' });
+  const [platformUsers, setPlatformUsers] = useState<PlatformAccountPublic[]>([]);
+  const [platUserForm, setPlatUserForm] = useState({
+    username: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+  });
   const [platUserMsg, setPlatUserMsg] = useState('');
   const [platReset, setPlatReset] = useState<{ username: string; pass: string; pass2: string } | null>(
     null,
   );
+  const [platEdit, setPlatEdit] = useState<PlatformAccountPublic | null>(null);
 
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [name, setName] = useState('');
@@ -359,13 +369,35 @@ export function Agency() {
   async function onAddPlatformUser(e: FormEvent) {
     e.preventDefault();
     setPlatUserMsg('');
-    const result = await addPlatformAccount(platUserForm.username, platUserForm.password);
+    const result = await addPlatformAccount(platUserForm.username, platUserForm.password, {
+      firstName: platUserForm.firstName,
+      lastName: platUserForm.lastName,
+      email: platUserForm.email,
+    });
     if (!result.ok) {
       setPlatUserMsg(result.error);
       return;
     }
-    setPlatUserForm({ username: '', password: '' });
+    setPlatUserForm({ username: '', password: '', firstName: '', lastName: '', email: '' });
     setPlatUserMsg(`המשתמש «${result.username}» נוסף`);
+    setPlatformUsers(await listPlatformAccounts());
+  }
+
+  async function onSavePlatformProfile(e: FormEvent) {
+    e.preventDefault();
+    if (!platEdit) return;
+    setPlatUserMsg('');
+    const result = await updatePlatformAccountProfile(platEdit.username, {
+      firstName: platEdit.firstName,
+      lastName: platEdit.lastName,
+      email: platEdit.email,
+    });
+    if (!result.ok) {
+      setPlatUserMsg(result.error);
+      return;
+    }
+    setPlatEdit(null);
+    setPlatUserMsg(`פרטי «${platEdit.username}» עודכנו`);
     setPlatformUsers(await listPlatformAccounts());
   }
 
@@ -936,13 +968,18 @@ export function Agency() {
     return <Navigate to="/admin" replace />;
   }
 
+  const session = loadPlatformSession();
+  const welcomeName = platformDisplayName(session) || session?.username || '';
+
   return (
     <div className="agency" dir="rtl" lang="he">
       <header className="agency-top">
         <div>
           <BrandLogo size="md" className="agency-brand-logo" />
           <h1>ניהול בתי כנסת</h1>
-          <p className="agency-sub">{loadPlatformSession()?.username}</p>
+          <p className="agency-sub">
+            {welcomeName ? `ברוך הבא, ${welcomeName}` : session?.username}
+          </p>
         </div>
         <div className="agency-top-actions">
           <div className="agency-view-tabs" role="tablist" aria-label="תצוגת פאנל">
@@ -1163,25 +1200,41 @@ export function Agency() {
                 {platformUsers.length === 0 ? (
                   <li className="hint">אין משתמשים ברשימה</li>
                 ) : (
-                  platformUsers.map((username) => {
+                  platformUsers.map((user) => {
                     const isMe =
-                      username ===
+                      user.username ===
                       String(loadPlatformSession()?.username || '')
                         .trim()
                         .toLowerCase();
+                    const display = platformDisplayName(user);
                     return (
-                      <li key={username}>
+                      <li key={user.username}>
                         <div className="platform-user-row">
-                          <span className="platform-user-name" dir="ltr">
-                            {username}
-                            {isMe ? <em> (אתה)</em> : null}
-                          </span>
+                          <div className="platform-user-meta">
+                            <span className="platform-user-display">{display}</span>
+                            <span className="platform-user-name" dir="ltr">
+                              {user.username}
+                              {isMe ? <em> (אתה)</em> : null}
+                            </span>
+                            {user.email ? (
+                              <span className="platform-user-email" dir="ltr">
+                                {user.email}
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="platform-user-actions">
                             <button
                               type="button"
                               className="btn ghost"
+                              onClick={() => setPlatEdit({ ...user })}
+                            >
+                              עריכת פרטים
+                            </button>
+                            <button
+                              type="button"
+                              className="btn ghost"
                               onClick={() =>
-                                setPlatReset({ username, pass: '', pass2: '' })
+                                setPlatReset({ username: user.username, pass: '', pass2: '' })
                               }
                             >
                               איפוס סיסמה
@@ -1190,7 +1243,7 @@ export function Agency() {
                               type="button"
                               className="btn ghost danger-text"
                               disabled={isMe}
-                              onClick={() => void onDeletePlatformUser(username)}
+                              onClick={() => void onDeletePlatformUser(user.username)}
                             >
                               מחק
                             </button>
@@ -1201,6 +1254,48 @@ export function Agency() {
                   })
                 )}
               </ul>
+
+              {platEdit ? (
+                <form className="platform-user-reset" onSubmit={(e) => void onSavePlatformProfile(e)}>
+                  <p className="hint">
+                    עריכת פרטים ל־<span dir="ltr">{platEdit.username}</span>
+                  </p>
+                  <div className="settings-fields settings-fields-2">
+                    <label>
+                      שם פרטי
+                      <input
+                        value={platEdit.firstName}
+                        onChange={(e) => setPlatEdit({ ...platEdit, firstName: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      שם משפחה
+                      <input
+                        value={platEdit.lastName}
+                        onChange={(e) => setPlatEdit({ ...platEdit, lastName: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      מייל
+                      <input
+                        type="email"
+                        value={platEdit.email}
+                        onChange={(e) => setPlatEdit({ ...platEdit, email: e.target.value })}
+                        dir="ltr"
+                        style={{ textAlign: 'left' }}
+                      />
+                    </label>
+                  </div>
+                  <div className="settings-card-actions">
+                    <button type="submit" className="btn primary">
+                      שמור פרטים
+                    </button>
+                    <button type="button" className="btn ghost" onClick={() => setPlatEdit(null)}>
+                      ביטול
+                    </button>
+                  </div>
+                </form>
+              ) : null}
 
               {platReset ? (
                 <form className="platform-user-reset" onSubmit={(e) => void onResetPlatformUser(e)}>
@@ -1255,6 +1350,36 @@ export function Agency() {
               <form className="platform-user-add" onSubmit={(e) => void onAddPlatformUser(e)}>
                 <p className="settings-subhead">הוספת משתמש מנהל-על</p>
                 <div className="settings-fields settings-fields-2">
+                  <label>
+                    שם פרטי
+                    <input
+                      value={platUserForm.firstName}
+                      onChange={(e) =>
+                        setPlatUserForm({ ...platUserForm, firstName: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    שם משפחה
+                    <input
+                      value={platUserForm.lastName}
+                      onChange={(e) =>
+                        setPlatUserForm({ ...platUserForm, lastName: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    מייל
+                    <input
+                      type="email"
+                      value={platUserForm.email}
+                      onChange={(e) =>
+                        setPlatUserForm({ ...platUserForm, email: e.target.value })
+                      }
+                      dir="ltr"
+                      style={{ textAlign: 'left' }}
+                    />
+                  </label>
                   <label>
                     שם משתמש
                     <input

@@ -1,7 +1,7 @@
 /**
  * Platform / super-admin gate — required to create new synagogues.
  * Credentials from env (preferred) or defaults for first setup.
- * Supports multiple platform usernames.
+ * Supports multiple platform usernames with profile fields.
  */
 
 import { hashPassword, normalizeUsername, verifyPassword } from './auth';
@@ -19,17 +19,37 @@ const CREDS_KEY = 'shul-screen:platform-creds';
 
 export interface PlatformSession extends TimedSessionFields {
   username: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
 }
 
 export interface PlatformCreds {
   username: string;
   passwordHash: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+/** Public account row (no password hash). */
+export interface PlatformAccountPublic {
+  username: string;
+  firstName: string;
+  lastName: string;
+  email: string;
 }
 
 /** Multi-account store (migrated from single PlatformCreds). */
 interface PlatformCredsStore {
   accounts: PlatformCreds[];
 }
+
+export type PlatformProfileInput = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+};
 
 const DEFAULT_USER =
   (import.meta.env.VITE_PLATFORM_ADMIN_USER as string | undefined)?.trim().toLowerCase() ||
@@ -49,8 +69,57 @@ function builtinSeeds(): { username: string; password: string }[] {
   return seeds;
 }
 
+function cleanName(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 80);
+}
+
+function cleanEmail(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .slice(0, 120);
+}
+
+function normalizeAccount(raw: PlatformCreds): PlatformCreds {
+  return {
+    username: normalizeUsername(raw.username),
+    passwordHash: String(raw.passwordHash || ''),
+    firstName: cleanName(raw.firstName),
+    lastName: cleanName(raw.lastName),
+    email: cleanEmail(raw.email),
+  };
+}
+
+function toPublic(account: PlatformCreds): PlatformAccountPublic {
+  const a = normalizeAccount(account);
+  return {
+    username: a.username,
+    firstName: a.firstName || '',
+    lastName: a.lastName || '',
+    email: a.email || '',
+  };
+}
+
+/** Display name for greetings — prefers first+last, else username. */
+export function platformDisplayName(
+  account: Pick<PlatformAccountPublic, 'username' | 'firstName' | 'lastName'> | PlatformSession | null | undefined,
+): string {
+  if (!account) return '';
+  const full = [account.firstName, account.lastName]
+    .map((s) => cleanName(s))
+    .filter(Boolean)
+    .join(' ');
+  return full || normalizeUsername(account.username) || '';
+}
+
 function saveStore(store: PlatformCredsStore): void {
-  localStorage.setItem(CREDS_KEY, JSON.stringify(store));
+  localStorage.setItem(
+    CREDS_KEY,
+    JSON.stringify({ accounts: store.accounts.map(normalizeAccount) }),
+  );
 }
 
 async function ensureAccount(
@@ -61,7 +130,7 @@ async function ensureAccount(
   const u = normalizeUsername(username);
   if (accounts.some((a) => normalizeUsername(a.username) === u)) return accounts;
   const passwordHash = await hashPassword(password);
-  return [...accounts, { username: u, passwordHash }];
+  return [...accounts, normalizeAccount({ username: u, passwordHash })];
 }
 
 async function loadStore(): Promise<PlatformCredsStore> {
@@ -71,23 +140,16 @@ async function loadStore(): Promise<PlatformCredsStore> {
       const parsed = JSON.parse(raw) as PlatformCredsStore | PlatformCreds;
       let accounts: PlatformCreds[] = [];
       if (Array.isArray((parsed as PlatformCredsStore).accounts)) {
-        accounts = (parsed as PlatformCredsStore).accounts.filter(
-          (a) => a?.username && a?.passwordHash,
-        );
+        accounts = (parsed as PlatformCredsStore).accounts
+          .filter((a) => a?.username && a?.passwordHash)
+          .map(normalizeAccount);
       } else if (
         (parsed as PlatformCreds).username &&
         (parsed as PlatformCreds).passwordHash
       ) {
-        // Legacy single-account shape
-        accounts = [
-          {
-            username: normalizeUsername((parsed as PlatformCreds).username),
-            passwordHash: (parsed as PlatformCreds).passwordHash,
-          },
-        ];
+        accounts = [normalizeAccount(parsed as PlatformCreds)];
       }
 
-      // Always ensure builtin seeds exist (admin + default) without overwriting changed passwords
       for (const seed of builtinSeeds()) {
         accounts = await ensureAccount(accounts, seed.username, seed.password);
       }
@@ -106,6 +168,17 @@ async function loadStore(): Promise<PlatformCredsStore> {
   const store = { accounts };
   saveStore(store);
   return store;
+}
+
+function mergeProfile(account: PlatformCreds, profile?: PlatformProfileInput): PlatformCreds {
+  if (!profile) return normalizeAccount(account);
+  return normalizeAccount({
+    ...account,
+    firstName:
+      profile.firstName !== undefined ? cleanName(profile.firstName) : account.firstName,
+    lastName: profile.lastName !== undefined ? cleanName(profile.lastName) : account.lastName,
+    email: profile.email !== undefined ? cleanEmail(profile.email) : account.email,
+  });
 }
 
 export function getPlatformAdminUsername(): string {
@@ -138,9 +211,13 @@ export function isPlatformAdminLoggedIn(): boolean {
 export function savePlatformSession(
   username: string,
   remember = true,
+  profile?: PlatformProfileInput,
 ): PlatformSession {
   const session: PlatformSession = {
     username: normalizeUsername(username),
+    firstName: cleanName(profile?.firstName),
+    lastName: cleanName(profile?.lastName),
+    email: cleanEmail(profile?.email),
     ...createTimedFields(remember),
   };
   saveTimedJson(SESSION_KEY, session);
@@ -166,7 +243,20 @@ export async function loginPlatformAdmin(
     const { platformLoginRemote } = await import('./passwordReset');
     const remote = await platformLoginRemote(u, password);
     if (remote.ok) {
-      return { ok: true, session: savePlatformSession(remote.username, remember) };
+      const profile = {
+        firstName: remote.firstName,
+        lastName: remote.lastName,
+        email: remote.email,
+      };
+      // Keep local profile in sync when server returns it
+      const store = await loadStore();
+      const idx = store.accounts.findIndex((a) => normalizeUsername(a.username) === u);
+      if (idx >= 0) {
+        const next = [...store.accounts];
+        next[idx] = mergeProfile(next[idx], profile);
+        saveStore({ accounts: next });
+      }
+      return { ok: true, session: savePlatformSession(remote.username, remember, profile) };
     }
     if (!remote.missing) {
       return { ok: false, error: remote.error };
@@ -182,7 +272,14 @@ export async function loginPlatformAdmin(
   }
   const ok = await verifyPassword(password, account.passwordHash);
   if (!ok) return { ok: false, error: 'שם משתמש או סיסמה שגויים' };
-  return { ok: true, session: savePlatformSession(account.username, remember) };
+  return {
+    ok: true,
+    session: savePlatformSession(account.username, remember, {
+      firstName: account.firstName,
+      lastName: account.lastName,
+      email: account.email,
+    }),
+  };
 }
 
 export async function changePlatformPassword(
@@ -208,7 +305,7 @@ export async function changePlatformPassword(
   }
   const passwordHash = await hashPassword(newPassword);
   const next = [...store.accounts];
-  next[idx] = { username: u, passwordHash };
+  next[idx] = { ...next[idx], passwordHash };
   saveStore({ accounts: next });
 
   try {
@@ -225,59 +322,127 @@ export async function changePlatformPassword(
   return { ok: true };
 }
 
-/** List platform / super-admin usernames (local ∪ server). */
-export async function listPlatformAccounts(): Promise<string[]> {
-  const local = (await loadStore()).accounts.map((a) => normalizeUsername(a.username));
-  const names = new Set(local.filter(Boolean));
+/** List platform / super-admin accounts (local ∪ server profiles). */
+export async function listPlatformAccounts(): Promise<PlatformAccountPublic[]> {
+  const byUser = new Map<string, PlatformAccountPublic>();
+  for (const a of (await loadStore()).accounts) {
+    byUser.set(a.username, toPublic(a));
+  }
   try {
     const { cloudUrl } = await import('./apiOrigin');
     const res = await fetch(cloudUrl('/api/auth/platform-accounts'), { cache: 'no-store' });
     if (res.ok) {
-      const data = (await res.json()) as { accounts?: { username?: string }[] };
+      const data = (await res.json()) as {
+        accounts?: { username?: string; firstName?: string; lastName?: string; email?: string }[];
+      };
       for (const row of data.accounts || []) {
         const u = normalizeUsername(row.username || '');
-        if (u) names.add(u);
+        if (!u) continue;
+        const prev = byUser.get(u);
+        byUser.set(u, {
+          username: u,
+          firstName: cleanName(row.firstName) || prev?.firstName || '',
+          lastName: cleanName(row.lastName) || prev?.lastName || '',
+          email: cleanEmail(row.email) || prev?.email || '',
+        });
       }
     }
   } catch {
     /* offline — local only */
   }
-  return [...names].sort((a, b) => a.localeCompare(b, 'en'));
+  return [...byUser.values()].sort((a, b) => a.username.localeCompare(b.username, 'en'));
 }
 
 export async function addPlatformAccount(
   username: string,
   password: string,
+  profile: PlatformProfileInput = {},
 ): Promise<{ ok: true; username: string } | { ok: false; error: string }> {
   if (!isPlatformAdminLoggedIn()) return { ok: false, error: 'יש להתחבר כמנהל מערכת' };
   const u = normalizeUsername(username);
   if (u.length < 2) return { ok: false, error: 'שם משתמש קצר מדי' };
   if (password.length < 8) return { ok: false, error: 'סיסמה חייבת לפחות 8 תווים' };
+  const email = cleanEmail(profile.email);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: 'כתובת מייל לא תקינה' };
+  }
 
   const store = await loadStore();
   if (store.accounts.some((a) => normalizeUsername(a.username) === u)) {
     return { ok: false, error: 'שם המשתמש כבר קיים' };
   }
   const passwordHash = await hashPassword(password);
-  saveStore({ accounts: [...store.accounts, { username: u, passwordHash }] });
+  const account = mergeProfile({ username: u, passwordHash }, profile);
+  saveStore({ accounts: [...store.accounts, account] });
 
   try {
     const { cloudUrl } = await import('./apiOrigin');
-    const res = await fetch(cloudUrl('/api/auth/platform-accounts'), {
+    await fetch(cloudUrl('/api/auth/platform-accounts'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: u, password }),
+      body: JSON.stringify({
+        username: u,
+        password,
+        firstName: account.firstName,
+        lastName: account.lastName,
+        email: account.email,
+      }),
       cache: 'no-store',
     });
-    if (!res.ok && res.status !== 409) {
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      /* keep local; report soft warning only if needed */
-      void data;
-    }
   } catch {
     /* local still ok */
   }
   return { ok: true, username: u };
+}
+
+export async function updatePlatformAccountProfile(
+  username: string,
+  profile: PlatformProfileInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isPlatformAdminLoggedIn()) return { ok: false, error: 'יש להתחבר כמנהל מערכת' };
+  const u = normalizeUsername(username);
+  const email = profile.email !== undefined ? cleanEmail(profile.email) : undefined;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: 'כתובת מייל לא תקינה' };
+  }
+
+  const store = await loadStore();
+  const idx = store.accounts.findIndex((a) => normalizeUsername(a.username) === u);
+  if (idx >= 0) {
+    const next = [...store.accounts];
+    next[idx] = mergeProfile(next[idx], profile);
+    saveStore({ accounts: next });
+
+    const me = normalizeUsername(loadPlatformSession()?.username || '');
+    if (me === u) {
+      const cur = loadPlatformSession();
+      if (cur) {
+        savePlatformSession(u, Boolean(cur.remember), {
+          firstName: next[idx].firstName,
+          lastName: next[idx].lastName,
+          email: next[idx].email,
+        });
+      }
+    }
+  }
+
+  try {
+    const { cloudUrl } = await import('./apiOrigin');
+    await fetch(cloudUrl('/api/auth/platform-accounts'), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: u,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        email: profile.email,
+      }),
+      cache: 'no-store',
+    });
+  } catch {
+    /* local still ok when present */
+  }
+  return { ok: true };
 }
 
 export async function resetPlatformAccountPassword(
@@ -293,10 +458,10 @@ export async function resetPlatformAccountPassword(
   const passwordHash = await hashPassword(newPassword);
   if (idx >= 0) {
     const next = [...store.accounts];
-    next[idx] = { username: u, passwordHash };
+    next[idx] = { ...next[idx], passwordHash };
     saveStore({ accounts: next });
   } else {
-    saveStore({ accounts: [...store.accounts, { username: u, passwordHash }] });
+    saveStore({ accounts: [...store.accounts, normalizeAccount({ username: u, passwordHash })] });
   }
 
   try {
@@ -326,9 +491,7 @@ export async function deletePlatformAccount(
     return { ok: false, error: 'לא ניתן למחוק את המשתמש האחרון' };
   }
   const next = store.accounts.filter((a) => normalizeUsername(a.username) !== u);
-  if (next.length === store.accounts.length) {
-    // May exist only on server
-  } else {
+  if (next.length !== store.accounts.length) {
     saveStore({ accounts: next });
   }
 

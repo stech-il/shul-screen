@@ -58,7 +58,16 @@ export function completePasswordReset(token: string, password: string) {
 export async function platformLoginRemote(
   username: string,
   password: string,
-): Promise<{ ok: true; username: string } | { ok: false; error: string; missing?: boolean }> {
+): Promise<
+  | {
+      ok: true;
+      username: string;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+    }
+  | { ok: false; error: string; missing?: boolean }
+> {
   try {
     const res = await fetch(cloudUrl('/api/auth/platform-login'), {
       method: 'POST',
@@ -69,6 +78,9 @@ export async function platformLoginRemote(
     const data = (await res.json().catch(() => ({}))) as {
       ok?: boolean;
       username?: string;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
       error?: string;
     };
     if (res.status === 404) {
@@ -77,7 +89,13 @@ export async function platformLoginRemote(
     if (!res.ok || !data.ok) {
       return { ok: false, error: String(data.error || 'שם משתמש או סיסמה שגויים') };
     }
-    return { ok: true, username: String(data.username || username) };
+    return {
+      ok: true,
+      username: String(data.username || username),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+    };
   } catch {
     return { ok: false, error: 'offline', missing: true };
   }

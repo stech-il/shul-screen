@@ -128,48 +128,102 @@ function listPlatformAccountUsernames() {
   return loadPlatformAccounts().accounts.map((a) => normalizeUsername(a.username)).filter(Boolean);
 }
 
+function cleanProfileField(value, max = 80) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, max);
+}
+
+function profileFromBody(body = {}) {
+  return {
+    firstName: cleanProfileField(body.firstName),
+    lastName: cleanProfileField(body.lastName),
+    email: cleanProfileField(body.email, 120).toLowerCase(),
+  };
+}
+
+function publicPlatformAccount(account) {
+  return {
+    username: normalizeUsername(account.username),
+    firstName: cleanProfileField(account.firstName),
+    lastName: cleanProfileField(account.lastName),
+    email: cleanProfileField(account.email, 120).toLowerCase(),
+  };
+}
+
 function handlePlatformAccountsList() {
   return {
     status: 200,
-    body: { ok: true, accounts: listPlatformAccountUsernames().map((username) => ({ username })) },
+    body: {
+      ok: true,
+      accounts: loadPlatformAccounts().accounts.map(publicPlatformAccount),
+    },
   };
 }
 
 function handlePlatformAccountCreate(body) {
   const username = normalizeUsername(body.username);
   const password = String(body.password || '');
+  const profile = profileFromBody(body);
   if (!username || username.length < 2) {
     return { status: 400, body: { ok: false, error: 'שם משתמש קצר מדי' } };
   }
   if (password.length < 8) {
     return { status: 400, body: { ok: false, error: 'סיסמה חייבת לפחות 8 תווים' } };
   }
+  if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+    return { status: 400, body: { ok: false, error: 'כתובת מייל לא תקינה' } };
+  }
   const store = loadPlatformAccounts();
   if (store.accounts.some((a) => normalizeUsername(a.username) === username)) {
     return { status: 409, body: { ok: false, error: 'שם המשתמש כבר קיים' } };
   }
-  store.accounts.push({ username, passwordHash: hashPassword(password) });
+  store.accounts.push({
+    username,
+    passwordHash: hashPassword(password),
+    ...profile,
+  });
   savePlatformAccounts(store);
-  return { status: 201, body: { ok: true, username } };
+  return { status: 201, body: { ok: true, username, ...profile } };
 }
 
 function handlePlatformAccountReset(body) {
   const username = normalizeUsername(body.username);
-  const password = String(body.password || '');
+  const password = body.password != null ? String(body.password || '') : null;
+  const profile = profileFromBody(body);
+  const hasProfilePatch =
+    body.firstName !== undefined || body.lastName !== undefined || body.email !== undefined;
   if (!username) return { status: 400, body: { ok: false, error: 'חסר שם משתמש' } };
-  if (password.length < 8) {
+  if (password != null && password.length > 0 && password.length < 8) {
     return { status: 400, body: { ok: false, error: 'סיסמה חייבת לפחות 8 תווים' } };
+  }
+  if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+    return { status: 400, body: { ok: false, error: 'כתובת מייל לא תקינה' } };
   }
   const store = loadPlatformAccounts();
   const idx = store.accounts.findIndex((a) => normalizeUsername(a.username) === username);
   if (idx < 0) {
-    // Allow creating via reset when managing from agency (first sync)
-    store.accounts.push({ username, passwordHash: hashPassword(password) });
+    if (!password) {
+      return { status: 404, body: { ok: false, error: 'משתמש לא נמצא' } };
+    }
+    store.accounts.push({
+      username,
+      passwordHash: hashPassword(password),
+      ...(hasProfilePatch ? profile : {}),
+    });
   } else {
-    store.accounts[idx] = { username, passwordHash: hashPassword(password) };
+    const cur = store.accounts[idx];
+    store.accounts[idx] = {
+      username,
+      passwordHash: password ? hashPassword(password) : cur.passwordHash,
+      firstName: hasProfilePatch && body.firstName !== undefined ? profile.firstName : cur.firstName || '',
+      lastName: hasProfilePatch && body.lastName !== undefined ? profile.lastName : cur.lastName || '',
+      email: hasProfilePatch && body.email !== undefined ? profile.email : cur.email || '',
+    };
   }
   savePlatformAccounts(store);
-  return { status: 200, body: { ok: true, username } };
+  return { status: 200, body: { ok: true, username, ...publicPlatformAccount(store.accounts.find((a) => normalizeUsername(a.username) === username) || { username }) } };
 }
 
 function handlePlatformAccountDelete(body) {
@@ -479,7 +533,16 @@ function handlePlatformLogin(body) {
   if (!account || !verifyPassword(password, account.passwordHash)) {
     return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
   }
-  return { status: 200, body: { ok: true, username: account.username } };
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      username: account.username,
+      firstName: cleanProfileField(account.firstName),
+      lastName: cleanProfileField(account.lastName),
+      email: cleanProfileField(account.email, 120).toLowerCase(),
+    },
+  };
 }
 
 export async function handlePasswordReset(req, res, url) {
