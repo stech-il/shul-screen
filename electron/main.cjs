@@ -66,7 +66,7 @@ function resolveServerUrl(cfg) {
 function displayUrl(cfg) {
   const server = resolveServerUrl(cfg);
   const shulId = encodeURIComponent(String(cfg.shulId || '').trim());
-  return `${server}/#/display/${shulId}?kiosk=1`;
+  return `${server}/display/${shulId}?kiosk=1`;
 }
 
 function offlineDisplayUrl(cfg) {

@@ -94,13 +94,14 @@ export function ResetPassword() {
           /* ignore — login will refresh */
         }
       }
-      const path = result.loginPath || '/#/';
+      const path = result.loginPath || '/';
       setDonePath(path);
       window.setTimeout(() => {
-        if (path.startsWith('/#/')) {
-          navigate(path.replace(/^\/#/, '') || '/', { replace: true });
+        const clean = path.startsWith('/#/') ? path.replace(/^\/#/, '') || '/' : path;
+        if (clean.startsWith('/')) {
+          navigate(clean, { replace: true });
         } else {
-          window.location.assign(path);
+          window.location.assign(clean);
         }
       }, 1200);
     } catch (ex) {

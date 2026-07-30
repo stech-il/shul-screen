@@ -25,11 +25,11 @@ npm install
 npm run dev
 ```
 
-- בית: `/#/`
-- מסך: `/#/display/12`
-- ניהול בית כנסת: `/#/login/12` → `admin` / `admin123`
+- בית: `/`
+- מסך: `/display/12`
+- ניהול בית כנסת: `/login/12` → `admin` / `admin123`
 - מנהל מערכת (יצירת בתי כנסת): `superadmin` / `ShulAdmin2026!` או `admin` / `a5744084a` (ניתן לשנות ב־`.env`)
-- סוכנות: `/#/agency` (דורש מנהל מערכת)
+- סוכנות: `/agency` (דורש מנהל מערכת)
 
 ### בונה מסך חופשי
 
@@ -77,7 +77,7 @@ npm run android:open
 # או: npm run android:apk
 ```
 
-פרטים: [android/README.md](android/README.md). בפתיחה ראשונה — רישום מזהה ב־`/#/kiosk-setup`.
+פרטים: [android/README.md](android/README.md). בפתיחה ראשונה — רישום מזהה ב־`/kiosk-setup`.
 
 ## חיבור Supabase
 

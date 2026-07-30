@@ -1,4 +1,5 @@
 import type { Member, Session } from '../types';
+import { isManageAuthContext } from './manageAuth';
 import {
   clearStored,
   createTimedFields,
@@ -135,7 +136,9 @@ export function saveSession(
     viaPlatform?: boolean;
   },
 ): Session {
-  const timed = createTimedFields(Boolean(session.remember));
+  const remember = Boolean(session.remember);
+  const manageLong = remember && isManageAuthContext();
+  const timed = createTimedFields(remember, manageLong);
   const next: Session = {
     synagogueId: session.synagogueId,
     memberId: session.memberId,

@@ -6,12 +6,12 @@
 |---|---|---|
 | `applicationId` | `il.screensmart.app` | `il.screensmart.manage` |
 | כיוון | landscape | portrait |
-| פתיחה | מסך תצוגה | `/#/manage` |
+| פתיחה | מסך תצוגה | `/manage` |
 | חנות | לא חייב | מיועד ל־Google Play |
 
 ## שימוש מיידי באתר / PWA
 
-`https://www.screensmart.co.il/#/manage`
+`https://www.screensmart.co.il/manage`
 
 ## בניית APK לבדיקה (ניהול)
 

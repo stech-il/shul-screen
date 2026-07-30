@@ -1,4 +1,4 @@
-import { HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { I18nProvider } from './i18n';
 import { isAndroidKiosk } from './lib/androidKiosk';
 import { isManageShellBuild, markManageSession } from './lib/manageApp';
@@ -53,7 +53,7 @@ function AdminRoute({ manageMode = false }: { manageMode?: boolean }) {
 export default function App() {
   return (
     <I18nProvider>
-      <HashRouter>
+      <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/guide" element={<Guide />} />
@@ -84,7 +84,7 @@ export default function App() {
             }
           />
         </Routes>
-      </HashRouter>
+      </BrowserRouter>
     </I18nProvider>
   );
 }

@@ -11,7 +11,7 @@ import { SiteFooter } from '../components/SiteFooter';
 import './Agency.css';
 
 /**
- * Platform super-admin gate at /#/admin — after login goes straight to /agency.
+ * Platform super-admin gate at /admin — after login goes straight to /agency.
  */
 export function PlatformLogin() {
   const [loginUser, setLoginUser] = useState(getPlatformAdminUsername());

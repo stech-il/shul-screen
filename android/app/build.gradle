@@ -74,10 +74,28 @@ android {
             def buildType = variant.buildType.name
             output.outputFileName = "screensmart-${flavor}-${buildType}-${variant.versionName}.apk"
         }
-        if (variant.name == "manageDebug") {
-            def outDir = rootProject.file("../releases/android-manage")
-            outDir.mkdirs()
-            variant.packageApplicationProvider.get().outputDirectory.set(outDir)
+    }
+}
+
+tasks.configureEach { task ->
+    if (task.name != "assembleManageDebug") return
+    task.doLast {
+        def apkDir = layout.buildDirectory.dir("outputs/apk/manage/debug").get().asFile
+        def dest = rootProject.file("../releases/android-manage")
+        dest.mkdirs()
+        copy {
+            from apkDir
+            include "*.apk", "output-metadata.json"
+            into dest
+        }
+        def desktop = new File(System.getProperty("user.home"), "OneDrive/Desktop")
+        if (desktop.exists()) {
+            copy {
+                from apkDir
+                include "*.apk"
+                into desktop
+                rename { String _ -> "screensmart-manage-debug.apk" }
+            }
         }
     }
 }

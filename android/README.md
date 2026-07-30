@@ -43,10 +43,10 @@ npm run android:manage-bundle
 | רכיב | התנהגות |
 |------|---------|
 | `capacitor.config.ts` | לפי `VITE_APP_SHELL=manage` מחליף appId / שם |
-| Flavor `manage` | portrait, בלי immersive, פתיחה ל־`/#/manage` |
+| Flavor `manage` | portrait, בלי immersive, פתיחה ל־`/manage` |
 | Flavor `kiosk` | landscape + keep-awake + מסך מלא |
-| `/#/kiosk-setup` | רישום מזהה למסך אולם |
-| `/#/manage` | כניסת ניהול מהטלפון |
+| `/kiosk-setup` | רישום מזהה למסך אולם |
+| `/manage` | כניסת ניהול מהטלפון |
 
 ## סקריפטים
 

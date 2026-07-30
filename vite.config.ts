@@ -22,8 +22,9 @@ const forCapacitor =
   String(process.env.VITE_APP_SHELL || '').trim().toLowerCase() === 'manage';
 
 export default defineConfig({
-  // Relative base so Capacitor Android (and file:// Electron offline) can load assets.
-  base: './',
+  // Absolute base on the web so deep links (/display/12) load /assets correctly.
+  // Capacitor keeps relative base for the Android WebView bundle.
+  base: forCapacitor ? './' : '/',
   plugins: [
     react(),
     cloudApiPlugin(),
@@ -69,6 +70,8 @@ export default defineConfig({
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/healthz/],
         runtimeCaching: [
           {
             urlPattern: /\/api\/cloud\/.*/i,

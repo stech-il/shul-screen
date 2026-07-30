@@ -677,8 +677,8 @@ export function Agency() {
     }
 
     const origin = window.location.origin;
-    const loginUrl = `${origin}/#/login/${encodeURIComponent(id)}`;
-    const displayUrl = `${origin}/#/display/${encodeURIComponent(id)}`;
+    const loginUrl = `${origin}/login/${encodeURIComponent(id)}`;
+    const displayUrl = `${origin}/display/${encodeURIComponent(id)}`;
     const mailResult = await notifyTrialStarted(id, {
       username: adminUser,
       password: adminPass,
@@ -1521,7 +1521,7 @@ export function Agency() {
                   />
                 </label>
                 <p className="hint" style={{ marginTop: '-0.35rem' }}>
-                  המזהה מופיע בכתובת המסך: <code dir="ltr">/#/display/{screenId || '…'}</code>
+                  המזהה מופיע בכתובת המסך: <code dir="ltr">/display/{screenId || '…'}</code>
                 </p>
                 <label>
                   מייל הלקוח (חובה — פרטי כניסה)
@@ -1654,7 +1654,7 @@ export function Agency() {
                   מזהה נוכחי: <code dir="ltr">{modal.config.id}</code> («{modal.config.name}»)
                 </p>
                 <p className="hint warn-inline">
-                  אחרי ההמרה יש לעדכן קיוסקים וקישורים ל־/#/display/{screenId || '…'}
+                  אחרי ההמרה יש לעדכן קיוסקים וקישורים ל־/display/{screenId || '…'}
                 </p>
                 <label>
                   מזהה מספרי חדש

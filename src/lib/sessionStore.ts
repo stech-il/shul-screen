@@ -5,9 +5,12 @@
 
 export const SESSION_DEFAULT_HOURS = 12;
 export const SESSION_REMEMBER_DAYS = 14;
+/** Manage phone app — stay signed in for a long time (biometric can gate access). */
+export const SESSION_MANAGE_REMEMBER_DAYS = 365;
 export const SESSION_IDLE_MINUTES = 45;
 /** Remembered sessions stay alive across days until absolute expiry */
 export const SESSION_REMEMBER_IDLE_DAYS = 14;
+export const SESSION_MANAGE_IDLE_DAYS = 365;
 
 export function newSessionToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
@@ -18,16 +21,16 @@ export function expiryFromNow(ms: number): string {
   return new Date(Date.now() + ms).toISOString();
 }
 
-export function sessionTtlMs(remember: boolean): number {
-  return remember
-    ? SESSION_REMEMBER_DAYS * 24 * 60 * 60 * 1000
-    : SESSION_DEFAULT_HOURS * 60 * 60 * 1000;
+export function sessionTtlMs(remember: boolean, manageLong = false): number {
+  if (!remember) return SESSION_DEFAULT_HOURS * 60 * 60 * 1000;
+  const days = manageLong ? SESSION_MANAGE_REMEMBER_DAYS : SESSION_REMEMBER_DAYS;
+  return days * 24 * 60 * 60 * 1000;
 }
 
-export function idleLimitMs(remember: boolean): number {
-  return remember
-    ? SESSION_REMEMBER_IDLE_DAYS * 24 * 60 * 60 * 1000
-    : SESSION_IDLE_MINUTES * 60 * 1000;
+export function idleLimitMs(remember: boolean, manageLong = false): number {
+  if (!remember) return SESSION_IDLE_MINUTES * 60 * 1000;
+  const days = manageLong ? SESSION_MANAGE_IDLE_DAYS : SESSION_REMEMBER_IDLE_DAYS;
+  return days * 24 * 60 * 60 * 1000;
 }
 
 export interface TimedSessionFields {
@@ -36,28 +39,30 @@ export interface TimedSessionFields {
   expiresAt: string;
   lastActiveAt: string;
   remember?: boolean;
+  manageLong?: boolean;
 }
 
-export function createTimedFields(remember: boolean): TimedSessionFields {
+export function createTimedFields(remember: boolean, manageLong = false): TimedSessionFields {
   const now = new Date().toISOString();
   return {
     token: newSessionToken(),
     at: now,
-    expiresAt: expiryFromNow(sessionTtlMs(remember)),
+    expiresAt: expiryFromNow(sessionTtlMs(remember, manageLong)),
     lastActiveAt: now,
     remember,
+    manageLong: remember && manageLong ? true : undefined,
   };
 }
 
 export function isTimedSessionAlive(
-  s: Pick<TimedSessionFields, 'expiresAt' | 'lastActiveAt' | 'remember'> | null | undefined,
+  s: Pick<TimedSessionFields, 'expiresAt' | 'lastActiveAt' | 'remember' | 'manageLong'> | null | undefined,
 ): boolean {
   if (!s?.expiresAt) return false;
   const now = Date.now();
   if (Date.parse(s.expiresAt) <= now) return false;
   const last = Date.parse(s.lastActiveAt || s.expiresAt);
   if (!Number.isFinite(last)) return false;
-  if (now - last > idleLimitMs(Boolean(s.remember))) return false;
+  if (now - last > idleLimitMs(Boolean(s.remember), Boolean(s.manageLong))) return false;
   return true;
 }
 

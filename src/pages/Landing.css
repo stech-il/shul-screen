@@ -14,21 +14,29 @@
   font-family: 'Heebo', 'Rubik', sans-serif;
   background: var(--white);
   overflow-x: hidden;
+  /* Room for fixed top bar so content isn't covered */
+  --landing-topbar-h: 3.75rem;
+  padding-top: var(--landing-topbar-h);
+  scroll-padding-top: var(--landing-topbar-h);
 }
 
-/* —— Sticky commercial top bar (itimtv-style energy) —— */
+/* —— Fixed commercial top bar —— */
 .landing-topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 40;
+  inset-inline: 0;
+  width: 100%;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  min-height: var(--landing-topbar-h);
+  box-sizing: border-box;
   padding: 0.7rem clamp(1rem, 3vw, 2.5rem);
   background: var(--navy);
   color: #fff;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 28px rgba(6, 18, 37, 0.28);
 }
 
 .landing-topbar-brand {
@@ -230,13 +238,23 @@
 /* —— Hero: centered full-bleed —— */
 .landing-hero {
   position: relative;
-  min-height: calc(100svh - 64px);
+  min-height: calc(100svh - var(--landing-topbar-h));
   display: flex;
   align-items: center;
   justify-content: center;
   isolation: isolate;
   color: #f7f9fc;
   text-align: center;
+  scroll-margin-top: var(--landing-topbar-h);
+}
+
+.landing-about,
+.landing-features-block,
+.landing-showcases,
+.landing-preview,
+.landing-manage,
+.landing-pricing {
+  scroll-margin-top: calc(var(--landing-topbar-h) + 0.5rem);
 }
 
 .landing-hero-media {

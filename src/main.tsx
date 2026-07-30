@@ -10,22 +10,32 @@ import './index.css';
 purgeLegacyDesignTemplateStorage();
 
 /**
- * HashRouter lives under /#/… — map plain paths like /admin → /#/admin
- * so shared links and bookmarks still open the right screen.
+ * Legacy HashRouter links (`/#/display/12`) → clean paths (`/display/12`).
+ * Runs before React mounts so BrowserRouter sees the final pathname.
  */
-(function redirectPathToHash() {
+(function redirectHashToPath() {
   const { pathname, search, hash } = window.location;
-  if (hash && hash !== '#' && hash !== '#/') return;
-  if (pathname === '/' || pathname === '') return;
+  if (!hash || hash === '#' || hash === '#/') return;
+  const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (!raw.startsWith('/')) return;
+  const q = raw.indexOf('?');
+  const hashPath = q >= 0 ? raw.slice(0, q) : raw;
+  const hashQuery = q >= 0 ? raw.slice(q) : '';
+  const nextSearch = hashQuery || search || '';
+  // Avoid clobbering real file/API routes if somehow hashed
   if (
-    pathname.startsWith('/assets') ||
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/healthz')
+    hashPath.startsWith('/assets') ||
+    hashPath.startsWith('/api') ||
+    hashPath.startsWith('/healthz')
   ) {
     return;
   }
-  const target = `/#${pathname}${search}`;
-  window.location.replace(target);
+  const next = `${hashPath}${nextSearch}`;
+  if (`${pathname}${search}` === next) {
+    window.history.replaceState(null, '', pathname + search);
+    return;
+  }
+  window.history.replaceState(null, '', next);
 })();
 
 /**
@@ -34,8 +44,8 @@ purgeLegacyDesignTemplateStorage();
  * them only on the next cold start — a mid-show reload causes a visible flash.
  */
 function isLiveDisplayRoute(): boolean {
-  const hash = window.location.hash || '';
-  if (hash.includes('/display')) return true;
+  const path = window.location.pathname || '';
+  if (path.includes('/display') || path.includes('/screen/')) return true;
   try {
     return new URLSearchParams(window.location.search).get('kiosk') === '1';
   } catch {
@@ -62,24 +72,28 @@ if ('serviceWorker' in navigator) {
   }
 }
 
+/** In-app path change without full reload (Capacitor WebView safe). */
+function replaceInAppPath(pathWithOptionalQuery: string): void {
+  window.history.replaceState(null, '', pathWithOptionalQuery);
+}
+
 async function start() {
   try {
     if (isManageShellBuild() && isNativeCapacitorShell()) {
       markManageSession();
-      const hash = window.location.hash || '';
+      const path = window.location.pathname || '';
       const onManageFlow =
-        hash.includes('/manage') || hash.includes('/login/') || hash.includes('/admin/');
-      // Hash-only navigation does NOT reload Capacitor WebView — never return early.
+        path.startsWith('/manage') || path.startsWith('/login/') || path === '/admin' || path.startsWith('/admin/');
       if (!onManageFlow) {
-        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/manage`);
+        replaceInAppPath('/manage');
       }
     } else if (isAndroidKiosk()) {
       try {
         await bootstrapAndroidKioskRoute();
       } catch {
-        const hash = window.location.hash || '';
-        if (!hash.includes('/kiosk-setup') && !hash.includes('/display/')) {
-          window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/kiosk-setup`);
+        const path = window.location.pathname || '';
+        if (!path.includes('/kiosk-setup') && !path.includes('/display/')) {
+          replaceInAppPath('/kiosk-setup');
         }
       }
     }

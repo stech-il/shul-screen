@@ -9,7 +9,8 @@ type Props = {
   className?: string;
 };
 
-const SRC = './screensmart-mark.png';
+/** Root-absolute so deep routes (/display/12) still resolve the mark. */
+const SRC = '/screensmart-mark.png';
 
 /**
  * Product brand mark — digital synagogue screen logo.

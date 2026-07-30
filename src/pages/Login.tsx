@@ -11,7 +11,8 @@ import {
 import { isLicenseValid } from '../lib/license';
 import { requestPasswordReset } from '../lib/passwordReset';
 import { syncConfig } from '../lib/storage';
-import { adminPathFor, markManageSession } from '../lib/manageApp';
+import { adminPathFor, markManageSession, preferManageRoutes } from '../lib/manageApp';
+import { saveManageScreenId } from '../lib/manageAuth';
 import type { SynagogueConfig } from '../types';
 import { SiteFooter } from '../components/SiteFooter';
 import { BrandLogo } from '../components/BrandLogo';
@@ -36,6 +37,7 @@ export function Login() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { t, dir, locale, dateTag } = useI18n();
+  const manageLogin = params.get('manage') === '1' || preferManageRoutes();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
@@ -49,10 +51,11 @@ export function Login() {
   const [forgotBusy, setForgotBusy] = useState(false);
 
   useEffect(() => {
-    if (params.get('manage') === '1') markManageSession();
+    if (manageLogin) markManageSession();
 
     const existing = loadSession();
     if (existing && existing.synagogueId === id && canEditContent(existing.role)) {
+      void saveManageScreenId(id);
       navigate(adminPathFor(id, params.get('billing') === '1'), { replace: true });
       return;
     }
@@ -85,7 +88,7 @@ export function Login() {
     return () => {
       cancelled = true;
     };
-  }, [id, navigate, params, t]);
+  }, [id, navigate, params, t, manageLogin]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -107,6 +110,8 @@ export function Login() {
       const user = username.trim().toLowerCase();
       const pass = password.trim();
 
+      const staySignedIn = manageLogin ? true : remember;
+
       if (!latest.members.length) {
         const ok = user === BOOTSTRAP_USER && pass === BOOTSTRAP_PASS;
         if (!ok) {
@@ -118,8 +123,9 @@ export function Login() {
           memberId: 'bootstrap',
           memberName: t('login.manager'),
           role: 'owner',
-          remember,
+          remember: staySignedIn,
         });
+        if (manageLogin) await saveManageScreenId(id);
         navigate(adminPathFor(id, params.get('billing') === '1'));
         return;
       }
@@ -139,8 +145,9 @@ export function Login() {
         memberId: member.id,
         memberName: member.name,
         role: member.role,
-        remember,
+        remember: staySignedIn,
       });
+      if (manageLogin) await saveManageScreenId(id);
       navigate(adminPathFor(id, params.get('billing') === '1'));
     } finally {
       setSubmitting(false);
@@ -262,14 +269,18 @@ export function Login() {
                 style={{ textAlign: 'left' }}
               />
             </label>
-            <label className="check remember-check">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-              />
-              {t('login.remember')}
-            </label>
+            {manageLogin ? (
+              <p className="hint">{t('manage.loginStaySignedIn')}</p>
+            ) : (
+              <label className="check remember-check">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                {t('login.remember')}
+              </label>
+            )}
             {error ? <p className="error">{error}</p> : null}
             <button type="submit" className="btn primary" disabled={submitting}>
               {submitting ? t('login.checking') : t('login.submit')}
@@ -319,10 +330,18 @@ export function Login() {
             </button>
           </form>
         )}
-        <p className="hint session-hint">{t('login.sessionHint')}</p>
-        <Link className="back-link" to={`/display/${id}`}>
-          {t('login.backToDisplay')}
-        </Link>
+        <p className="hint session-hint">
+          {manageLogin ? t('manage.loginSessionHint') : t('login.sessionHint')}
+        </p>
+        {manageLogin ? (
+          <Link className="back-link" to="/manage">
+            {t('manage.backToHome')}
+          </Link>
+        ) : (
+          <Link className="back-link" to={`/display/${id}`}>
+            {t('login.backToDisplay')}
+          </Link>
+        )}
         <button
           type="button"
           className="btn ghost"

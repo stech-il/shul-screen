@@ -39,6 +39,13 @@ import { daysLeft, isLicenseValid } from '../lib/license';
 import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
 import { MANAGE_STUDIO_TABS, loginPathFor } from '../lib/manageApp';
+import {
+  authenticateWithBiometric,
+  isBiometricAvailable,
+  loadBiometricEnabled,
+  saveManageScreenId,
+  setBiometricEnabled,
+} from '../lib/manageAuth';
 import { saveDesignTemplate } from '../lib/designTemplates';
 import { fetchInquiries, markInquiriesSeen, type InquiryTopic } from '../lib/inquiries';
 import {
@@ -227,7 +234,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   }
 
   const previewSrc = useMemo(
-    () => `${window.location.origin}${window.location.pathname}#/display/${synagogueId}?preview=1`,
+    () => `${window.location.origin}/display/${encodeURIComponent(synagogueId)}?preview=1`,
     [synagogueId, previewKey],
   );
 
@@ -264,6 +271,30 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       });
     return stop;
   }, [synagogueId, t]);
+
+  useEffect(() => {
+    if (!manageMode || !session) return;
+    void saveManageScreenId(synagogueId);
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (sessionStorage.getItem('screensmart.bioAsk') === '1') return;
+        if (await loadBiometricEnabled()) return;
+        if (!(await isBiometricAvailable())) return;
+        if (cancelled) return;
+        sessionStorage.setItem('screensmart.bioAsk', '1');
+        if (!confirm(t('manage.enableBiometricAsk'))) return;
+        const r = await authenticateWithBiometric(t('manage.biometricEnableReason'));
+        if (cancelled) return;
+        if (r.ok) await setBiometricEnabled(true);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [manageMode, session, synagogueId, t]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -903,7 +934,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   function logout() {
     if (dirty && !confirm(t('admin.confirmLeave'))) return;
     clearSession();
-    navigate(loginPathFor(synagogueId, manageMode));
+    navigate(manageMode ? '/manage' : loginPathFor(synagogueId, manageMode));
   }
 
   const licenseOk = isLicenseValid(config.license);

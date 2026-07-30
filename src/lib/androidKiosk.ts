@@ -90,10 +90,15 @@ export async function saveAndroidKioskConfig(input: {
   }
 }
 
-/** In-app hash route only — never open an external browser. */
-export function inAppDisplayHash(shulId: string): string {
+/** In-app display path — never open an external browser. */
+export function inAppDisplayPath(shulId: string): string {
   const id = encodeURIComponent(String(shulId || '').trim());
-  return `/#/display/${id}?kiosk=1`;
+  return `/display/${id}?kiosk=1`;
+}
+
+/** @deprecated use inAppDisplayPath */
+export function inAppDisplayHash(shulId: string): string {
+  return inAppDisplayPath(shulId);
 }
 
 export async function probeAndroidConnection(input: {
@@ -169,16 +174,16 @@ export async function applyAndroidKioskChrome(): Promise<void> {
 
 /**
  * Cold start on native — stay inside the APK WebView (never open Chrome).
- * - no shulId → /#/kiosk-setup
- * - has shulId → /#/display/…?kiosk=1 (cloud API via saved server URL)
+ * - no shulId → /kiosk-setup
+ * - has shulId → /display/…?kiosk=1 (cloud API via saved server URL)
  */
 export async function bootstrapAndroidKioskRoute(): Promise<void> {
   if (!isAndroidKiosk()) return;
 
   void applyAndroidKioskChrome();
 
-  const hash = window.location.hash || '';
-  if (hash.includes('/kiosk-setup')) return;
+  const path = window.location.pathname || '';
+  if (path.includes('/kiosk-setup')) return;
 
   let shulId = '';
   try {
@@ -189,21 +194,20 @@ export async function bootstrapAndroidKioskRoute(): Promise<void> {
   }
 
   if (shulId) {
-    if (
-      hash.includes(`/display/${encodeURIComponent(shulId)}`) ||
-      hash.includes(`/display/${shulId}`)
-    ) {
+    const enc = encodeURIComponent(shulId);
+    if (path.includes(`/display/${enc}`) || path.includes(`/display/${shulId}`)) {
       return;
     }
-    window.location.replace(inAppDisplayHash(shulId));
+    window.history.replaceState(null, '', inAppDisplayPath(shulId));
     return;
   }
 
-  window.location.replace('/#/kiosk-setup');
+  window.history.replaceState(null, '', '/kiosk-setup');
 }
 
 /** Open live display inside the same WebView (fullscreen app, no browser). */
 export function goToLiveDisplay(shulId: string, _serverUrl?: string): void {
   void applyAndroidKioskChrome();
-  window.location.replace(inAppDisplayHash(shulId));
+  window.history.replaceState(null, '', inAppDisplayPath(shulId));
+  window.dispatchEvent(new PopStateEvent('popstate'));
 }

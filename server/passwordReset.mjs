@@ -171,7 +171,7 @@ function consumeToken(token) {
 }
 
 function resetLink(token) {
-  return `${PUBLIC_ORIGIN}/#/reset-password?token=${encodeURIComponent(token)}`;
+  return `${PUBLIC_ORIGIN}/reset-password?token=${encodeURIComponent(token)}`;
 }
 
 function escapeHtml(s) {
@@ -351,7 +351,7 @@ async function handleReset(body) {
         ok: true,
         kind: 'synagogue',
         synagogueId: row.synagogueId,
-        loginPath: `/#/login/${encodeURIComponent(row.synagogueId)}`,
+        loginPath: `/login/${encodeURIComponent(row.synagogueId)}`,
       },
     };
   }
@@ -373,7 +373,7 @@ async function handleReset(body) {
         kind: 'platform',
         username: u,
         passwordHash,
-        loginPath: '/#/admin',
+        loginPath: '/admin',
       },
     };
   }

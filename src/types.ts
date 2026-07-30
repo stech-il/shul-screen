@@ -388,6 +388,8 @@ export interface Session {
   lastActiveAt?: string;
   /** Persist across browser restarts when true */
   remember?: boolean;
+  /** Manage phone app — longer remember TTL */
+  manageLong?: boolean;
   /** Entered via platform super-admin (no shul password) */
   viaPlatform?: boolean;
 }

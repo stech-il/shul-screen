@@ -146,7 +146,7 @@ export function KioskSetup() {
         <div className="kiosk-setup-tips">
           <strong>טיפים להתקנה</strong>
           נעלו את האפליקציה למצב קיוסק / pin, השאירו מסך דולק, וודאו אינטרנט יציב. מדריך:{' '}
-          <span className="ltr">/#/guide</span>
+          <span className="ltr">/guide</span>
         </div>
 
         {err ? <p className="kiosk-setup-err">{err}</p> : <p className="kiosk-setup-err" />}
