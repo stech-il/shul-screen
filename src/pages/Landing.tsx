@@ -595,7 +595,7 @@ export function Landing() {
                     disabled={trialStatus === 'sending'}
                   />
                 </label>
-                <label>
+                <label className="landing-trial-city">
                   <span>{t('landing.trialCity')}</span>
                   <select
                     name="trialCity"

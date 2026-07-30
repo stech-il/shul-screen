@@ -115,7 +115,7 @@ export const en: DeepString<typeof he> = {
     trialKicker: '7-day trial',
     trialTitle: 'Open a screen for your synagogue now',
     trialLead:
-      'Fill in the details — the system opens immediately, login details are emailed, and you’ll get a daily reminder until you subscribe. After 7 days without a subscription the account is deleted.',
+      'Fill in the details — the system opens immediately and login details are emailed. After 7 days, if a paid subscription is not activated, the system will be deleted.',
     trialName: 'Full name',
     trialPhone: 'Phone',
     trialEmail: 'Email',

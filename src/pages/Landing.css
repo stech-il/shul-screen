@@ -1154,9 +1154,10 @@ h2 {
 .landing-trial {
   padding: clamp(3.5rem, 8vw, 6rem) clamp(1.25rem, 4vw, 3rem);
   background:
-    radial-gradient(ellipse at 20% 0%, rgba(201, 162, 39, 0.12), transparent 55%),
-    linear-gradient(180deg, #f7f5f0 0%, #efebe3 100%);
+    radial-gradient(ellipse at 20% 0%, rgba(201, 162, 39, 0.14), transparent 55%),
+    linear-gradient(180deg, #eef2f7 0%, #e6ebf2 100%);
   color: #122033;
+  text-align: center;
 }
 
 .landing-trial-inner {
@@ -1177,25 +1178,122 @@ h2 {
 }
 
 .landing-trial .landing-section-lead {
-  margin: 0 0 1.75rem;
-  color: #5a6b7d;
+  margin: 0 auto 1.75rem;
+  max-width: 36rem;
+  color: #4a5b6d;
   font-size: 1.05rem;
   line-height: 1.6;
+  background: none;
+  padding: 0;
+}
+
+.landing-trial .landing-lead-form,
+.landing-trial-form {
+  margin: 0 auto;
+  max-width: 36rem;
+  padding: 1.5rem 1.35rem 1.35rem;
+  background: #fff;
+  border: 1px solid rgba(11, 28, 58, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(11, 28, 58, 0.1);
+}
+
+.landing-trial .landing-lead-form label,
+.landing-trial-form label {
+  color: #3d4f63;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.landing-trial .landing-lead-form label span,
+.landing-trial-form label span {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.landing-trial .landing-lead-form input,
+.landing-trial .landing-lead-form textarea,
+.landing-trial .landing-lead-form select,
+.landing-trial-form input,
+.landing-trial-form textarea,
+.landing-trial-form select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.85rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1.5px solid rgba(11, 28, 58, 0.22);
+  background: #f8fafc;
+  color: #0b1c3a;
+  font: inherit;
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.landing-trial .landing-lead-form textarea,
+.landing-trial-form textarea {
+  min-height: 5.5rem;
+}
+
+.landing-trial .landing-lead-form input::placeholder,
+.landing-trial .landing-lead-form textarea::placeholder,
+.landing-trial-form input::placeholder,
+.landing-trial-form textarea::placeholder {
+  color: #8a97a6;
+}
+
+.landing-trial .landing-lead-form input:hover,
+.landing-trial .landing-lead-form textarea:hover,
+.landing-trial .landing-lead-form select:hover,
+.landing-trial-form input:hover,
+.landing-trial-form textarea:hover,
+.landing-trial-form select:hover {
+  border-color: rgba(11, 28, 58, 0.38);
+  background: #fff;
+}
+
+.landing-trial .landing-lead-form input:focus,
+.landing-trial .landing-lead-form textarea:focus,
+.landing-trial .landing-lead-form select:focus,
+.landing-trial-form input:focus,
+.landing-trial-form textarea:focus,
+.landing-trial-form select:focus {
+  outline: none;
+  border-color: #c9a227;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.28);
+}
+
+.landing-trial .landing-lead-form input:disabled,
+.landing-trial .landing-lead-form textarea:disabled,
+.landing-trial .landing-lead-form select:disabled,
+.landing-trial-form input:disabled,
+.landing-trial-form textarea:disabled,
+.landing-trial-form select:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .landing-trial-form select {
   width: 100%;
   min-height: 2.85rem;
-  padding: 0.65rem 0.85rem;
-  border-radius: 10px;
-  border: 1px solid rgba(11, 28, 58, 0.18);
-  background: #fff;
-  font: inherit;
-  color: #122033;
+  cursor: pointer;
+  appearance: auto;
 }
 
-.landing-trial-notes {
+.landing-trial-notes,
+.landing-trial-city {
   grid-column: 1 / -1;
+}
+
+.landing-trial .landing-form-msg.err {
+  color: #8f2f2f;
+  font-weight: 600;
+}
+
+.landing-trial .landing-form-msg.ok {
+  color: #2d6a4f;
+  font-weight: 600;
 }
 
 .landing-trial-success {
@@ -1204,6 +1302,7 @@ h2 {
   border-radius: 16px;
   padding: 1.5rem 1.35rem;
   box-shadow: 0 16px 40px rgba(11, 28, 58, 0.08);
+  text-align: start;
 }
 
 .landing-trial-success h3 {
@@ -1211,16 +1310,19 @@ h2 {
   font-family: 'Frank Ruhl Libre', Georgia, serif;
   font-size: 1.45rem;
   color: #0b1c3a;
+  text-align: center;
 }
 
 .landing-trial-success .ok {
   color: #2d6a4f;
   font-weight: 600;
+  text-align: center;
 }
 
 .landing-trial-success .warn {
   color: #8a5a12;
   font-weight: 600;
+  text-align: center;
 }
 
 .landing-trial-creds {
@@ -1262,6 +1364,11 @@ h2 {
   color: #0b1c3a;
   border-color: rgba(11, 28, 58, 0.18);
   background: transparent;
+}
+
+.landing-trial .landing-cta-row {
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .landing .site-footer {
