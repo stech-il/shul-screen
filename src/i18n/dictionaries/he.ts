@@ -539,7 +539,7 @@ export const he = {
     wrongPassword: 'הסיסמה שגויה',
     userNotFound: 'שם משתמש לא נמצא במערכת זו',
     missingShul: 'מזהה מסך {id} לא קיים במערכת',
-    missingShulHint: 'בדקו את המספר עם הספק או פנו לתמיכה.',
+    missingShulHint: 'בדקו את המספר עם שירות הלקוחות 052-4521527',
     backHome: 'חזרה לדף הבית',
     forgot: 'שכחתי סיסמה',
     forgotTitle: 'איפוס סיסמה',
