@@ -105,7 +105,7 @@ button.stat {
 
 .agency-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
   gap: 0.75rem;
   margin-bottom: 1.1rem;
   animation: agency-rise 0.6s ease 0.06s both;
@@ -120,6 +120,14 @@ button.stat {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+}
+
+.stat.landing-stat strong {
+  color: #0b1c3a;
+}
+
+.stat.landing-stat.signup strong {
+  color: #2d6a4f;
 }
 
 .stat strong {

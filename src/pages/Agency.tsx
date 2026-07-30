@@ -33,6 +33,7 @@ import {
 } from '../lib/platformAuth';
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
 import { fetchHeartbeatsFromCloud, findHeartbeat, isScreenOnline } from '../lib/analytics';
+import { fetchLandingStats, type LandingStats } from '../lib/landingAnalytics';
 import { BrandLogo } from '../components/BrandLogo';
 import { ScreenIdBadge } from '../components/ScreenIdBadge';
 import { SiteFooter } from '../components/SiteFooter';
@@ -173,6 +174,7 @@ export function Agency() {
   const [orefTestMsg, setOrefTestMsg] = useState('');
 
   const [heartbeats, setHeartbeats] = useState<ScreenHeartbeat[]>([]);
+  const [landingStats, setLandingStats] = useState<LandingStats | null>(null);
 
   useEffect(() => {
     if (!moreOpenId) return;
@@ -199,6 +201,26 @@ export function Agency() {
       window.clearInterval(id);
     };
   }, [platformOk, tick, msg]);
+
+  useEffect(() => {
+    if (!platformOk) return;
+    let cancelled = false;
+    const load = () => {
+      void fetchLandingStats()
+        .then((s) => {
+          if (!cancelled) setLandingStats(s);
+        })
+        .catch(() => {
+          if (!cancelled) setLandingStats(null);
+        });
+    };
+    load();
+    const id = window.setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [platformOk, agencyView]);
 
   const shuls = useMemo(() => {
     void tick;
@@ -1085,6 +1107,26 @@ export function Agency() {
           <strong>{inquiryUnread}</strong>
           <span>פניות חדשות</span>
         </button>
+        <div className="stat landing-stat" title="כניסות לדף הנחיתה (פעם אחת לכל ביקור בדפדפן)">
+          <strong>{landingStats?.today ?? '—'}</strong>
+          <span>כניסות היום</span>
+        </div>
+        <div className="stat landing-stat" title="סיכום 7 הימים האחרונים">
+          <strong>{landingStats?.last7Days ?? '—'}</strong>
+          <span>כניסות השבוע</span>
+        </div>
+        <div className="stat landing-stat" title="סיכום 30 הימים האחרונים">
+          <strong>{landingStats?.last30Days ?? '—'}</strong>
+          <span>כניסות החודש</span>
+        </div>
+        <div className="stat landing-stat">
+          <strong>{landingStats?.total ?? '—'}</strong>
+          <span>סה״כ כניסות</span>
+        </div>
+        <div className="stat landing-stat signup">
+          <strong>{landingStats?.signupsTotal ?? '—'}</strong>
+          <span>הרשמות מאתר</span>
+        </div>
       </section>
       ) : null}
 

@@ -168,6 +168,56 @@ export async function notifyTrialStarted(synagogueId, opts = {}) {
   });
 }
 
+/**
+ * Dedicated alert to platform admin when a customer self-registers from the landing page.
+ */
+export async function notifyAdminNewSignup(opts = {}) {
+  if (!mailConfigured()) {
+    return { ok: false, skipped: true, error: 'SMTP לא מוגדר' };
+  }
+  const admin = await platformAdminEmail();
+  if (!admin) {
+    return { ok: false, skipped: true, error: 'אין מייל מנהל בהגדרות הפלטפורמה' };
+  }
+
+  const name = String(opts.name || '').trim() || 'ללא שם';
+  const email = String(opts.email || '').trim();
+  const phone = String(opts.phone || '').trim();
+  const contactName = String(opts.contactName || '').trim();
+  const cityId = String(opts.cityId || '').trim();
+  const synagogueId = String(opts.synagogueId || '').trim();
+  const loginUrl = String(opts.loginUrl || '').trim();
+  const expiresAt = formatDateHe(opts.expiresAt);
+
+  const subject = `לקוח חדש נרשם — ${name}`;
+  const text = `לקוח חדש נרשם לניסיון ב־screensmart.\n\nבית כנסת: ${name}\nמזהה מסך: ${synagogueId}\nאיש קשר: ${contactName || '—'}\nטלפון: ${phone || '—'}\nמייל: ${email || '—'}\nעיר: ${cityId || '—'}\nניסיון עד: ${expiresAt}\nכניסה: ${loginUrl || '—'}\n`;
+  const html = wrapHtml(
+    'לקוח חדש נרשם',
+    `<p>נרשם לקוח חדש ל־<strong>7 ימי ניסיון</strong> מדף הנחיתה.</p>
+     <table style="width:100%;border-collapse:collapse;font-size:15px;margin-top:12px">
+       <tr><td style="padding:6px 0;color:#6b7a80;width:120px">בית כנסת</td><td style="padding:6px 0;font-weight:700">${escapeHtml(name)}</td></tr>
+       <tr><td style="padding:6px 0;color:#6b7a80">מזהה מסך</td><td style="padding:6px 0;direction:ltr;text-align:left;font-family:Consolas,monospace">${escapeHtml(synagogueId)}</td></tr>
+       <tr><td style="padding:6px 0;color:#6b7a80">איש קשר</td><td style="padding:6px 0">${escapeHtml(contactName || '—')}</td></tr>
+       <tr><td style="padding:6px 0;color:#6b7a80">טלפון</td><td style="padding:6px 0;direction:ltr;text-align:left">${escapeHtml(phone || '—')}</td></tr>
+       <tr><td style="padding:6px 0;color:#6b7a80">מייל</td><td style="padding:6px 0;direction:ltr;text-align:left">${escapeHtml(email || '—')}</td></tr>
+       <tr><td style="padding:6px 0;color:#6b7a80">עיר</td><td style="padding:6px 0">${escapeHtml(cityId || '—')}</td></tr>
+       <tr><td style="padding:6px 0;color:#6b7a80">ניסיון עד</td><td style="padding:6px 0">${escapeHtml(expiresAt)}</td></tr>
+     </table>
+     ${
+       loginUrl
+         ? `<p style="margin-top:16px"><a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#163038;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600">פתיחת ניהול המסך</a></p>`
+         : ''
+     }`,
+  );
+
+  return sendMail({
+    to: admin,
+    subject,
+    text,
+    html,
+  });
+}
+
 function escapeHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;')

@@ -66,6 +66,14 @@ export function cloudApiPlugin(): Plugin {
             await signup.handleTrialSignup(req, res, parsed);
             return;
           }
+          if (url.startsWith('/api/analytics')) {
+            const analytics = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/landingAnalytics.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            await analytics.handleLandingAnalytics(req, res, parsed);
+            return;
+          }
           if (url.startsWith('/api/auth')) {
             const auth = await import(
               /* @vite-ignore */ pathToFileURL(resolve('server/passwordReset.mjs')).href

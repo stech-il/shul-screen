@@ -9,7 +9,8 @@
 import crypto from 'node:crypto';
 import { getBundle, listBundles, putBundle, putRecord, purgeSynagogueData } from './cloudStore.mjs';
 import { getPlatformSettings } from './billing.mjs';
-import { notifyTrialStarted, mailConfigured } from './notifications.mjs';
+import { notifyTrialStarted, notifyAdminNewSignup, mailConfigured } from './notifications.mjs';
+import { recordLandingSignup } from './landingAnalytics.mjs';
 
 const TRIAL_DAYS = 7;
 const PLATFORM_ID = '_platform';
@@ -531,7 +532,27 @@ async function createTrialSignup(req, body) {
     mailError = String(err?.message || err);
   }
 
-  // Notify platform admin inbox as inquiry-style log via admin BCC already in notifyTrialStarted
+  try {
+    await notifyAdminNewSignup({
+      name: synagogueName,
+      email,
+      phone,
+      contactName,
+      cityId,
+      synagogueId: id,
+      loginUrl,
+      expiresAt: config.license.expiresAt,
+    });
+  } catch (err) {
+    console.warn('admin signup notify failed', err);
+  }
+
+  try {
+    await recordLandingSignup();
+  } catch (err) {
+    console.warn('landing signup counter failed', err);
+  }
+
   return {
     status: 201,
     body: {

@@ -6,6 +6,7 @@ import { CITIES } from '../data/cities';
 import { LangSwitch, useI18n } from '../i18n';
 import { submitInquiry } from '../lib/inquiries';
 import { startTrialSignup, type TrialSignupResult } from '../lib/trialSignup';
+import { trackLandingVisit } from '../lib/landingAnalytics';
 import './Landing.css';
 
 const WHATSAPP = 'https://wa.me/972524521527';
@@ -179,6 +180,10 @@ export function Landing() {
     const desc = document.querySelector('meta[name="description"]');
     if (desc) desc.setAttribute('content', t('landing.seoDesc'));
   }, [t, locale]);
+
+  useEffect(() => {
+    void trackLandingVisit();
+  }, []);
 
   function onScreenLogin(e: FormEvent) {
     e.preventDefault();
