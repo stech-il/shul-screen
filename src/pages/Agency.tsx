@@ -18,10 +18,14 @@ import { InquiriesPanel } from '../components/InquiriesPanel';
 import { DiskFilesPanel } from '../components/DiskFilesPanel';
 import { CouponsPanel } from '../components/CouponsPanel';
 import {
+  addPlatformAccount,
   changePlatformPassword,
   clearPlatformSession,
+  deletePlatformAccount,
   isPlatformAdminLoggedIn,
+  listPlatformAccounts,
   loadPlatformSession,
+  resetPlatformAccountPassword,
   touchPlatformSession,
 } from '../lib/platformAuth';
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
@@ -107,6 +111,12 @@ export function Agency() {
   const [curPass, setCurPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [pwdMsg, setPwdMsg] = useState('');
+  const [platformUsers, setPlatformUsers] = useState<string[]>([]);
+  const [platUserForm, setPlatUserForm] = useState({ username: '', password: '' });
+  const [platUserMsg, setPlatUserMsg] = useState('');
+  const [platReset, setPlatReset] = useState<{ username: string; pass: string; pass2: string } | null>(
+    null,
+  );
 
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [name, setName] = useState('');
@@ -317,6 +327,22 @@ export function Agency() {
     if (note) setMsg(note);
   }
 
+  useEffect(() => {
+    if (!platformOk || agencyView !== 'settings') return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const users = await listPlatformAccounts();
+        if (!cancelled) setPlatformUsers(users);
+      } catch {
+        if (!cancelled) setPlatformUsers([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [platformOk, agencyView, pwdMsg, platUserMsg]);
+
   async function onChangePassword(e: FormEvent) {
     e.preventDefault();
     setPwdMsg('');
@@ -328,6 +354,48 @@ export function Agency() {
     setCurPass('');
     setNewPass('');
     setPwdMsg('סיסמת מנהל מערכת עודכנה');
+  }
+
+  async function onAddPlatformUser(e: FormEvent) {
+    e.preventDefault();
+    setPlatUserMsg('');
+    const result = await addPlatformAccount(platUserForm.username, platUserForm.password);
+    if (!result.ok) {
+      setPlatUserMsg(result.error);
+      return;
+    }
+    setPlatUserForm({ username: '', password: '' });
+    setPlatUserMsg(`המשתמש «${result.username}» נוסף`);
+    setPlatformUsers(await listPlatformAccounts());
+  }
+
+  async function onResetPlatformUser(e: FormEvent) {
+    e.preventDefault();
+    if (!platReset) return;
+    setPlatUserMsg('');
+    if (platReset.pass !== platReset.pass2) {
+      setPlatUserMsg('הסיסמאות אינן תואמות');
+      return;
+    }
+    const result = await resetPlatformAccountPassword(platReset.username, platReset.pass);
+    if (!result.ok) {
+      setPlatUserMsg(result.error);
+      return;
+    }
+    setPlatReset(null);
+    setPlatUserMsg(`סיסמה עודכנה ל־«${platReset.username}»`);
+  }
+
+  async function onDeletePlatformUser(username: string) {
+    if (!confirm(`למחוק את משתמש מנהל-העל «${username}»?`)) return;
+    setPlatUserMsg('');
+    const result = await deletePlatformAccount(username);
+    if (!result.ok) {
+      setPlatUserMsg(result.error);
+      return;
+    }
+    setPlatUserMsg(`«${username}» נמחק`);
+    setPlatformUsers(await listPlatformAccounts());
   }
 
   async function toggleLicenseLock(config: SynagogueConfig) {
@@ -975,7 +1043,7 @@ export function Agency() {
               <p className="agency-settings-kicker">ניהול פלטפורמה</p>
               <h1>הגדרות מערכת</h1>
               <p className="agency-settings-lead">
-                תשתית, התראות, חיוב וחשבון מנהל — במקום אחד.
+                תשתית, התראות, חיוב ומשתמשי מנהל-על — במקום אחד.
               </p>
             </div>
           </header>
@@ -1082,11 +1150,154 @@ export function Agency() {
               </div>
             </form>
 
+            <div className="side-card settings-panel settings-panel-users">
+              <div className="settings-panel-head">
+                <span className="settings-panel-tag">משתמשים</span>
+                <h2>משתמשי מנהל-על</h2>
+                <p className="hint">
+                  חשבונות כניסה לפאנל הסוכנות בלבד — לא משתמשי בתי הכנסת.
+                </p>
+              </div>
+
+              <ul className="platform-users-list">
+                {platformUsers.length === 0 ? (
+                  <li className="hint">אין משתמשים ברשימה</li>
+                ) : (
+                  platformUsers.map((username) => {
+                    const isMe =
+                      username ===
+                      String(loadPlatformSession()?.username || '')
+                        .trim()
+                        .toLowerCase();
+                    return (
+                      <li key={username}>
+                        <div className="platform-user-row">
+                          <span className="platform-user-name" dir="ltr">
+                            {username}
+                            {isMe ? <em> (אתה)</em> : null}
+                          </span>
+                          <div className="platform-user-actions">
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              onClick={() =>
+                                setPlatReset({ username, pass: '', pass2: '' })
+                              }
+                            >
+                              איפוס סיסמה
+                            </button>
+                            <button
+                              type="button"
+                              className="btn ghost danger-text"
+                              disabled={isMe}
+                              onClick={() => void onDeletePlatformUser(username)}
+                            >
+                              מחק
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+
+              {platReset ? (
+                <form className="platform-user-reset" onSubmit={(e) => void onResetPlatformUser(e)}>
+                  <p className="hint">
+                    סיסמה חדשה ל־<span dir="ltr">{platReset.username}</span>
+                  </p>
+                  <div className="settings-fields settings-fields-2">
+                    <label>
+                      סיסמה חדשה
+                      <input
+                        type="password"
+                        value={platReset.pass}
+                        onChange={(e) =>
+                          setPlatReset({ ...platReset, pass: e.target.value })
+                        }
+                        required
+                        minLength={8}
+                        dir="ltr"
+                        style={{ textAlign: 'left' }}
+                      />
+                    </label>
+                    <label>
+                      אימות סיסמה
+                      <input
+                        type="password"
+                        value={platReset.pass2}
+                        onChange={(e) =>
+                          setPlatReset({ ...platReset, pass2: e.target.value })
+                        }
+                        required
+                        minLength={8}
+                        dir="ltr"
+                        style={{ textAlign: 'left' }}
+                      />
+                    </label>
+                  </div>
+                  <div className="settings-card-actions">
+                    <button type="submit" className="btn primary">
+                      שמור סיסמה
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() => setPlatReset(null)}
+                    >
+                      ביטול
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+
+              <form className="platform-user-add" onSubmit={(e) => void onAddPlatformUser(e)}>
+                <p className="settings-subhead">הוספת משתמש מנהל-על</p>
+                <div className="settings-fields settings-fields-2">
+                  <label>
+                    שם משתמש
+                    <input
+                      value={platUserForm.username}
+                      onChange={(e) =>
+                        setPlatUserForm({ ...platUserForm, username: e.target.value })
+                      }
+                      required
+                      autoComplete="off"
+                      dir="ltr"
+                      style={{ textAlign: 'left' }}
+                    />
+                  </label>
+                  <label>
+                    סיסמה
+                    <input
+                      type="password"
+                      value={platUserForm.password}
+                      onChange={(e) =>
+                        setPlatUserForm({ ...platUserForm, password: e.target.value })
+                      }
+                      required
+                      minLength={8}
+                      dir="ltr"
+                      style={{ textAlign: 'left' }}
+                    />
+                  </label>
+                </div>
+                <div className="settings-card-actions">
+                  <button type="submit" className="btn primary">
+                    הוסף משתמש
+                  </button>
+                </div>
+              </form>
+
+              {platUserMsg ? <p className="hint settings-feedback">{platUserMsg}</p> : null}
+            </div>
+
             <form className="side-card settings-panel" onSubmit={onChangePassword}>
               <div className="settings-panel-head">
                 <span className="settings-panel-tag">אבטחה</span>
-                <h2>סיסמת מנהל</h2>
-                <p className="hint">עדכון סיסמת כניסה לפאנל הסוכנות.</p>
+                <h2>הסיסמה שלי</h2>
+                <p className="hint">עדכון סיסמת החשבון שאיתו התחברת כרגע.</p>
               </div>
               <div className="settings-fields">
                 <label>

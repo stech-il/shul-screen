@@ -210,6 +210,143 @@ export async function changePlatformPassword(
   const next = [...store.accounts];
   next[idx] = { username: u, passwordHash };
   saveStore({ accounts: next });
+
+  try {
+    const { cloudUrl } = await import('./apiOrigin');
+    await fetch(cloudUrl('/api/auth/platform-accounts'), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: newPassword }),
+      cache: 'no-store',
+    });
+  } catch {
+    /* local still updated */
+  }
+  return { ok: true };
+}
+
+/** List platform / super-admin usernames (local ∪ server). */
+export async function listPlatformAccounts(): Promise<string[]> {
+  const local = (await loadStore()).accounts.map((a) => normalizeUsername(a.username));
+  const names = new Set(local.filter(Boolean));
+  try {
+    const { cloudUrl } = await import('./apiOrigin');
+    const res = await fetch(cloudUrl('/api/auth/platform-accounts'), { cache: 'no-store' });
+    if (res.ok) {
+      const data = (await res.json()) as { accounts?: { username?: string }[] };
+      for (const row of data.accounts || []) {
+        const u = normalizeUsername(row.username || '');
+        if (u) names.add(u);
+      }
+    }
+  } catch {
+    /* offline — local only */
+  }
+  return [...names].sort((a, b) => a.localeCompare(b, 'en'));
+}
+
+export async function addPlatformAccount(
+  username: string,
+  password: string,
+): Promise<{ ok: true; username: string } | { ok: false; error: string }> {
+  if (!isPlatformAdminLoggedIn()) return { ok: false, error: 'יש להתחבר כמנהל מערכת' };
+  const u = normalizeUsername(username);
+  if (u.length < 2) return { ok: false, error: 'שם משתמש קצר מדי' };
+  if (password.length < 8) return { ok: false, error: 'סיסמה חייבת לפחות 8 תווים' };
+
+  const store = await loadStore();
+  if (store.accounts.some((a) => normalizeUsername(a.username) === u)) {
+    return { ok: false, error: 'שם המשתמש כבר קיים' };
+  }
+  const passwordHash = await hashPassword(password);
+  saveStore({ accounts: [...store.accounts, { username: u, passwordHash }] });
+
+  try {
+    const { cloudUrl } = await import('./apiOrigin');
+    const res = await fetch(cloudUrl('/api/auth/platform-accounts'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password }),
+      cache: 'no-store',
+    });
+    if (!res.ok && res.status !== 409) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      /* keep local; report soft warning only if needed */
+      void data;
+    }
+  } catch {
+    /* local still ok */
+  }
+  return { ok: true, username: u };
+}
+
+export async function resetPlatformAccountPassword(
+  username: string,
+  newPassword: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isPlatformAdminLoggedIn()) return { ok: false, error: 'יש להתחבר כמנהל מערכת' };
+  const u = normalizeUsername(username);
+  if (newPassword.length < 8) return { ok: false, error: 'סיסמה חייבת לפחות 8 תווים' };
+
+  const store = await loadStore();
+  const idx = store.accounts.findIndex((a) => normalizeUsername(a.username) === u);
+  const passwordHash = await hashPassword(newPassword);
+  if (idx >= 0) {
+    const next = [...store.accounts];
+    next[idx] = { username: u, passwordHash };
+    saveStore({ accounts: next });
+  } else {
+    saveStore({ accounts: [...store.accounts, { username: u, passwordHash }] });
+  }
+
+  try {
+    const { cloudUrl } = await import('./apiOrigin');
+    await fetch(cloudUrl('/api/auth/platform-accounts'), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: newPassword }),
+      cache: 'no-store',
+    });
+  } catch {
+    /* local still ok */
+  }
+  return { ok: true };
+}
+
+export async function deletePlatformAccount(
+  username: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isPlatformAdminLoggedIn()) return { ok: false, error: 'יש להתחבר כמנהל מערכת' };
+  const u = normalizeUsername(username);
+  const me = normalizeUsername(loadPlatformSession()?.username || '');
+  if (u && me && u === me) return { ok: false, error: 'אי אפשר למחוק את המשתמש שאיתו התחברת' };
+
+  const store = await loadStore();
+  if (store.accounts.length <= 1) {
+    return { ok: false, error: 'לא ניתן למחוק את המשתמש האחרון' };
+  }
+  const next = store.accounts.filter((a) => normalizeUsername(a.username) !== u);
+  if (next.length === store.accounts.length) {
+    // May exist only on server
+  } else {
+    saveStore({ accounts: next });
+  }
+
+  try {
+    const { cloudUrl } = await import('./apiOrigin');
+    const res = await fetch(cloudUrl('/api/auth/platform-accounts'), {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u }),
+      cache: 'no-store',
+    });
+    if (!res.ok && res.status !== 404) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (data.error) return { ok: false, error: String(data.error) };
+    }
+  } catch {
+    /* local already updated when possible */
+  }
   return { ok: true };
 }
 

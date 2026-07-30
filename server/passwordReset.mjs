@@ -36,7 +36,7 @@ function sendJson(res, status, obj) {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   });
   res.end(JSON.stringify(obj));
@@ -122,6 +122,69 @@ function loadPlatformAccounts() {
 function savePlatformAccounts(store) {
   ensureRoot();
   fs.writeFileSync(PLATFORM_ACCOUNTS_FILE, JSON.stringify(store, null, 2), 'utf8');
+}
+
+function listPlatformAccountUsernames() {
+  return loadPlatformAccounts().accounts.map((a) => normalizeUsername(a.username)).filter(Boolean);
+}
+
+function handlePlatformAccountsList() {
+  return {
+    status: 200,
+    body: { ok: true, accounts: listPlatformAccountUsernames().map((username) => ({ username })) },
+  };
+}
+
+function handlePlatformAccountCreate(body) {
+  const username = normalizeUsername(body.username);
+  const password = String(body.password || '');
+  if (!username || username.length < 2) {
+    return { status: 400, body: { ok: false, error: 'שם משתמש קצר מדי' } };
+  }
+  if (password.length < 8) {
+    return { status: 400, body: { ok: false, error: 'סיסמה חייבת לפחות 8 תווים' } };
+  }
+  const store = loadPlatformAccounts();
+  if (store.accounts.some((a) => normalizeUsername(a.username) === username)) {
+    return { status: 409, body: { ok: false, error: 'שם המשתמש כבר קיים' } };
+  }
+  store.accounts.push({ username, passwordHash: hashPassword(password) });
+  savePlatformAccounts(store);
+  return { status: 201, body: { ok: true, username } };
+}
+
+function handlePlatformAccountReset(body) {
+  const username = normalizeUsername(body.username);
+  const password = String(body.password || '');
+  if (!username) return { status: 400, body: { ok: false, error: 'חסר שם משתמש' } };
+  if (password.length < 8) {
+    return { status: 400, body: { ok: false, error: 'סיסמה חייבת לפחות 8 תווים' } };
+  }
+  const store = loadPlatformAccounts();
+  const idx = store.accounts.findIndex((a) => normalizeUsername(a.username) === username);
+  if (idx < 0) {
+    // Allow creating via reset when managing from agency (first sync)
+    store.accounts.push({ username, passwordHash: hashPassword(password) });
+  } else {
+    store.accounts[idx] = { username, passwordHash: hashPassword(password) };
+  }
+  savePlatformAccounts(store);
+  return { status: 200, body: { ok: true, username } };
+}
+
+function handlePlatformAccountDelete(body) {
+  const username = normalizeUsername(body.username);
+  if (!username) return { status: 400, body: { ok: false, error: 'חסר שם משתמש' } };
+  const store = loadPlatformAccounts();
+  if (store.accounts.length <= 1) {
+    return { status: 400, body: { ok: false, error: 'לא ניתן למחוק את המשתמש האחרון' } };
+  }
+  const next = store.accounts.filter((a) => normalizeUsername(a.username) !== username);
+  if (next.length === store.accounts.length) {
+    return { status: 404, body: { ok: false, error: 'משתמש לא נמצא' } };
+  }
+  savePlatformAccounts({ accounts: next });
+  return { status: 200, body: { ok: true, username } };
 }
 
 function purgeExpired() {
@@ -453,6 +516,36 @@ export async function handlePasswordReset(req, res, url) {
       const raw = await readBody(req);
       const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
       const result = handlePlatformLogin(body);
+      sendJson(res, result.status, result.body);
+      return true;
+    }
+
+    if (url.pathname === '/api/auth/platform-accounts' && req.method === 'GET') {
+      const result = handlePlatformAccountsList();
+      sendJson(res, result.status, result.body);
+      return true;
+    }
+
+    if (url.pathname === '/api/auth/platform-accounts' && req.method === 'POST') {
+      const raw = await readBody(req);
+      const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
+      const result = handlePlatformAccountCreate(body);
+      sendJson(res, result.status, result.body);
+      return true;
+    }
+
+    if (url.pathname === '/api/auth/platform-accounts' && req.method === 'PUT') {
+      const raw = await readBody(req);
+      const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
+      const result = handlePlatformAccountReset(body);
+      sendJson(res, result.status, result.body);
+      return true;
+    }
+
+    if (url.pathname === '/api/auth/platform-accounts' && req.method === 'DELETE') {
+      const raw = await readBody(req);
+      const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
+      const result = handlePlatformAccountDelete(body);
       sendJson(res, result.status, result.body);
       return true;
     }

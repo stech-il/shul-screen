@@ -460,6 +460,70 @@ a.stat.has-unread strong {
   align-items: stretch;
 }
 
+.settings-panel-users {
+  grid-column: 1 / -1;
+}
+
+.platform-users-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.platform-user-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 88%, #eef2f7);
+}
+
+.platform-user-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.platform-user-name em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.88em;
+}
+
+.platform-user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.platform-user-add,
+.platform-user-reset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.settings-subhead {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.btn.ghost.danger-text {
+  color: var(--warn, #a33);
+}
+
 .agency-settings .settings-panel {
   height: 100%;
   gap: 0.85rem;
