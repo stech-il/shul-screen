@@ -37,7 +37,7 @@ export const en: DeepString<typeof he> = {
     title: 'Screen ID not found',
     lead: 'No synagogue matches the ID you entered.',
     leadWithId: 'No synagogue with ID “{id}” exists in the system.',
-    hint: 'Double-check the number with your provider. New synagogues are created only from the agency panel — never automatically.',
+    hint: 'Double-check the number with your provider, or contact support.',
     backHome: 'Back to home',
     backManage: 'Back to manage',
     whatsapp: 'WhatsApp support',
@@ -545,8 +545,7 @@ export const en: DeepString<typeof he> = {
     wrongPassword: 'Incorrect password',
     userNotFound: 'Username not found in this system',
     missingShul: 'Screen ID {id} was not found',
-    missingShulHint:
-      'Check the number with your provider, or ask the agency admin. A new synagogue is not created automatically.',
+    missingShulHint: 'Check the number with your provider, or contact support.',
     backHome: 'Back to home',
     forgot: 'Forgot password',
     forgotTitle: 'Reset password',
