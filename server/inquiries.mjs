@@ -143,6 +143,9 @@ async function platformAdminEmail() {
 
 async function synagogueContact(synagogueId) {
   if (!synagogueId) return { name: '', email: '' };
+  if (synagogueId === PLATFORM_ID) {
+    return { name: 'פנייה מהאתר (דף נחיתה)', email: '' };
+  }
   try {
     const bundle = await getBundle(synagogueId);
     const config = bundle?.config;

@@ -684,6 +684,7 @@ export const en: DeepString<typeof he> = {
     closeThread: 'Close thread',
     openThread: 'Open thread ({n})',
     synagogue: 'Synagogue: {id}',
+    synagogueLanding: 'Website inquiry',
     support: 'Support',
     customer: 'Customer',
     replyAgency: 'Reply to customer',

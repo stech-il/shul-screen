@@ -490,7 +490,11 @@ export function InquiriesPanel({
                           </>
                         ) : null}
                         {mode === 'agency' && inq.synagogueId
-                          ? ` · ${t('inquiries.synagogue', { id: inq.synagogueId })}`
+                          ? ` · ${
+                              inq.synagogueId === '_platform'
+                                ? t('inquiries.synagogueLanding')
+                                : t('inquiries.synagogue', { id: inq.synagogueId })
+                            }`
                           : null}
                       </p>
 

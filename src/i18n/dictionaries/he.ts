@@ -677,6 +677,7 @@ export const he = {
     closeThread: 'סגור שיחה',
     openThread: 'פתח שיחה ({n})',
     synagogue: 'בית כנסת: {id}',
+    synagogueLanding: 'פנייה מהאתר',
     support: 'תמיכה',
     customer: 'לקוח',
     replyAgency: 'תשובה ללקוח',
