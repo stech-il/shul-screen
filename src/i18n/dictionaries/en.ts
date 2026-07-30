@@ -111,7 +111,11 @@ export const en: DeepString<typeof he> = {
     priceInc2: 'Homefront Command alerts',
     priceInc3: 'Credit-card standing order',
     orderWhatsapp: 'Order on WhatsApp',
-    hardwareNote: 'Hardware (TV / mini PC) is purchased separately — we can advise what fits your hall.',
+    hardwareNote:
+      'The price is for the system only — it does not include a screen/TV or installation. Hardware is purchased separately; we’re happy to advise what fits your hall.',
+    hardwareNoteStrong: 'System price only',
+    hardwareNoteRest:
+      ' — does not include a screen/TV or installation. Hardware is purchased separately; we’re happy to advise what fits your hall.',
     trialKicker: '7-day trial',
     trialTitle: 'Open a screen for your synagogue now',
     trialLead:

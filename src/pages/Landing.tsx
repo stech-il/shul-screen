@@ -481,6 +481,10 @@ export function Landing() {
               <span>{t('landing.perMonth')}</span>
             </p>
             <p className="landing-price-note">{t('landing.priceNote')}</p>
+            <p className="landing-hardware-note" role="note">
+              <strong>{t('landing.hardwareNoteStrong')}</strong>
+              {t('landing.hardwareNoteRest')}
+            </p>
             <ul className="landing-price-includes">
               <li>{t('landing.priceInc1')}</li>
               <li>{t('landing.priceInc2')}</li>
@@ -489,7 +493,6 @@ export function Landing() {
             <a className="landing-btn primary lg" href="#trial">
               {t('landing.startTrial')}
             </a>
-            <p className="landing-hardware-note">{t('landing.hardwareNote')}</p>
           </div>
         </section>
 

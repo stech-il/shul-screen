@@ -937,12 +937,22 @@ h2 {
 }
 
 .landing-hardware-note {
-  margin: 1.4rem auto 0;
+  margin: 1.1rem auto 0;
   max-width: 28rem;
-  color: var(--muted);
-  font-size: 0.92rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1.5px solid rgba(138, 90, 18, 0.35);
+  background: rgba(201, 162, 39, 0.14);
+  color: #3d2e0a;
+  font-size: 0.98rem;
   line-height: 1.55;
-  opacity: 0.85;
+  font-weight: 500;
+}
+
+.landing-hardware-note strong {
+  display: inline;
+  color: #0b1c3a;
+  font-weight: 800;
 }
 
 /* —— Hall phone preview —— */
