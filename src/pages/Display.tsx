@@ -31,7 +31,8 @@ import {
 import { startHeartbeat, trackEvent } from '../lib/analytics';
 import { playOrefTone } from '../lib/sound';
 import { getScreenLicenseStatus } from '../lib/license';
-import { sanitizeRichHtml, toPlainDisplayText } from '../lib/sanitizeHtml';
+import { RichAnnounce } from '../components/RichAnnounce';
+import { toPlainDisplayText } from '../lib/sanitizeHtml';
 import {
   isAnnouncementActive,
   startAutoSync,
@@ -657,10 +658,10 @@ export function Display({ synagogueId }: Props) {
           {activeAnnouncements.length > 0 && carouselItem ? (
             <div className="panel announce-panel carousel">
               <h2>הודעות</h2>
-              <div
+              <RichAnnounce
                 key={carouselItem.id}
-                className="carousel-item rich-announce"
-                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(carouselItem.text) }}
+                className="carousel-item"
+                html={carouselItem.text}
               />
               {activeAnnouncements.length > 1 ? (
                 <div className="carousel-dots">

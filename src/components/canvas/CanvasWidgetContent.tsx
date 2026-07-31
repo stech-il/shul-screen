@@ -11,6 +11,7 @@ import type {
 import { sanitizeRichHtml, toPlainDisplayText } from '../../lib/sanitizeHtml';
 import { weatherCodeToIcon } from '../../lib/weather';
 import { CandleTimesBoard, PLACEHOLDER_CANDLE_BOARD } from '../CandleTimesBoard';
+import { RichAnnounce } from '../RichAnnounce';
 import { AnalogClock, DigitalClock } from './ClockWidget';
 import { WIDGET_LABELS } from './widgets';
 
@@ -207,10 +208,10 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <div className="cw-announce">
           {widget.showTitle ? <h3>{title || 'הודעות'}</h3> : null}
           {data.announcement ? (
-            <div
+            <RichAnnounce
               key={data.announcement.id}
-              className="cw-announce-body rich-announce"
-              dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(data.announcement.text) }}
+              className="cw-announce-body"
+              html={data.announcement.text}
             />
           ) : (
             <Placeholder label="אין הודעות פעילות" />

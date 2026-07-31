@@ -2114,35 +2114,13 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 <div className="announce-card" key={a.id}>
                   <div className="announce-card-head">
                     <strong>{t('admin.announcementN', { n: index + 1 })}</strong>
-                    <div className="row-actions">
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        onClick={() =>
-                          update({
-                            announcements: [
-                              ...config.announcements,
-                              {
-                                ...a,
-                                id: uid(),
-                                text: a.text
-                                  ? `${sanitizeRichHtml(a.text)} <b>(${t('admin.copyMark')})</b>`
-                                  : '',
-                              },
-                            ],
-                          })
-                        }
-                      >
-                        {t('common.duplicate')}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn danger"
-                        onClick={() => void removeAnnouncement(a.id)}
-                      >
-                        {t('admin.deleteAnnouncement')}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      className="announce-delete-btn"
+                      onClick={() => void removeAnnouncement(a.id)}
+                    >
+                      {t('admin.deleteAnnouncement')}
+                    </button>
                   </div>
                   <div className="announce-text">
                     <span className="announce-text-label">{t('admin.announceText')}</span>
@@ -2183,6 +2161,35 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                       />
                       {t('admin.activeOnScreen')}
                     </label>
+                  </div>
+                  <div className="announce-card-foot">
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() =>
+                        update({
+                          announcements: [
+                            ...config.announcements,
+                            {
+                              ...a,
+                              id: uid(),
+                              text: a.text
+                                ? `${sanitizeRichHtml(a.text)} <b>(${t('admin.copyMark')})</b>`
+                                : '',
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      {t('common.duplicate')}
+                    </button>
+                    <button
+                      type="button"
+                      className="announce-delete-btn"
+                      onClick={() => void removeAnnouncement(a.id)}
+                    >
+                      {t('admin.deleteAnnouncement')}
+                    </button>
                   </div>
                 </div>
               ))

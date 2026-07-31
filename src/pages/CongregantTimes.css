@@ -256,14 +256,6 @@
   border: 1px solid rgba(176, 138, 60, 0.18);
 }
 
-.ct-announce-list .rich-announce :is(p, ul, ol) {
-  margin: 0.2em 0;
-}
-
-.ct-announce-list .rich-announce ul,
-.ct-announce-list .rich-announce ol {
-  padding-inline-start: 1.2em;
-}
 
 .ct-footer {
   width: min(440px, 100%);

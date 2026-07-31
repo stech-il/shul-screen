@@ -573,22 +573,6 @@
   animation: rise 0.45s ease both;
 }
 
-.rich-announce {
-  line-height: 1.45;
-}
-
-.rich-announce :is(p, ul, ol) {
-  margin: 0.2em 0;
-}
-
-.rich-announce ul,
-.rich-announce ol {
-  padding-inline-start: 1.25em;
-}
-
-.rich-announce li {
-  margin: 0.15em 0;
-}
 .carousel-dots {
   display: flex;
   gap: 0.35rem;

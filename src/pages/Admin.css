@@ -358,7 +358,8 @@
   background: rgba(255, 255, 255, 0.7);
 }
 
-.announce-card-head {
+.announce-card-head,
+.announce-card-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -366,10 +367,26 @@
   gap: 0.5rem;
 }
 
-.announce-card-head .row-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+.announce-card-foot {
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.announce-delete-btn {
+  border: none;
+  background: #b42318;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.announce-delete-btn:hover {
+  background: #912018;
 }
 
 .announce-text {

@@ -1,0 +1,38 @@
+/* Reset inherited widget weight so bold / italic / color from the editor show clearly */
+.rich-announce {
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.45;
+  min-width: 0;
+}
+
+.rich-announce b,
+.rich-announce strong {
+  font-weight: 700 !important;
+}
+
+.rich-announce i,
+.rich-announce em {
+  font-style: italic !important;
+}
+
+.rich-announce u {
+  text-decoration: underline;
+}
+
+.rich-announce s {
+  text-decoration: line-through;
+}
+
+.rich-announce :is(p, ul, ol, div) {
+  margin: 0.2em 0;
+}
+
+.rich-announce ul,
+.rich-announce ol {
+  padding-inline-start: 1.25em;
+}
+
+.rich-announce li {
+  margin: 0.15em 0;
+}

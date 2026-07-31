@@ -179,3 +179,22 @@ export function toPlainDisplayText(input: string | undefined | null): string {
 export function hasVisibleText(input: string | undefined | null): boolean {
   return Boolean(toPlainDisplayText(input).trim());
 }
+
+/**
+ * Convert absolute px font sizes to em so rich text scales with the display
+ * widget / panel (editor uses ~16px as 1em).
+ */
+export function scaleRichFontSizes(html: string, basePx = 16): string {
+  if (!html || !/font-size/i.test(html)) return html;
+  const base = basePx > 0 ? basePx : 16;
+  return html.replace(/font-size\s*:\s*([\d.]+)\s*px/gi, (_, raw: string) => {
+    const px = Number(raw);
+    if (!Number.isFinite(px) || px <= 0) return `font-size: ${raw}px`;
+    return `font-size: ${(px / base).toFixed(3)}em`;
+  });
+}
+
+/** Sanitize + scale for on-screen announcement rendering. */
+export function sanitizeAnnounceHtml(input: string): string {
+  return scaleRichFontSizes(sanitizeRichHtml(input));
+}
