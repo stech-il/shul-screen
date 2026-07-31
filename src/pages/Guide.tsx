@@ -1,8 +1,8 @@
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BrandLogo } from '../components/BrandLogo';
+import { LandingTopbar } from '../components/LandingTopbar';
 import { SiteFooter } from '../components/SiteFooter';
-import { LangSwitch, useI18n } from '../i18n';
+import { useI18n } from '../i18n';
 import './Guide.css';
 
 const STEPS = [
@@ -72,17 +72,7 @@ export function Guide() {
 
   return (
     <div className="guide" dir={dir} lang={locale}>
-      <header className="guide-topbar">
-        <Link className="guide-topbar-brand" to="/" aria-label={t('guide.brandAria')}>
-          <BrandLogo size="sm" withWordmark />
-        </Link>
-        <div className="guide-topbar-actions">
-          <LangSwitch variant="dark" />
-          <Link className="guide-back" to="/">
-            {t('guide.backHome')}
-          </Link>
-        </div>
-      </header>
+      <LandingTopbar />
 
       <main className="guide-main">
         <header className="guide-hero">

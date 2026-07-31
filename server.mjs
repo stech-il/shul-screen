@@ -36,6 +36,7 @@ import { handleDiskFiles } from './server/diskFiles.mjs';
 import { handlePasswordReset } from './server/passwordReset.mjs';
 import { handleTrialSignup } from './server/trialSignup.mjs';
 import { handleLandingAnalytics } from './server/landingAnalytics.mjs';
+import { handlePublicDirectory } from './server/publicDirectory.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, 'dist');
@@ -426,6 +427,12 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname.startsWith('/api/analytics')) {
     void handleLandingAnalytics(req, res, url);
+    return;
+  }
+  if (url.pathname.startsWith('/api/public')) {
+    void handlePublicDirectory(req, res, url).then((handled) => {
+      if (!handled) sendJson(res, 404, { error: 'not found' });
+    });
     return;
   }
   if (url.pathname.startsWith('/api/auth')) {

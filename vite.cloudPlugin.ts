@@ -74,6 +74,19 @@ export function cloudApiPlugin(): Plugin {
             await analytics.handleLandingAnalytics(req, res, parsed);
             return;
           }
+          if (url.startsWith('/api/public')) {
+            const pub = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/publicDirectory.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            const handled = await pub.handlePublicDirectory(req, res, parsed);
+            if (!handled) {
+              res.statusCode = 404;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ error: 'not found' }));
+            }
+            return;
+          }
           if (url.startsWith('/api/auth')) {
             const auth = await import(
               /* @vite-ignore */ pathToFileURL(resolve('server/passwordReset.mjs')).href

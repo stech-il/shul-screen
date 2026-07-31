@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { HDate } from '@hebcal/core';
+import { gematriya, HDate } from '@hebcal/core';
 import {
   daysInHebrewMonth,
   formatGregorianDate,
@@ -30,6 +30,14 @@ function gematriyaYear(year: number): string {
     return new HDate(1, 1, year).renderGematriya(true).split(' ').pop() || String(year);
   } catch {
     return String(year);
+  }
+}
+
+function hebrewDayLabel(day: number): string {
+  try {
+    return gematriya(day);
+  } catch {
+    return String(day);
   }
 }
 
@@ -200,8 +208,9 @@ export function HebrewDatePicker({ value, onChange, disabled }: Props) {
                     .filter(Boolean)
                     .join(' ')}
                   onClick={() => pickDay(day)}
+                  aria-label={hebrewDayLabel(day)}
                 >
-                  {day}
+                  {hebrewDayLabel(day)}
                 </button>
               ),
             )}

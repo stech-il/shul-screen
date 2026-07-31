@@ -251,6 +251,7 @@
 .landing-about,
 .landing-features-block,
 .landing-congregant,
+.landing-connected,
 .landing-showcases,
 .landing-preview,
 .landing-manage,
@@ -457,6 +458,7 @@ h2 {
 .landing-about h2,
 .landing-features-block h2,
 .landing-congregant-copy h2,
+.landing-connected-inner h2,
 .landing-showcases-head h2,
 .landing-preview-copy h2,
 .landing-manage h2,
@@ -641,6 +643,97 @@ h2 {
 
 .landing-congregant-phone {
   margin-inline: auto;
+}
+
+/* —— Connected synagogues directory —— */
+.landing-connected {
+  padding: clamp(3.5rem, 9vw, 6rem) clamp(1.25rem, 4vw, 3rem);
+  background:
+    linear-gradient(180deg, #0b1c3a 0%, #14305a 55%, #0b1c3a 100%);
+  color: #fff;
+}
+
+.landing-connected-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.landing-connected-inner .landing-kicker {
+  color: var(--gold-bright);
+}
+
+.landing-connected-inner h2 {
+  color: #fff;
+  margin: 0.35rem 0 0.65rem;
+}
+
+.landing-connected-inner .landing-section-lead {
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.landing-connected-grid {
+  list-style: none;
+  margin: 2.25rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 1rem;
+}
+
+.landing-connected-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1rem 0.7rem;
+  text-decoration: none;
+  color: #fff;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.landing-connected-card:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(224, 185, 58, 0.55);
+}
+
+.landing-connected-logo {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+.landing-connected-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.35rem;
+}
+
+.landing-connected-fallback {
+  font-family: 'Frank Ruhl Libre', 'Secular One', serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1;
+}
+
+.landing-connected-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.25;
+  max-width: 9rem;
 }
 
 .landing-phone-screen--times {

@@ -138,9 +138,12 @@
   border-radius: 8px;
   background: #f7f9fa;
   font: inherit;
-  font-weight: 600;
+  font-family: 'Frank Ruhl Libre', 'David Libre', serif;
+  font-weight: 700;
+  font-size: 0.95rem;
   cursor: pointer;
   color: var(--ink, #1c3140);
+  line-height: 1;
 }
 
 .hdp-cell.empty {

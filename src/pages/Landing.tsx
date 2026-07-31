@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { BrandLogo } from '../components/BrandLogo';
+import { Link } from 'react-router-dom';
+import { LandingTopbar } from '../components/LandingTopbar';
 import { SiteFooter } from '../components/SiteFooter';
 import { CITIES } from '../data/cities';
-import { LangSwitch, useI18n } from '../i18n';
+import { useI18n } from '../i18n';
 import { submitInquiry } from '../lib/inquiries';
 import { startTrialSignup, type TrialSignupResult } from '../lib/trialSignup';
 import { trackLandingVisit } from '../lib/landingAnalytics';
+import { fetchPublicSynagogues, type PublicSynagogue } from '../lib/publicDirectory';
 import './Landing.css';
 
 const WHATSAPP = 'https://wa.me/972524521527';
@@ -165,7 +166,6 @@ type FormStatus = 'idle' | 'sending' | 'success' | 'error';
 
 export function Landing() {
   const { t, dir, locale } = useI18n();
-  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -173,8 +173,6 @@ export function Landing() {
   const [message, setMessage] = useState('');
   const [formStatus, setFormStatus] = useState<FormStatus>('idle');
   const [formError, setFormError] = useState('');
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [loginShulId, setLoginShulId] = useState('');
 
   const [trialName, setTrialName] = useState('');
   const [trialPhone, setTrialPhone] = useState('');
@@ -185,6 +183,7 @@ export function Landing() {
   const [trialStatus, setTrialStatus] = useState<FormStatus>('idle');
   const [trialError, setTrialError] = useState('');
   const [trialResult, setTrialResult] = useState<TrialSignupResult | null>(null);
+  const [connectedShuls, setConnectedShuls] = useState<PublicSynagogue[]>([]);
 
   useEffect(() => {
     document.title = t('landing.seoTitle');
@@ -196,13 +195,19 @@ export function Landing() {
     void trackLandingVisit();
   }, []);
 
-  function onScreenLogin(e: FormEvent) {
-    e.preventDefault();
-    const id = loginShulId.trim();
-    if (id.length < 2) return;
-    setLoginOpen(false);
-    navigate(`/login/${encodeURIComponent(id)}`);
-  }
+  useEffect(() => {
+    let cancelled = false;
+    void fetchPublicSynagogues()
+      .then((items) => {
+        if (!cancelled) setConnectedShuls(items);
+      })
+      .catch(() => {
+        if (!cancelled) setConnectedShuls([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function onLeadSubmit(e: FormEvent) {
     e.preventDefault();
@@ -276,70 +281,7 @@ export function Landing() {
 
   return (
     <div className="landing" dir={dir} lang={locale}>
-      <header className="landing-topbar">
-        <a className="landing-topbar-brand" href="#top" aria-label={t('landing.brandAria')}>
-          <BrandLogo size="sm" withWordmark />
-        </a>
-        <nav className="landing-topbar-nav" aria-label={locale === 'he' ? 'ניווט ראשי' : 'Main navigation'}>
-          <a href="#about">{t('landing.navAbout')}</a>
-          <a href="#features">{t('landing.navFeatures')}</a>
-          <a href="#congregant">{t('landing.navCongregant')}</a>
-          <a href="#screens">{t('landing.navScreens')}</a>
-          <a href="#preview">{t('landing.navPreview')}</a>
-          <a href="#manage">{t('landing.navSystem')}</a>
-          <a href="#pricing">{t('landing.navPricing')}</a>
-          <a href="#trial">{t('landing.navTrial')}</a>
-          <Link to="/guide">{t('landing.navGuide')}</Link>
-        </nav>
-        <div className="landing-topbar-actions">
-          <LangSwitch variant="dark" />
-          <a className="landing-topbar-phone" href={PHONE_TEL} dir="ltr">
-            {PHONE_LABEL}
-          </a>
-          <div className="landing-login-wrap">
-            <button
-              type="button"
-              className={`landing-btn ghost-light compact${loginOpen ? ' on' : ''}`}
-              aria-expanded={loginOpen}
-              aria-controls="landing-login-panel"
-              onClick={() => setLoginOpen((v) => !v)}
-            >
-              {t('landing.screenLogin')}
-            </button>
-            {loginOpen ? (
-              <form
-                id="landing-login-panel"
-                className="landing-login-panel"
-                onSubmit={onScreenLogin}
-              >
-                <label>
-                  {t('landing.screenLoginId')}
-                  <input
-                    value={loginShulId}
-                    onChange={(e) => setLoginShulId(e.target.value.trim())}
-                    placeholder={t('landing.screenLoginPlaceholder')}
-                    dir="ltr"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    autoFocus
-                    required
-                    minLength={1}
-                    maxLength={12}
-                    pattern="[0-9]*"
-                  />
-                </label>
-                <button type="submit" className="landing-btn primary compact">
-                  {t('landing.screenLoginGo')}
-                </button>
-                <p className="landing-login-hint">{t('landing.screenLoginHint')}</p>
-              </form>
-            ) : null}
-          </div>
-          <a className="landing-btn primary compact" href={WHATSAPP} target="_blank" rel="noreferrer">
-            {t('landing.orderNow')}
-          </a>
-        </div>
-      </header>
+      <LandingTopbar onHomePage />
 
       <main>
         <section className="landing-hero" id="top" aria-label="hero">
@@ -486,6 +428,40 @@ export function Landing() {
             </div>
           </div>
         </section>
+
+        {connectedShuls.length > 0 ? (
+          <section className="landing-connected" id="connected" aria-labelledby="connected-title">
+            <div className="landing-connected-inner">
+              <p className="landing-kicker">{t('landing.connectedKicker')}</p>
+              <h2 id="connected-title">{t('landing.connectedTitle')}</h2>
+              <p className="landing-section-lead">{t('landing.connectedLead')}</p>
+              <ul className="landing-connected-grid">
+                {connectedShuls.map((shul) => (
+                  <li key={shul.id}>
+                    <Link
+                      className="landing-connected-card"
+                      to={`/times/${encodeURIComponent(shul.id)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={shul.name}
+                    >
+                      <span className="landing-connected-logo">
+                        {shul.logoUrl ? (
+                          <img src={shul.logoUrl} alt="" loading="lazy" />
+                        ) : (
+                          <span className="landing-connected-fallback" aria-hidden="true">
+                            {shul.name.slice(0, 1)}
+                          </span>
+                        )}
+                      </span>
+                      <span className="landing-connected-name">{shul.name}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        ) : null}
 
         <section className="landing-showcases" id="screens" aria-labelledby="screens-title">
           <div className="landing-showcases-head">
