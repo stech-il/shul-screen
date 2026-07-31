@@ -18,7 +18,7 @@ import { MediaGalleryModal } from '../MediaPicker';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ElementorWidgetPanel, type ElementorTab } from './ElementorWidgetPanel';
 import { LayersPanel } from './LayersPanel';
-import { WidgetPalette, type PaletteSectionId } from './WidgetPalette';
+import { WidgetPalette } from './WidgetPalette';
 import { widgetStyle } from './CanvasStage';
 import {
   ASPECT_RATIOS,
@@ -148,9 +148,8 @@ export function CanvasBuilder({
   const [editTab, setEditTab] = useState<ElementorTab>('content');
   const [fitLabel, setFitLabel] = useState('');
   const [stageBox, setStageBox] = useState({ w: 0, h: 0 });
-  /** Exclusive accordion: layers vs palette sections (basic/main/extra) */
+  /** When layers is open, hide the widget palette so they don't stack/overlap */
   const [layersOpen, setLayersOpen] = useState(false);
-  const [paletteSection, setPaletteSection] = useState<PaletteSectionId | null>('basic');
   const fontOptions = fontSelectOptions(customFonts);
 
   const selected = canvas.widgets.find((w) => w.id === selectedId) ?? null;
@@ -725,10 +724,7 @@ export function CanvasBuilder({
             selectedId={selectedId}
             widgetLabel={widgetLabel}
             open={layersOpen}
-            onOpenChange={(open) => {
-              setLayersOpen(open);
-              if (open) setPaletteSection(null);
-            }}
+            onOpenChange={setLayersOpen}
             onSelect={setSelectedId}
             onToggleVisible={(id) => {
               const w = canvas.widgets.find((x) => x.id === id);
@@ -762,16 +758,8 @@ export function CanvasBuilder({
               onClose={() => setSelectedId(null)}
               label={widgetLabel(selected.type)}
             />
-          ) : (
-            <WidgetPalette
-              onAdd={addWidget}
-              onExplodeZmanim={explodeZmanim}
-              openSection={paletteSection}
-              onOpenSection={(id) => {
-                setPaletteSection(id);
-                if (id) setLayersOpen(false);
-              }}
-            />
+          ) : layersOpen ? null : (
+            <WidgetPalette onAdd={addWidget} onExplodeZmanim={explodeZmanim} />
           )}
         </aside>
       </div>

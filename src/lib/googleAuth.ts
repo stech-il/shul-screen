@@ -147,6 +147,15 @@ export async function mountGoogleButton(
   };
 }
 
+export class GoogleLoginError extends Error {
+  email?: string;
+  constructor(message: string, email?: string) {
+    super(message);
+    this.name = 'GoogleLoginError';
+    this.email = email;
+  }
+}
+
 export async function loginWithGoogleIdToken(
   synagogueId: string,
   idToken: string,
@@ -156,9 +165,14 @@ export async function loginWithGoogleIdToken(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ synagogueId, idToken }),
   });
-  const data = (await res.json()) as { ok?: boolean; error?: string; member?: GoogleAuthMember };
+  const data = (await res.json()) as {
+    ok?: boolean;
+    error?: string;
+    email?: string;
+    member?: GoogleAuthMember;
+  };
   if (!res.ok || !data.ok || !data.member) {
-    throw new Error(data.error || 'התחברות Google נכשלה');
+    throw new GoogleLoginError(data.error || 'התחברות Google נכשלה', data.email);
   }
   return data.member;
 }

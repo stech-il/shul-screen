@@ -782,7 +782,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     });
   }
 
-  function saveEditMember(e: FormEvent) {
+  async function saveEditMember(e: FormEvent) {
     e.preventDefault();
     if (!isOwner || !config || !editMemberId) return;
     const name = editMember.name.trim();
@@ -809,20 +809,27 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       setStatus(t('admin.needOneOwner'));
       return;
     }
-    setConfig((c) =>
-      c
-        ? {
-            ...c,
-            members: c.members.map((m) =>
-              m.id === editMemberId
-                ? { ...m, name, username, role: editMember.role, email: email || undefined }
-                : m,
-            ),
-          }
-        : c,
-    );
+    const nextConfig = {
+      ...config,
+      members: config.members.map((m) =>
+        m.id === editMemberId
+          ? { ...m, name, username, role: editMember.role, email: email || undefined }
+          : m,
+      ),
+    };
+    setConfig(nextConfig);
     setEditMemberId(null);
-    setStatus(t('admin.userUpdated'));
+    setStatus(t('admin.savingUser', { username }));
+    const result = await saveConfig(nextConfig, undefined, {
+      by: memberName,
+      summary: t('admin.userUpdated'),
+    });
+    if (!result.ok) {
+      setStatus(result.error ?? t('admin.userSavedLocalFail'));
+    } else {
+      setStatus(t('admin.userUpdated'));
+    }
+    refreshHistory();
   }
 
   async function removeMember(member: Member) {
@@ -2219,7 +2226,10 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
               {config.members.map((m) =>
                 editMemberId === m.id ? (
                   <li key={m.id} className="member-editing">
-                    <form className="member-form member-form-email" onSubmit={saveEditMember}>
+                    <form
+                      className="member-form member-form-email"
+                      onSubmit={(e) => void saveEditMember(e)}
+                    >
                       <input
                         placeholder={t('admin.displayName')}
                         value={editMember.name}

@@ -504,7 +504,7 @@ export const en: DeepString<typeof he> = {
     announcementN: 'Notice {n}',
     usersHint: 'Owner — everything. Editor — content only. Sign in with username (not display name) and password.',
     usersGoogleHint:
-      'For Google sign-in — add the user’s email (or link Google after a password login). Passkeys / fingerprint are set up on the login screen.',
+      'For Google sign-in — put the Gmail address in the “Email (for Google)” field (not only as username), save, then sign in with that Google account.',
     memberEmail: 'Email (for Google)',
     googleLinked: 'Google linked',
     passkeyLinked: 'Passkey',

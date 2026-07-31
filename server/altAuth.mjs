@@ -73,21 +73,56 @@ function memberPasswordHash(m) {
 function normalizeEmail(email) {
   return String(email || '')
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/[\u200e\u200f\u202a-\u202e\u00a0]/g, '');
+}
+
+function memberMatchEmails(m) {
+  return [m?.email, m?.username, m?.name].map(normalizeEmail).filter(Boolean);
+}
+
+function gmailLocalKey(email) {
+  const e = normalizeEmail(email);
+  if (!e.endsWith('@gmail.com') && !e.endsWith('@googlemail.com')) return '';
+  return e.split('@')[0].replace(/\./g, '');
 }
 
 function findMemberByGoogle(config, profile) {
   const email = normalizeEmail(profile.email);
   const sub = String(profile.sub || '').trim();
   const members = Array.isArray(config?.members) ? config.members : [];
-  let member =
-    members.find((m) => m.googleSub && sub && m.googleSub === sub) ||
-    members.find((m) => m.email && normalizeEmail(m.email) === email) ||
-    members.find((m) => normalizeEmail(m.username) === email);
-  if (!member && email && normalizeEmail(config.contactEmail) === email) {
-    member = members.find((m) => m.role === 'owner') || members[0];
+
+  let member = members.find((m) => m.googleSub && sub && m.googleSub === sub);
+  if (member) return member;
+
+  member = members.find((m) => memberMatchEmails(m).includes(email));
+  if (member) return member;
+
+  const gKey = gmailLocalKey(email);
+  if (gKey) {
+    member = members.find((m) =>
+      memberMatchEmails(m).some((e) => gmailLocalKey(e) && gmailLocalKey(e) === gKey),
+    );
+    if (member) return member;
   }
-  return member || null;
+
+  if (email && normalizeEmail(config.contactEmail) === email) {
+    return members.find((m) => m.role === 'owner') || members[0] || null;
+  }
+
+  // No members yet — allow first Google login via synagogue contact email
+  if (!members.length && email && normalizeEmail(config.contactEmail) === email) {
+    return {
+      id: 'bootstrap',
+      name: config.name || profile.name || 'admin',
+      username: 'admin',
+      role: 'owner',
+      email,
+      googleSub: sub,
+    };
+  }
+
+  return null;
 }
 
 function publicMember(m) {
@@ -206,40 +241,46 @@ export async function handleAltAuth(req, res, url) {
       if (!member) {
         sendJson(res, 403, {
           ok: false,
-          error:
-            'לא נמצא משתמש עם האימייל הזה. הוסיפו את האימייל למשתמש בלשונית משתמשים, או קשרו Google אחרי כניסה עם סיסמה.',
+          email: profile.email,
+          error: `לא נמצא משתמש עם האימייל ${profile.email}. בלשונית משתמשים הזינו את אותו אימייל בשדה האימייל (או כשם משתמש), לחצו שמירה למסך, ונסו שוב.`,
         });
         return true;
       }
-      // Persist googleSub / email for faster future matches
-      let changed = false;
-      const members = bundle.config.members.map((m) => {
-        if (m.id !== member.id) return m;
-        const next = { ...m };
-        if (!next.email) {
-          next.email = profile.email;
-          changed = true;
-        }
-        if (profile.sub && next.googleSub !== profile.sub) {
-          next.googleSub = profile.sub;
-          changed = true;
-        }
-        return next;
-      });
-      if (changed) {
-        await putBundle(synagogueId, {
-          ...bundle,
-          config: {
-            ...bundle.config,
-            members,
-            updatedAt: new Date().toISOString(),
-            revision: (bundle.config.revision || 0) + 1,
-          },
-          syncedAt: new Date().toISOString(),
+      // Persist googleSub / email for faster future matches (skip synthetic bootstrap)
+      if (member.id !== 'bootstrap' && Array.isArray(bundle.config.members)) {
+        let changed = false;
+        const members = bundle.config.members.map((m) => {
+          if (m.id !== member.id) return m;
+          const next = { ...m };
+          if (normalizeEmail(next.email) !== profile.email) {
+            next.email = profile.email;
+            changed = true;
+          }
+          if (profile.sub && next.googleSub !== profile.sub) {
+            next.googleSub = profile.sub;
+            changed = true;
+          }
+          return next;
         });
+        if (changed) {
+          await putBundle(synagogueId, {
+            ...bundle,
+            config: {
+              ...bundle.config,
+              members,
+              updatedAt: new Date().toISOString(),
+              revision: (bundle.config.revision || 0) + 1,
+            },
+            syncedAt: new Date().toISOString(),
+          });
+          sendJson(res, 200, {
+            ok: true,
+            member: publicMember(members.find((m) => m.id === member.id) || member),
+          });
+          return true;
+        }
       }
-      const fresh = members.find((m) => m.id === member.id) || member;
-      sendJson(res, 200, { ok: true, member: publicMember(fresh) });
+      sendJson(res, 200, { ok: true, member: publicMember(member) });
       return true;
     }
 

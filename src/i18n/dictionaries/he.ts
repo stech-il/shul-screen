@@ -498,7 +498,7 @@ export const he = {
     announcementN: 'הודעה {n}',
     usersHint: 'מנהל — הכל. עורך — תוכן בלבד. התחברות עם שם המשתמש (לא שם התצוגה) והסיסמה.',
     usersGoogleHint:
-      'להתחברות עם Google — הזינו אימייל למשתמש (או קשרו Google אחרי כניסה עם סיסמה). מפתח אימות / טביעת אצבע מוגדרים במסך הכניסה.',
+      'להתחברות עם Google — הזינו את כתובת ה-Gmail בשדה «אימייל (ל־Google)» (לא רק כשם משתמש), שמרו, ואז התחברו עם אותו חשבון Google.',
     memberEmail: 'אימייל (ל־Google)',
     googleLinked: 'Google מקושר',
     passkeyLinked: 'מפתח אימות',
