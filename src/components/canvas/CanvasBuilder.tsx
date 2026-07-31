@@ -17,6 +17,7 @@ import { useAppNotice } from '../AppNotice';
 import { MediaGalleryModal } from '../MediaPicker';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ElementorWidgetPanel, type ElementorTab } from './ElementorWidgetPanel';
+import { LayersPanel } from './LayersPanel';
 import { WidgetPalette } from './WidgetPalette';
 import { widgetStyle } from './CanvasStage';
 import {
@@ -351,6 +352,22 @@ export function CanvasBuilder({
     patchWidget(id, { z: minZ - 1 });
   }
 
+  function moveLayer(id: string, direction: 'up' | 'down') {
+    const sorted = [...canvas.widgets].sort((a, b) => b.z - a.z || a.id.localeCompare(b.id));
+    const idx = sorted.findIndex((w) => w.id === id);
+    const swapWith = direction === 'up' ? idx - 1 : idx + 1;
+    if (idx < 0 || swapWith < 0 || swapWith >= sorted.length) return;
+    const next = [...sorted];
+    const tmp = next[idx]!;
+    next[idx] = next[swapWith]!;
+    next[swapWith] = tmp;
+    const zById = new Map(next.map((w, i) => [w.id, next.length - i]));
+    onChange({
+      ...canvas,
+      widgets: canvas.widgets.map((w) => ({ ...w, z: zById.get(w.id) ?? w.z })),
+    });
+  }
+
   function openMenu(e: React.MouseEvent, widget: CanvasWidget) {
     e.preventDefault();
     e.stopPropagation();
@@ -412,6 +429,14 @@ export function CanvasBuilder({
             rel="noreferrer"
           >
             {t('panels.liveScreen')}
+          </Link>
+          <Link
+            className="cb-chip ghost"
+            to={`/times/${synagogueId}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t('panels.congregantTimes')}
           </Link>
           <span className="cb-fit-meta" title={t('canvas.fitTitle')}>
             {fitLabel || `${refWidth}×${refHeight}`}
@@ -691,6 +716,20 @@ export function CanvasBuilder({
         </div>
 
         <aside className="cb-inspector cb-inspector-el" dir={dir}>
+          <LayersPanel
+            widgets={canvas.widgets}
+            blocks={blocks}
+            selectedId={selectedId}
+            widgetLabel={widgetLabel}
+            onSelect={setSelectedId}
+            onToggleVisible={(id) => {
+              const w = canvas.widgets.find((x) => x.id === id);
+              if (w) patchWidget(id, { visible: !w.visible });
+            }}
+            onRemove={removeWidget}
+            onMoveUp={(id) => moveLayer(id, 'up')}
+            onMoveDown={(id) => moveLayer(id, 'down')}
+          />
           {selected ? (
             <ElementorWidgetPanel
               selected={selected}

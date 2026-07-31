@@ -1117,6 +1117,22 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
           <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
             {t('admin.liveScreen')}
           </Link>
+          <Link className="admin-quick-ext" to={`/times/${synagogueId}`} target="_blank" rel="noreferrer">
+            {t('admin.congregantTimes')}
+          </Link>
+          <button
+            type="button"
+            className="admin-quick-ext"
+            onClick={() => {
+              const url = `${window.location.origin}/times/${encodeURIComponent(synagogueId)}`;
+              void navigator.clipboard.writeText(url).then(
+                () => setStatus(t('admin.copiedCongregantTimes')),
+                () => setStatus(url),
+              );
+            }}
+          >
+            {t('admin.copyCongregantTimes')}
+          </button>
         </div>
         ) : null}
 
@@ -1143,6 +1159,9 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
               <div className="section-head-actions">
                 <Link className="btn ghost" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
                   {t('admin.liveScreen')}
+                </Link>
+                <Link className="btn ghost" to={`/times/${synagogueId}`} target="_blank" rel="noreferrer">
+                  {t('admin.congregantTimes')}
                 </Link>
                 <button
                   type="button"
@@ -1728,6 +1747,9 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 </button>
                 <Link className="btn ghost" to={`/display/${synagogueId}`} target="_blank">
                   {t('admin.openWindow')}
+                </Link>
+                <Link className="btn ghost" to={`/times/${synagogueId}`} target="_blank">
+                  {t('admin.congregantTimes')}
                 </Link>
               </div>
             </div>

@@ -1,0 +1,271 @@
+.ct-page {
+  --ct-ink: #1a2a32;
+  --ct-muted: #5a6b73;
+  --ct-line: rgba(26, 42, 50, 0.12);
+  --ct-card: rgba(255, 255, 255, 0.88);
+  --ct-accent: #2f6f6a;
+  --ct-gold: #b08a3c;
+  --font-display: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
+  --font-ui: 'Secular One', 'Heebo', sans-serif;
+  --font-body: 'Rubik', 'Heebo', sans-serif;
+
+  position: relative;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 1.25rem 1rem 2.5rem;
+  color: var(--ct-ink);
+  background: #e8eef0;
+  font-family: var(--font-body);
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.ct-page *,
+.ct-page *::before,
+.ct-page *::after {
+  box-sizing: border-box;
+}
+
+.ct-atmosphere {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(120% 80% at 100% -10%, rgba(176, 138, 60, 0.18), transparent 55%),
+    radial-gradient(90% 70% at -10% 100%, rgba(47, 111, 106, 0.16), transparent 50%),
+    linear-gradient(165deg, #f4f7f8 0%, #e4ecee 45%, #d9e5e4 100%);
+}
+
+.ct-page > *:not(.ct-atmosphere) {
+  position: relative;
+  z-index: 1;
+}
+
+.ct-loading {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--ct-muted);
+}
+
+.ct-hero {
+  text-align: center;
+  padding: 1.4rem 0.5rem 1.1rem;
+  animation: ct-rise 0.55s ease both;
+}
+
+.ct-logo {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: contain;
+  margin: 0 auto 0.65rem;
+  display: block;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0.25rem;
+}
+
+.ct-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 7vw, 2.45rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+}
+
+.ct-date {
+  margin: 0.55rem 0 0;
+  font-family: var(--font-ui);
+  font-size: 1.05rem;
+  color: var(--ct-muted);
+}
+
+.ct-clock {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-ui);
+  font-size: clamp(2.2rem, 10vw, 2.8rem);
+  font-weight: 700;
+  color: var(--ct-accent);
+  letter-spacing: 0.04em;
+  animation: ct-fade 0.7s ease 0.1s both;
+}
+
+.ct-parasha {
+  margin: 0.45rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--ct-gold);
+}
+
+.ct-card {
+  width: min(440px, 100%);
+  margin: 0.75rem auto;
+  padding: 1rem 1.05rem 0.85rem;
+  background: var(--ct-card);
+  border: 1px solid var(--ct-line);
+  border-radius: 18px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 28px rgba(26, 42, 50, 0.06);
+  animation: ct-rise 0.55s ease both;
+}
+
+.ct-card:nth-of-type(2) {
+  animation-delay: 0.06s;
+}
+.ct-card:nth-of-type(3) {
+  animation-delay: 0.12s;
+}
+.ct-card:nth-of-type(4) {
+  animation-delay: 0.18s;
+}
+.ct-card:nth-of-type(5) {
+  animation-delay: 0.24s;
+}
+
+.ct-card h2 {
+  margin: 0 0 0.7rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ct-ink);
+  border-bottom: 1px solid var(--ct-line);
+  padding-bottom: 0.45rem;
+}
+
+.ct-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ct-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.15rem;
+  border-bottom: 1px dashed rgba(26, 42, 50, 0.08);
+  font-size: 1.05rem;
+}
+
+.ct-list li:last-child {
+  border-bottom: none;
+}
+
+.ct-list li span {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.ct-list li em {
+  display: block;
+  font-style: normal;
+  font-size: 0.82rem;
+  color: var(--ct-muted);
+  margin-top: 0.1rem;
+}
+
+.ct-list li strong {
+  font-family: var(--font-ui);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ct-accent);
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+
+.ct-list li.ct-heading {
+  justify-content: center;
+  padding-top: 0.85rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--ct-gold);
+  border-bottom: none;
+}
+
+.ct-list li.ct-heading strong {
+  display: none;
+}
+
+.ct-candles .candle-times-board,
+.ct-candles .candle-banner-board {
+  margin-top: 0.25rem;
+}
+
+.ct-announce-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ct-announce-list li {
+  font-size: 1.02rem;
+  line-height: 1.45;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  background: rgba(176, 138, 60, 0.08);
+  border: 1px solid rgba(176, 138, 60, 0.18);
+}
+
+.ct-footer {
+  width: min(440px, 100%);
+  margin: 1.5rem auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ct-muted);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.ct-hall-link {
+  color: var(--ct-accent);
+  text-decoration: none;
+  font-family: var(--font-ui);
+  margin-top: 0.2rem;
+}
+
+.ct-hall-link:hover {
+  text-decoration: underline;
+}
+
+.ct-page .time-ltr {
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
+
+@keyframes ct-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ct-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (min-width: 720px) {
+  .ct-page {
+    padding-top: 2rem;
+  }
+}

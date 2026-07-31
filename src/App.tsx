@@ -8,6 +8,7 @@ import { Agency } from './pages/Agency';
 import { Display } from './pages/Display';
 import { Guide } from './pages/Guide';
 import { KioskSetup } from './pages/KioskSetup';
+import { CongregantTimes } from './pages/CongregantTimes';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { ManageHome } from './pages/ManageApp';
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/display/:id" element={<DisplayRoute />} />
           <Route path="/screen/:id" element={<DisplayRoute />} />
+          <Route path="/times/:id" element={<CongregantTimes />} />
           {/* Platform super-admin gate — must be before /admin/:id */}
           <Route path="/admin" element={<PlatformLogin />} />
           <Route path="/admin/:id" element={<AdminRoute />} />
