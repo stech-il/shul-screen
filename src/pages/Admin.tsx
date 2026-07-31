@@ -11,7 +11,9 @@ import { ScreenIdBadge } from '../components/ScreenIdBadge';
 import { SiteFooter } from '../components/SiteFooter';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { MediaPickerField, GalleryManager } from '../components/MediaPicker';
+import { RichTextEditor } from '../components/RichTextEditor';
 import { CITIES } from '../data/cities';
+import { hasVisibleText, sanitizeRichHtml } from '../lib/sanitizeHtml';
 import { NUSACH_TEMPLATES, applyNusachTemplate } from '../data/nusach';
 import { ZMAN_DEFS, type ZmanKey } from '../data/zmanim';
 import { useI18n, LangSwitch } from '../i18n';
@@ -457,7 +459,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   const memberRole = session.role;
 
   const activePreviewAnnouncement =
-    config.announcements.find((a) => a.enabled && a.text.trim()) ?? null;
+    config.announcements.find((a) => a.enabled && hasVisibleText(a.text)) ?? null;
 
   const canvasPreviewData: CanvasData = {
     name: config.name,
@@ -649,6 +651,15 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         announcements: c.announcements.map((a) => (a.id === id ? { ...a, ...patch } : a)),
       };
     });
+  }
+
+  async function removeAnnouncement(id: string) {
+    if (!(await askConfirm(t('admin.confirmDeleteAnnouncement')))) return;
+    setConfig((c) => {
+      if (!c) return c;
+      return { ...c, announcements: c.announcements.filter((x) => x.id !== id) };
+    });
+    setStatus(t('admin.announcementDeleted'));
   }
 
   async function addMember(e: FormEvent<HTMLFormElement>) {
@@ -2099,17 +2110,50 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 </button>
               </div>
             ) : (
-              config.announcements.map((a) => (
+              config.announcements.map((a, index) => (
                 <div className="announce-card" key={a.id}>
-                  <label className="announce-text">
-                    {t('admin.announceText')}
-                    <textarea
+                  <div className="announce-card-head">
+                    <strong>{t('admin.announcementN', { n: index + 1 })}</strong>
+                    <div className="row-actions">
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() =>
+                          update({
+                            announcements: [
+                              ...config.announcements,
+                              {
+                                ...a,
+                                id: uid(),
+                                text: a.text
+                                  ? `${sanitizeRichHtml(a.text)} <b>(${t('admin.copyMark')})</b>`
+                                  : '',
+                              },
+                            ],
+                          })
+                        }
+                      >
+                        {t('common.duplicate')}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn danger"
+                        onClick={() => void removeAnnouncement(a.id)}
+                      >
+                        {t('admin.deleteAnnouncement')}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="announce-text">
+                    <span className="announce-text-label">{t('admin.announceText')}</span>
+                    <RichTextEditor
                       value={a.text}
-                      rows={2}
-                      onChange={(e) => updateAnnouncement(a.id, { text: e.target.value })}
+                      onChange={(html) => updateAnnouncement(a.id, { text: sanitizeRichHtml(html) })}
                       placeholder={t('admin.announcePlaceholder')}
+                      dir={dir}
+                      minHeight="6.5rem"
                     />
-                  </label>
+                  </div>
                   <div className="announce-dates">
                     <label>
                       {t('admin.fromDate')}
@@ -2139,37 +2183,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                       />
                       {t('admin.activeOnScreen')}
                     </label>
-                  </div>
-                  <div className="row-actions">
-                    <button
-                      type="button"
-                      className="btn ghost"
-                      onClick={() =>
-                        update({
-                          announcements: [
-                            ...config.announcements,
-                            {
-                              ...a,
-                              id: uid(),
-                              text: a.text ? t('admin.textCopy', { text: a.text }) : '',
-                            },
-                          ],
-                        })
-                      }
-                    >
-                      {t('common.duplicate')}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn danger"
-                      onClick={() =>
-                        update({
-                          announcements: config.announcements.filter((x) => x.id !== a.id),
-                        })
-                      }
-                    >
-                      {t('common.delete')}
-                    </button>
                   </div>
                 </div>
               ))

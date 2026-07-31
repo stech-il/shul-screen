@@ -15,7 +15,7 @@ import { DEMO_TIMES_CONFIG } from '../data/defaults';
 import { getDayInfo } from '../lib/jewish';
 import { subscribeLiveUpdates } from '../lib/liveSync';
 import { getModeInfo } from '../lib/modes';
-import { toPlainDisplayText } from '../lib/sanitizeHtml';
+import { sanitizeRichHtml, toPlainDisplayText } from '../lib/sanitizeHtml';
 import { isAnnouncementActive, startAutoSync, syncConfig } from '../lib/storage';
 import type {
   ComputedZman,
@@ -257,7 +257,11 @@ export function CongregantTimes() {
           <h2>הודעות מיוחדות</h2>
           <ul className="ct-announce-list">
             {announcements.map((a) => (
-              <li key={a.id}>{toPlainDisplayText(a.text)}</li>
+              <li
+                key={a.id}
+                className="rich-announce"
+                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(a.text) }}
+              />
             ))}
           </ul>
         </section>

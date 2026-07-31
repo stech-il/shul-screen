@@ -225,10 +225,20 @@
   font-size: 1.1em;
 }
 
-.cw-announce p {
+.cw-announce p,
+.cw-announce-body {
   margin: 0.2em 0 0;
   font-size: 1.5em;
   line-height: 1.25;
+}
+
+.cw-announce-body :is(p, ul, ol) {
+  margin: 0.15em 0;
+}
+
+.cw-announce-body ul,
+.cw-announce-body ol {
+  padding-inline-start: 1.2em;
 }
 
 .cw-dots {

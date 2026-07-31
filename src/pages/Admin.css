@@ -358,14 +358,32 @@
   background: rgba(255, 255, 255, 0.7);
 }
 
-.announce-text textarea {
+.announce-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.announce-card-head .row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.announce-text {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.announce-text-label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.announce-text .rte {
   width: 100%;
-  font: inherit;
-  padding: 0.55rem 0.65rem;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  resize: vertical;
-  min-height: 3.2rem;
 }
 
 .announce-dates {

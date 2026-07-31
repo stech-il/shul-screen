@@ -8,7 +8,7 @@ import { pushHistory } from './history';
 import { publishLiveUpdate } from './liveBus';
 import { compactConfigMedia, expandConfigMedia } from './mediaPersist';
 import { getDefaultModes } from './modes';
-import { decodeHtmlEntities } from './sanitizeHtml';
+import { decodeHtmlEntities, hasVisibleText } from './sanitizeHtml';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 
 const PREFIX = 'shul-screen:';
@@ -24,7 +24,7 @@ function todayIso(): string {
 }
 
 export function isAnnouncementActive(a: Announcement, day = todayIso()): boolean {
-  if (!a.enabled || !a.text.trim()) return false;
+  if (!a.enabled || !hasVisibleText(a.text)) return false;
   if (a.startDate && day < a.startDate) return false;
   if (a.endDate && day > a.endDate) return false;
   return true;

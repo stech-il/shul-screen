@@ -207,7 +207,11 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <div className="cw-announce">
           {widget.showTitle ? <h3>{title || 'הודעות'}</h3> : null}
           {data.announcement ? (
-            <p key={data.announcement.id}>{toPlainDisplayText(data.announcement.text)}</p>
+            <div
+              key={data.announcement.id}
+              className="cw-announce-body rich-announce"
+              dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(data.announcement.text) }}
+            />
           ) : (
             <Placeholder label="אין הודעות פעילות" />
           )}

@@ -174,3 +174,8 @@ export function toPlainDisplayText(input: string | undefined | null): string {
   wrap.innerHTML = decoded;
   return (wrap.textContent || '').replace(/\s+/g, ' ').trim();
 }
+
+/** True when announcement / rich field has visible text (not only empty tags). */
+export function hasVisibleText(input: string | undefined | null): boolean {
+  return Boolean(toPlainDisplayText(input).trim());
+}
