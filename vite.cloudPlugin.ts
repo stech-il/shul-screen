@@ -92,7 +92,13 @@ export function cloudApiPlugin(): Plugin {
               /* @vite-ignore */ pathToFileURL(resolve('server/passwordReset.mjs')).href
             );
             const parsed = new URL(url, 'http://localhost');
-            const handled = await auth.handlePasswordReset(req, res, parsed);
+            let handled = await auth.handlePasswordReset(req, res, parsed);
+            if (!handled) {
+              const alt = await import(
+                /* @vite-ignore */ pathToFileURL(resolve('server/altAuth.mjs')).href
+              );
+              handled = await alt.handleAltAuth(req, res, parsed);
+            }
             if (!handled) {
               res.statusCode = 404;
               res.setHeader('Content-Type', 'application/json; charset=utf-8');

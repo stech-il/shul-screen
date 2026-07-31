@@ -18,7 +18,7 @@ import { MediaGalleryModal } from '../MediaPicker';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ElementorWidgetPanel, type ElementorTab } from './ElementorWidgetPanel';
 import { LayersPanel } from './LayersPanel';
-import { WidgetPalette } from './WidgetPalette';
+import { WidgetPalette, type PaletteSectionId } from './WidgetPalette';
 import { widgetStyle } from './CanvasStage';
 import {
   ASPECT_RATIOS,
@@ -148,6 +148,9 @@ export function CanvasBuilder({
   const [editTab, setEditTab] = useState<ElementorTab>('content');
   const [fitLabel, setFitLabel] = useState('');
   const [stageBox, setStageBox] = useState({ w: 0, h: 0 });
+  /** Exclusive accordion: layers vs palette sections (basic/main/extra) */
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [paletteSection, setPaletteSection] = useState<PaletteSectionId | null>('basic');
   const fontOptions = fontSelectOptions(customFonts);
 
   const selected = canvas.widgets.find((w) => w.id === selectedId) ?? null;
@@ -721,6 +724,11 @@ export function CanvasBuilder({
             blocks={blocks}
             selectedId={selectedId}
             widgetLabel={widgetLabel}
+            open={layersOpen}
+            onOpenChange={(open) => {
+              setLayersOpen(open);
+              if (open) setPaletteSection(null);
+            }}
             onSelect={setSelectedId}
             onToggleVisible={(id) => {
               const w = canvas.widgets.find((x) => x.id === id);
@@ -755,7 +763,15 @@ export function CanvasBuilder({
               label={widgetLabel(selected.type)}
             />
           ) : (
-            <WidgetPalette onAdd={addWidget} onExplodeZmanim={explodeZmanim} />
+            <WidgetPalette
+              onAdd={addWidget}
+              onExplodeZmanim={explodeZmanim}
+              openSection={paletteSection}
+              onOpenSection={(id) => {
+                setPaletteSection(id);
+                if (id) setLayersOpen(false);
+              }}
+            />
           )}
         </aside>
       </div>

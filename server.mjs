@@ -34,6 +34,7 @@ import {
 import { handleInquiries } from './server/inquiries.mjs';
 import { handleDiskFiles } from './server/diskFiles.mjs';
 import { handlePasswordReset } from './server/passwordReset.mjs';
+import { handleAltAuth } from './server/altAuth.mjs';
 import { handleTrialSignup } from './server/trialSignup.mjs';
 import { handleLandingAnalytics } from './server/landingAnalytics.mjs';
 import { handlePublicDirectory } from './server/publicDirectory.mjs';
@@ -436,8 +437,10 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (url.pathname.startsWith('/api/auth')) {
-    void handlePasswordReset(req, res, url).then((handled) => {
-      if (!handled) sendJson(res, 404, { error: 'not found' });
+    void handlePasswordReset(req, res, url).then(async (handled) => {
+      if (handled) return;
+      const alt = await handleAltAuth(req, res, url);
+      if (!alt) sendJson(res, 404, { error: 'not found' });
     });
     return;
   }

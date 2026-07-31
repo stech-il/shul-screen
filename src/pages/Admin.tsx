@@ -149,6 +149,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   const [newMember, setNewMember] = useState({
     name: '',
     username: '',
+    email: '',
     password: '',
     role: 'editor' as UserRole,
   });
@@ -156,6 +157,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   const [editMember, setEditMember] = useState({
     name: '',
     username: '',
+    email: '',
     role: 'editor' as UserRole,
   });
   const [session, setSession] = useState(() => loadSession());
@@ -675,6 +677,9 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     const username = String(data.get('memberUsername') ?? newMember.username)
       .trim()
       .toLowerCase();
+    const email = String(data.get('memberEmail') ?? newMember.email)
+      .trim()
+      .toLowerCase();
     const password = String(data.get('memberPassword') ?? '');
     const role = (String(data.get('memberRole') ?? newMember.role) || 'editor') as UserRole;
     if (!name || !username || !password) {
@@ -698,11 +703,12 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         username,
         role: role === 'owner' ? 'owner' : 'editor',
         passwordHash,
+        ...(email ? { email } : {}),
       };
       const nextMembers = [...(config.members ?? []), member];
       const nextConfig = { ...config, members: nextMembers };
       setConfig(nextConfig);
-      setNewMember({ name: '', username: '', password: '', role: 'editor' });
+      setNewMember({ name: '', username: '', email: '', password: '', role: 'editor' });
       form.reset();
       setStatus(t('admin.savingUser', { username }));
       const result = await saveConfig(nextConfig, undefined, {
@@ -771,6 +777,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     setEditMember({
       name: member.name,
       username: member.username || member.name,
+      email: member.email || '',
       role: member.role,
     });
   }
@@ -780,6 +787,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     if (!isOwner || !config || !editMemberId) return;
     const name = editMember.name.trim();
     const username = editMember.username.trim().toLowerCase();
+    const email = editMember.email.trim().toLowerCase();
     if (!name || !username) {
       setStatus(t('admin.fillNameUser'));
       return;
@@ -806,7 +814,9 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         ? {
             ...c,
             members: c.members.map((m) =>
-              m.id === editMemberId ? { ...m, name, username, role: editMember.role } : m,
+              m.id === editMemberId
+                ? { ...m, name, username, role: editMember.role, email: email || undefined }
+                : m,
             ),
           }
         : c,
@@ -2204,11 +2214,12 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
           <section className="card wide">
             <h2>{t('admin.usersTitle')}</h2>
             <p className="hint">{t('admin.usersHint')}</p>
+            <p className="hint">{t('admin.usersGoogleHint')}</p>
             <ul className="members-list">
               {config.members.map((m) =>
                 editMemberId === m.id ? (
                   <li key={m.id} className="member-editing">
-                    <form className="member-form" onSubmit={saveEditMember}>
+                    <form className="member-form member-form-email" onSubmit={saveEditMember}>
                       <input
                         placeholder={t('admin.displayName')}
                         value={editMember.name}
@@ -2225,6 +2236,17 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                         dir="ltr"
                         style={{ textAlign: 'left' }}
                         autoComplete="off"
+                      />
+                      <input
+                        type="email"
+                        placeholder={t('admin.memberEmail')}
+                        value={editMember.email}
+                        onChange={(e) =>
+                          setEditMember({ ...editMember, email: e.target.value })
+                        }
+                        dir="ltr"
+                        style={{ textAlign: 'left' }}
+                        autoComplete="email"
                       />
                       <select
                         value={editMember.role}
@@ -2252,8 +2274,12 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                     <div>
                       <strong>{m.name}</strong>
                       <span>
-                        {m.username || m.name} ·{' '}
+                        {m.username || m.name}
+                        {m.email ? ` · ${m.email}` : ''}
+                        {' · '}
                         {m.role === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor')}
+                        {m.googleSub ? ` · ${t('admin.googleLinked')}` : ''}
+                        {m.passkeys?.length ? ` · ${t('admin.passkeyLinked')}` : ''}
                       </span>
                     </div>
                     <div className="member-actions">
@@ -2283,7 +2309,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 ),
               )}
             </ul>
-            <form className="member-form member-form-add" onSubmit={(e) => void addMember(e)}>
+            <form className="member-form member-form-add member-form-email" onSubmit={(e) => void addMember(e)}>
               <input
                 name="memberName"
                 placeholder={t('admin.displayName')}
@@ -2300,6 +2326,16 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 style={{ textAlign: 'left' }}
                 autoComplete="off"
                 required
+              />
+              <input
+                name="memberEmail"
+                type="email"
+                placeholder={t('admin.memberEmail')}
+                value={newMember.email}
+                onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+                autoComplete="email"
               />
               <input
                 name="memberPassword"

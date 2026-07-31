@@ -50,6 +50,15 @@ export interface Announcement {
   enabled: boolean;
 }
 
+export interface MemberPasskey {
+  credentialId: string;
+  publicKey: string;
+  counter: number;
+  transports?: string[];
+  createdAt: string;
+  deviceType?: string;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -58,6 +67,12 @@ export interface Member {
   /** salted hash: saltHex:sha256Hex */
   passwordHash: string;
   pinHash?: string;
+  /** Used for Google Sign-In matching and password-reset contact */
+  email?: string;
+  /** Google account subject after linking */
+  googleSub?: string;
+  /** WebAuthn / passkey credentials for this member */
+  passkeys?: MemberPasskey[];
 }
 
 export interface YahrzeitEntry {

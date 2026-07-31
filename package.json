@@ -37,6 +37,8 @@
     "@capacitor/status-bar": "^8.0.3",
     "@hebcal/core": "^5.10.1",
     "@hebcal/learning": "^6.9.5",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.2",
     "@supabase/supabase-js": "^2.50.0",
     "nodemailer": "^9.0.3",
     "react": "^19.1.0",

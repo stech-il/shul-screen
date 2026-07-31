@@ -12,6 +12,8 @@ interface Props {
   onRemove: (id: string) => void;
   onMoveUp: (id: string) => void;
   onMoveDown: (id: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function layerDetail(w: CanvasWidget, blocks: ScheduleBlock[]): string {
@@ -40,12 +42,23 @@ export function LayersPanel({
   onRemove,
   onMoveUp,
   onMoveDown,
+  open,
+  onOpenChange,
 }: Props) {
   const { t, dir } = useI18n();
   const sorted = [...widgets].sort((a, b) => b.z - a.z || a.id.localeCompare(b.id));
+  const controlled = typeof open === 'boolean';
 
   return (
-    <details className="cb-layers-panel" dir={dir}>
+    <details
+      className="cb-layers-panel"
+      dir={dir}
+      {...(controlled ? { open } : {})}
+      onToggle={(e) => {
+        if (!onOpenChange) return;
+        onOpenChange((e.currentTarget as HTMLDetailsElement).open);
+      }}
+    >
       <summary className="cb-layers-head">
         <strong>
           {t('canvas.layers')}

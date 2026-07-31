@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   authenticateMember,
@@ -8,12 +8,30 @@ import {
   memberUsernameExists,
   saveSession,
 } from '../lib/auth';
+import {
+  fetchGoogleClientConfig,
+  linkGoogleAccount,
+  loginWithGoogleIdToken,
+  mountGoogleButton,
+} from '../lib/googleAuth';
 import { isLicenseValid } from '../lib/license';
 import { requestPasswordReset } from '../lib/passwordReset';
 import { syncConfig } from '../lib/storage';
 import { adminPathFor, markManageSession, preferManageRoutes } from '../lib/manageApp';
-import { saveManageScreenId } from '../lib/manageAuth';
-import type { SynagogueConfig } from '../types';
+import {
+  authenticateWithBiometric,
+  isBiometricAvailable,
+  loadBiometricEnabled,
+  saveManageScreenId,
+  setBiometricEnabled,
+} from '../lib/manageAuth';
+import {
+  fetchPasskeyStatus,
+  isPasskeySupported,
+  loginWithPasskey,
+  registerPasskey,
+} from '../lib/webauthnAuth';
+import type { SynagogueConfig, UserRole } from '../types';
 import { SiteFooter } from '../components/SiteFooter';
 import { BrandLogo } from '../components/BrandLogo';
 import { NotFoundScreen } from '../components/NotFoundScreen';
@@ -50,23 +68,71 @@ export function Login() {
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [forgotMsg, setForgotMsg] = useState('');
   const [forgotBusy, setForgotBusy] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState('');
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+  const [passkeyEnabled, setPasskeyEnabled] = useState(false);
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioUnlockReady, setBioUnlockReady] = useState(false);
+  const [altBusy, setAltBusy] = useState(false);
+  const [postLoginOffer, setPostLoginOffer] = useState(false);
+  const [lastCreds, setLastCreds] = useState<{ username: string; password: string } | null>(null);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  function finishLogin(input: {
+    memberId: string;
+    memberName: string;
+    role: UserRole;
+    remember: boolean;
+    offerExtras?: boolean;
+    username?: string;
+    password?: string;
+  }) {
+    saveSession({
+      synagogueId: id,
+      memberId: input.memberId,
+      memberName: input.memberName,
+      role: input.role,
+      remember: input.remember,
+    });
+    void saveManageScreenId(id);
+    if (input.offerExtras && input.username && input.password) {
+      setLastCreds({ username: input.username, password: input.password });
+      setPostLoginOffer(true);
+      return;
+    }
+    navigate(adminPathFor(id, params.get('billing') === '1'));
+  }
 
   useEffect(() => {
     if (manageLogin) markManageSession();
-
-    const existing = loadSession();
-    if (existing && existing.synagogueId === id && canEditContent(existing.role)) {
-      void saveManageScreenId(id);
-      navigate(adminPathFor(id, params.get('billing') === '1'), { replace: true });
-      return;
-    }
 
     let cancelled = false;
     setLoading(true);
     setMissing(false);
     void (async () => {
       try {
-        // No fallback — missing cloud id must not create a synagogue
+        const existing = loadSession();
+        const bioOn = await loadBiometricEnabled();
+        const bioOk = await isBiometricAvailable();
+        if (
+          existing &&
+          existing.synagogueId === id &&
+          canEditContent(existing.role) &&
+          !(manageLogin && bioOn && bioOk)
+        ) {
+          await saveManageScreenId(id);
+          if (!cancelled) navigate(adminPathFor(id, params.get('billing') === '1'), { replace: true });
+          return;
+        }
+        if (existing && existing.synagogueId === id && canEditContent(existing.role) && bioOn && bioOk) {
+          if (!cancelled) setBioUnlockReady(true);
+        }
+        if (!cancelled) {
+          setBioAvailable(bioOk);
+          setPasskeyAvailable(isPasskeySupported());
+        }
+
         const r = await syncConfig(id, undefined, { preferCloud: true });
         if (cancelled) return;
         if (r.source === 'default') {
@@ -76,6 +142,15 @@ export function Login() {
           setConfig(r.bundle.config);
           setMissing(false);
         }
+
+        const [g, pk] = await Promise.all([
+          fetchGoogleClientConfig(),
+          fetchPasskeyStatus(id),
+        ]);
+        if (cancelled) return;
+        setGoogleEnabled(g.enabled);
+        setGoogleClientId(g.clientId);
+        setPasskeyEnabled(pk);
       } catch {
         if (!cancelled) {
           setMissing(true);
@@ -89,7 +164,42 @@ export function Login() {
     return () => {
       cancelled = true;
     };
-  }, [id, navigate, params, t, manageLogin]);
+  }, [id, navigate, params, manageLogin]);
+
+  useEffect(() => {
+    if (!googleEnabled || !googleClientId || mode !== 'login' || !googleBtnRef.current) return;
+    let cleanup: (() => void) | undefined;
+    void mountGoogleButton(
+      googleBtnRef.current,
+      googleClientId,
+      locale === 'he' ? 'he' : 'en',
+      (idToken) => {
+        void (async () => {
+          setError('');
+          setAltBusy(true);
+          try {
+            const member = await loginWithGoogleIdToken(id, idToken);
+            finishLogin({
+              memberId: member.id,
+              memberName: member.name,
+              role: member.role,
+              remember: manageLogin ? true : remember,
+            });
+          } catch (err) {
+            setError(err instanceof Error ? err.message : t('login.googleFailed'));
+          } finally {
+            setAltBusy(false);
+          }
+        })();
+      },
+      (msg) => setError(msg),
+    ).then((fn) => {
+      cleanup = fn;
+    });
+    return () => cleanup?.();
+    // finishLogin closes over current state — intentional for button callback
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleEnabled, googleClientId, mode, locale, id, manageLogin, remember, t]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -119,15 +229,12 @@ export function Login() {
           setError(t('login.bootstrapHint', { user: BOOTSTRAP_USER, pass: BOOTSTRAP_PASS }));
           return;
         }
-        saveSession({
-          synagogueId: id,
+        finishLogin({
           memberId: 'bootstrap',
           memberName: t('login.manager'),
           role: 'owner',
           remember: staySignedIn,
         });
-        if (manageLogin) await saveManageScreenId(id);
-        navigate(adminPathFor(id, params.get('billing') === '1'));
         return;
       }
 
@@ -141,17 +248,118 @@ export function Login() {
         return;
       }
 
-      saveSession({
-        synagogueId: id,
+      const canOffer =
+        (passkeyAvailable || googleEnabled || bioAvailable) && Boolean(user && pass);
+      finishLogin({
         memberId: member.id,
         memberName: member.name,
         role: member.role,
         remember: staySignedIn,
+        offerExtras: canOffer,
+        username: user,
+        password: pass,
       });
-      if (manageLogin) await saveManageScreenId(id);
-      navigate(adminPathFor(id, params.get('billing') === '1'));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function onPasskeyLogin() {
+    setError('');
+    setAltBusy(true);
+    try {
+      const member = await loginWithPasskey(id);
+      finishLogin({
+        memberId: member.id,
+        memberName: member.name,
+        role: member.role,
+        remember: manageLogin ? true : remember,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('login.passkeyFailed'));
+    } finally {
+      setAltBusy(false);
+    }
+  }
+
+  async function onBiometricUnlock() {
+    setError('');
+    setAltBusy(true);
+    try {
+      const r = await authenticateWithBiometric(t('manage.biometricReason'));
+      if (!r.ok) {
+        setError(r.error || t('manage.biometricFailed'));
+        return;
+      }
+      const existing = loadSession();
+      if (existing && existing.synagogueId === id && canEditContent(existing.role)) {
+        await saveManageScreenId(id);
+        navigate(adminPathFor(id, params.get('billing') === '1'));
+        return;
+      }
+      setError(t('manage.sessionExpired'));
+      setBioUnlockReady(false);
+    } finally {
+      setAltBusy(false);
+    }
+  }
+
+  async function onRegisterPasskey() {
+    if (!lastCreds) return;
+    setError('');
+    setAltBusy(true);
+    try {
+      await registerPasskey({
+        synagogueId: id,
+        username: lastCreds.username,
+        password: lastCreds.password,
+      });
+      setPasskeyEnabled(true);
+      setPostLoginOffer(false);
+      navigate(adminPathFor(id, params.get('billing') === '1'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('login.passkeyRegisterFailed'));
+    } finally {
+      setAltBusy(false);
+    }
+  }
+
+  async function onLinkGoogle() {
+    if (!lastCreds || !googleClientId) return;
+    setError('');
+    setAltBusy(true);
+    try {
+      const { requestGoogleIdToken } = await import('../lib/googleAuth');
+      const idToken = await requestGoogleIdToken(googleClientId);
+      await linkGoogleAccount({
+        synagogueId: id,
+        username: lastCreds.username,
+        password: lastCreds.password,
+        idToken,
+      });
+      setPostLoginOffer(false);
+      navigate(adminPathFor(id, params.get('billing') === '1'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('login.googleLinkFailed'));
+    } finally {
+      setAltBusy(false);
+    }
+  }
+
+  async function onEnableBiometric() {
+    setError('');
+    setAltBusy(true);
+    try {
+      const r = await authenticateWithBiometric(t('manage.biometricEnableReason'));
+      if (!r.ok) {
+        setError(r.error || t('manage.biometricFailed'));
+        return;
+      }
+      await setBiometricEnabled(true);
+      setPostLoginOffer(false);
+      navigate(adminPathFor(id, params.get('billing') === '1'));
+    } finally {
+      setAltBusy(false);
     }
   }
 
@@ -232,9 +440,90 @@ export function Login() {
             </>
           )}
         </p>
-        <p className="hint">{mode === 'forgot' ? t('login.forgotHint') : t('login.hint')}</p>
-        {mode === 'login' ? (
+        <p className="hint">
+          {postLoginOffer
+            ? t('login.setupExtrasHint')
+            : mode === 'forgot'
+              ? t('login.forgotHint')
+              : t('login.hint')}
+        </p>
+        {postLoginOffer ? (
+          <div className="login-form login-extras">
+            <p className="eyebrow">{t('login.setupExtrasTitle')}</p>
+            {error ? <p className="error">{error}</p> : null}
+            {passkeyAvailable ? (
+              <button
+                type="button"
+                className="btn primary"
+                disabled={altBusy}
+                onClick={() => void onRegisterPasskey()}
+              >
+                {t('login.setupPasskey')}
+              </button>
+            ) : null}
+            {googleEnabled ? (
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={altBusy}
+                onClick={() => void onLinkGoogle()}
+              >
+                {t('login.setupGoogle')}
+              </button>
+            ) : null}
+            {bioAvailable ? (
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={altBusy}
+                onClick={() => void onEnableBiometric()}
+              >
+                {t('login.setupBiometric')}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={altBusy}
+              onClick={() => {
+                setPostLoginOffer(false);
+                setLastCreds(null);
+                navigate(adminPathFor(id, params.get('billing') === '1'));
+              }}
+            >
+              {t('login.setupSkip')}
+            </button>
+          </div>
+        ) : mode === 'login' ? (
           <form onSubmit={(e) => void onSubmit(e)} className="login-form">
+            {bioUnlockReady ? (
+              <button
+                type="button"
+                className="btn primary"
+                disabled={altBusy}
+                onClick={() => void onBiometricUnlock()}
+              >
+                {t('login.biometricUnlock')}
+              </button>
+            ) : null}
+            {passkeyEnabled && passkeyAvailable ? (
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={altBusy || submitting}
+                onClick={() => void onPasskeyLogin()}
+              >
+                {t('login.passkeySubmit')}
+              </button>
+            ) : null}
+            {googleEnabled ? (
+              <div className="login-google-wrap">
+                <div ref={googleBtnRef} className="login-google-btn" />
+              </div>
+            ) : null}
+            {(bioUnlockReady || passkeyEnabled || googleEnabled) && (
+              <p className="login-or">{t('login.orPassword')}</p>
+            )}
             <label>
               {t('login.username')}
               <input
@@ -272,7 +561,7 @@ export function Login() {
               </label>
             )}
             {error ? <p className="error">{error}</p> : null}
-            <button type="submit" className="btn primary" disabled={submitting}>
+            <button type="submit" className="btn primary" disabled={submitting || altBusy}>
               {submitting ? t('login.checking') : t('login.submit')}
             </button>
             <button
