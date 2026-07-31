@@ -216,6 +216,7 @@ export function CongregantTimes() {
         <p className="ct-date">
           יום {day.weekday} · {day.hebrewDate}
         </p>
+        {day.parasha ? <p className="ct-parasha">{day.parasha}</p> : null}
       </header>
 
       {modeInfo?.candleBoard &&
