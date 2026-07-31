@@ -28,6 +28,7 @@ const FEATURE_KEYS = [
   'feature11',
   'feature12',
   'feature13',
+  'feature14',
 ] as const;
 
 const CONGREGANT_POINT_KEYS = [
@@ -559,6 +560,7 @@ export function Landing() {
               <li>{t('landing.priceInc1')}</li>
               <li>{t('landing.priceInc2')}</li>
               <li>{t('landing.priceInc3')}</li>
+              <li>{t('landing.priceInc4')}</li>
             </ul>
             <a className="landing-btn primary lg" href="#trial">
               {t('landing.startTrial')}

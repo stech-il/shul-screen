@@ -85,6 +85,7 @@ export const en: DeepString<typeof he> = {
     feature11: 'Custom design with the screen builder',
     feature12: 'Omer counting and city-based zmanim',
     feature13: 'Unique congregant link — view times on mobile',
+    feature14: 'Works with every kosher internet filter provider',
     congregantKicker: 'What makes us unique',
     congregantTitle: 'A prayer-times link for congregants',
     congregantLead:
@@ -124,12 +125,13 @@ export const en: DeepString<typeof he> = {
     priceInc1: 'Cloud screen + Hebrew/English admin',
     priceInc2: 'Homefront Command alerts',
     priceInc3: 'Credit-card standing order',
+    priceInc4: 'Optional: order a screen, internet, and installation',
     orderWhatsapp: 'Order on WhatsApp',
     hardwareNote:
-      'The price is for the system only — it does not include a screen/TV or installation. Hardware is purchased separately; we’re happy to advise what fits your hall.',
+      'The price is for the system only — it does not include a screen or installation. You can also order a screen, internet, and installation — happy to tailor a package for your hall.',
     hardwareNoteStrong: 'System price only',
     hardwareNoteRest:
-      ' — does not include a screen/TV or installation. Hardware is purchased separately; we’re happy to advise what fits your hall.',
+      ' — does not include a screen or installation. You can also order a screen, internet, and installation — happy to tailor a package for your hall.',
     trialKicker: '7-day trial',
     trialTitle: 'Open a screen for your synagogue now',
     trialLead:
