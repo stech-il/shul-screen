@@ -279,6 +279,9 @@ export function CongregantTimes() {
       <footer className="ct-footer">
         <BrandLogo size="sm" />
         <span>screensmart · זמני בית הכנסת</span>
+        <a className="ct-support" href="tel:0524521527">
+          להזמנות ותמיכה · 052-4521527
+        </a>
       </footer>
     </div>
   );

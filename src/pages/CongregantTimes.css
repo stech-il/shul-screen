@@ -268,14 +268,17 @@
   text-align: center;
 }
 
-.ct-hall-link {
-  color: var(--ct-accent);
+.ct-support {
+  margin-top: 0.35rem;
+  color: var(--ct-ink);
   text-decoration: none;
   font-family: var(--font-ui);
-  margin-top: 0.2rem;
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
 }
 
-.ct-hall-link:hover {
+.ct-support:hover {
+  color: var(--ct-accent);
   text-decoration: underline;
 }
 
