@@ -11,6 +11,7 @@ import {
   resolveFromZmanimMap,
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
+import { DEMO_TIMES_CONFIG } from '../data/defaults';
 import { getDayInfo } from '../lib/jewish';
 import { subscribeLiveUpdates } from '../lib/liveSync';
 import { getModeInfo } from '../lib/modes';
@@ -45,6 +46,12 @@ export function CongregantTimes() {
 
   useEffect(() => {
     if (!synagogueId) return;
+    if (synagogueId === 'demo') {
+      setMissing(false);
+      setConfig(DEMO_TIMES_CONFIG);
+      return;
+    }
+
     let cancelled = false;
     const stopSync = startAutoSync();
     let live: ReturnType<typeof subscribeLiveUpdates> | null = null;

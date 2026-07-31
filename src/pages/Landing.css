@@ -250,6 +250,7 @@
 
 .landing-about,
 .landing-features-block,
+.landing-congregant,
 .landing-showcases,
 .landing-preview,
 .landing-manage,
@@ -455,6 +456,7 @@ h2 {
 
 .landing-about h2,
 .landing-features-block h2,
+.landing-congregant-copy h2,
 .landing-showcases-head h2,
 .landing-preview-copy h2,
 .landing-manage h2,
@@ -577,6 +579,153 @@ h2 {
   letter-spacing: 0.04em;
   flex-shrink: 0;
   padding-top: 0.1rem;
+}
+
+/* —— Congregant times USP —— */
+.landing-congregant {
+  padding: clamp(4rem, 10vw, 7rem) clamp(1.25rem, 4vw, 3rem);
+  background:
+    radial-gradient(90% 70% at 100% 0%, rgba(176, 138, 60, 0.14), transparent 55%),
+    radial-gradient(80% 60% at 0% 100%, rgba(47, 111, 106, 0.12), transparent 50%),
+    linear-gradient(165deg, #f2f6f7 0%, #e6eef0 100%);
+  color: var(--ink);
+}
+
+.landing-congregant-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .landing-congregant-inner {
+    grid-template-columns: minmax(0, 1.15fr) minmax(260px, 340px);
+    gap: 3rem;
+  }
+}
+
+.landing-congregant-copy h2 {
+  color: var(--navy);
+}
+
+.landing-congregant-points {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.landing-congregant-points li {
+  position: relative;
+  padding: 0.65rem 1rem;
+  border-inline-start: 3px solid var(--gold);
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 10px;
+  font-size: 1.02rem;
+  line-height: 1.4;
+  animation: landing-rise 0.55s ease both;
+}
+
+.landing-congregant-points li:nth-child(2) { animation-delay: 0.04s; }
+.landing-congregant-points li:nth-child(3) { animation-delay: 0.08s; }
+.landing-congregant-points li:nth-child(4) { animation-delay: 0.12s; }
+.landing-congregant-points li:nth-child(5) { animation-delay: 0.16s; }
+.landing-congregant-points li:nth-child(6) { animation-delay: 0.2s; }
+
+.landing-congregant .landing-cta-row {
+  margin-top: 1.75rem;
+}
+
+.landing-congregant-phone {
+  margin-inline: auto;
+}
+
+.landing-phone-screen--times {
+  background: linear-gradient(165deg, #f4f7f8 0%, #d9e5e4 100%) !important;
+  color: #1a2a32;
+  padding: 0.85rem 0.7rem !important;
+}
+
+.landing-times-mock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  height: 100%;
+  text-align: center;
+}
+
+.landing-times-mock-name {
+  margin: 0.35rem 0 0;
+  font-family: 'Frank Ruhl Libre', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a2a32;
+}
+
+.landing-times-mock-date {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #5a6b73;
+}
+
+.landing-times-mock-card {
+  text-align: right;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(26, 42, 50, 0.1);
+  border-radius: 12px;
+  padding: 0.55rem 0.65rem;
+}
+
+.landing-times-mock-card h3 {
+  margin: 0 0 0.35rem;
+  font-family: 'Frank Ruhl Libre', serif;
+  font-size: 0.92rem;
+  text-align: center;
+  color: #1a2a32;
+  border-bottom: 1px solid rgba(26, 42, 50, 0.1);
+  padding-bottom: 0.3rem;
+}
+
+.landing-times-mock-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.landing-times-mock-card li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.28rem 0;
+  font-size: 0.78rem;
+  border-bottom: 1px dashed rgba(26, 42, 50, 0.08);
+}
+
+.landing-times-mock-card li:last-child {
+  border-bottom: none;
+}
+
+.landing-times-mock-card strong {
+  font-family: 'Secular One', sans-serif;
+  color: #2f6f6a;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.landing-times-mock-card.soft {
+  background: rgba(176, 138, 60, 0.1);
+  border-color: rgba(176, 138, 60, 0.22);
+}
+
+.landing-times-mock-card.soft p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: center;
+  color: #3d2e0a;
 }
 
 /* —— Showcase strips (full-bleed image + copy) —— */

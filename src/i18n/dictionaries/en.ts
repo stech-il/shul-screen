@@ -48,6 +48,7 @@ export const en: DeepString<typeof he> = {
   landing: {
     navAbout: 'About',
     navFeatures: 'Features',
+    navCongregant: 'Congregant times',
     navScreens: 'Screens',
     navSystem: 'System',
     navPricing: 'Pricing',
@@ -65,7 +66,7 @@ export const en: DeepString<typeof he> = {
     aboutP1:
       'is a synagogue display that shows prayer times, community notices, and day-long changing info — without rewriting a board every week. Enter settings once in the admin panel, and the screen shows the right content by time, day, and Hebrew calendar.',
     aboutP2:
-      'Manage remotely from anywhere: a notice updated on your phone appears instantly in the sanctuary. Gabaim and rabbis save time, and congregants stay informed on weekdays, Shabbat, holidays, and Rosh Chodesh.',
+      'Manage remotely from anywhere: a notice updated on your phone appears instantly in the sanctuary. Plus a unique shareable link so congregants can view times on mobile — no app needed. Gabaim save time, and the community stays informed.',
     aboutP3:
       'Design fits every congregation: a modern, readable schedule screen with a free-form canvas builder. A schedule-and-notices solution that keeps the hall updated all year.',
     featuresKicker: 'Benefits',
@@ -83,6 +84,19 @@ export const en: DeepString<typeof he> = {
     feature10: 'Fullscreen kiosk mode all day',
     feature11: 'Custom design with the screen builder',
     feature12: 'Omer counting and city-based zmanim',
+    feature13: 'Unique congregant link — view times on mobile',
+    congregantKicker: 'What makes us unique',
+    congregantTitle: 'A prayer-times link for congregants',
+    congregantLead:
+      'Not only a hall screen — send one WhatsApp link, and every congregant sees your synagogue schedule clearly on their phone.',
+    congregantPoint1: 'Weekday and Shabbat prayer times',
+    congregantPoint2: 'Shiur / class times',
+    congregantPoint3: 'Special notices from the gabaim',
+    congregantPoint4: 'Candle lighting and Shabbat entry',
+    congregantPoint5: 'Daily zmanim by city',
+    congregantPoint6: 'Updates automatically when you publish',
+    congregantView: 'Preview congregant times',
+    congregantCta: 'Get a link for your synagogue',
     screensKicker: 'Screen types',
     screensTitle: 'Schedule and notice screens for every day of the year',
     screensLead: 'Clear display for the congregation — weekday and Shabbat prayers, classes, Shabbat times, and more.',
@@ -136,6 +150,7 @@ export const en: DeepString<typeof he> = {
     trialPassword: 'Password',
     trialOpenAdmin: 'Open admin',
     trialOpenDisplay: 'Open display',
+    trialOpenTimes: 'Congregant times',
     trialOpenBilling: 'Activate subscription',
     trialError: 'Could not start the trial. Try again or reach us on WhatsApp.',
     trialRequired: 'Please fill in all required fields',

@@ -27,6 +27,16 @@ const FEATURE_KEYS = [
   'feature10',
   'feature11',
   'feature12',
+  'feature13',
+] as const;
+
+const CONGREGANT_POINT_KEYS = [
+  'congregantPoint1',
+  'congregantPoint2',
+  'congregantPoint3',
+  'congregantPoint4',
+  'congregantPoint5',
+  'congregantPoint6',
 ] as const;
 
 type ShowcaseId = 'weekday' | 'holidays' | 'community' | 'oref';
@@ -272,6 +282,7 @@ export function Landing() {
         <nav className="landing-topbar-nav" aria-label={locale === 'he' ? 'ניווט ראשי' : 'Main navigation'}>
           <a href="#about">{t('landing.navAbout')}</a>
           <a href="#features">{t('landing.navFeatures')}</a>
+          <a href="#congregant">{t('landing.navCongregant')}</a>
           <a href="#screens">{t('landing.navScreens')}</a>
           <a href="#preview">{t('landing.navPreview')}</a>
           <a href="#manage">{t('landing.navSystem')}</a>
@@ -421,6 +432,60 @@ export function Landing() {
           </div>
         </section>
 
+        <section className="landing-congregant" id="congregant" aria-labelledby="congregant-title">
+          <div className="landing-congregant-inner">
+            <div className="landing-congregant-copy">
+              <p className="landing-kicker">{t('landing.congregantKicker')}</p>
+              <h2 id="congregant-title">{t('landing.congregantTitle')}</h2>
+              <p className="landing-section-lead">{t('landing.congregantLead')}</p>
+              <ul className="landing-congregant-points">
+                {CONGREGANT_POINT_KEYS.map((key) => (
+                  <li key={key}>{t(`landing.${key}`)}</li>
+                ))}
+              </ul>
+              <div className="landing-cta-row">
+                <Link className="landing-btn primary lg" to="/times/demo" target="_blank" rel="noreferrer">
+                  {t('landing.congregantView')}
+                </Link>
+                <a className="landing-btn outline lg" href="#trial">
+                  {t('landing.congregantCta')}
+                </a>
+              </div>
+            </div>
+            <div className="landing-phone-frame landing-congregant-phone" aria-hidden="true">
+              <div className="landing-phone-notch" />
+              <div className="landing-phone-screen landing-phone-screen--times">
+                <div className="landing-times-mock">
+                  <p className="landing-times-mock-name">{t('landing.mockShul')}</p>
+                  <p className="landing-times-mock-date">{t('landing.mockDate')}</p>
+                  <div className="landing-times-mock-card">
+                    <h3>{t('landing.mockShacharit')}</h3>
+                    <ul>
+                      <li>
+                        <span>{t('landing.mockShacharit')}</span>
+                        <strong>06:30</strong>
+                      </li>
+                      <li>
+                        <span>{t('landing.mockMincha')}</span>
+                        <strong>19:00</strong>
+                      </li>
+                      <li>
+                        <span>{t('landing.mockMaariv')}</span>
+                        <strong>20:30</strong>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="landing-times-mock-card soft">
+                    <h3>{t('landing.mockNote')}</h3>
+                    <p>{t('landing.mockAnnounceLine')}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="landing-phone-home" />
+            </div>
+          </div>
+        </section>
+
         <section className="landing-showcases" id="screens" aria-labelledby="screens-title">
           <div className="landing-showcases-head">
             <p className="landing-kicker">{t('landing.screensKicker')}</p>
@@ -541,6 +606,14 @@ export function Landing() {
                     to={`/display/${encodeURIComponent(trialResult.synagogueId)}`}
                   >
                     {t('landing.trialOpenDisplay')}
+                  </Link>
+                  <Link
+                    className="landing-btn outline lg"
+                    to={`/times/${encodeURIComponent(trialResult.synagogueId)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t('landing.trialOpenTimes')}
                   </Link>
                   <Link
                     className="landing-btn ghost-light lg"

@@ -112,3 +112,15 @@ export async function createDefaultConfig(
 }
 
 export const DEMO_CONFIG = createDefaultConfigSync('amishav', 'קהילת עמישב', 'petah-tikva');
+
+/** Public sample for the congregant mobile times page (`/times/demo`). */
+export const DEMO_TIMES_CONFIG: SynagogueConfig = {
+  ...createDefaultConfigSync('demo', 'בית כנסת לדוגמה', 'petah-tikva'),
+  announcements: [
+    {
+      id: 'demo-a1',
+      text: 'שיעור לנשים · יום ג׳ בשעה 20:00 באולם הגדול',
+      enabled: true,
+    },
+  ],
+};
