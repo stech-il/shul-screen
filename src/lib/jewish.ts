@@ -20,6 +20,72 @@ export const HEBREW_MONTHS = [
   { id: months.ADAR_II, name: 'אדר ב׳' },
 ];
 
+export function hebrewYearNow(date = new Date()): number {
+  return new HDate(date).getFullYear();
+}
+
+/** Months available in a given Hebrew year (Adar א׳/ב׳ only in leap years). */
+export function monthsForHebrewYear(year: number): { id: number; name: string }[] {
+  if (HDate.isLeapYear(year)) return HEBREW_MONTHS;
+  return HEBREW_MONTHS.filter((m) => m.id !== months.ADAR_II).map((m) =>
+    m.id === months.ADAR_I ? { id: m.id, name: 'אדר' } : m,
+  );
+}
+
+export function daysInHebrewMonth(month: number, year: number): number {
+  try {
+    return new HDate(1, month, year).daysInMonth();
+  } catch {
+    return 30;
+  }
+}
+
+export function hebrewToGregorian(day: number, month: number, year: number): Date {
+  return new HDate(day, month, year).greg();
+}
+
+export function formatHebrewDate(day: number, month: number, year?: number): string {
+  const y = year ?? hebrewYearNow();
+  try {
+    return new HDate(day, month, y).renderGematriya(true);
+  } catch {
+    const m = HEBREW_MONTHS.find((x) => x.id === month)?.name ?? String(month);
+    return `${day} ${m}`;
+  }
+}
+
+export function formatGregorianDate(date: Date, locale = 'he-IL'): string {
+  return date.toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/** Next Gregorian occurrence of a Hebrew month/day (for display in admin). */
+export function nextGregorianForHebrewDay(
+  day: number,
+  month: number,
+  from = new Date(),
+): Date {
+  const startOfToday = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  let year = hebrewYearNow(from);
+  for (let i = 0; i < 3; i++) {
+    try {
+      const maxDay = daysInHebrewMonth(month, year);
+      const safeDay = Math.min(Math.max(1, day), maxDay);
+      const g = hebrewToGregorian(safeDay, month, year);
+      const gDay = new Date(g.getFullYear(), g.getMonth(), g.getDate());
+      if (gDay >= startOfToday) return g;
+    } catch {
+      /* month missing in this year (e.g. Adar II) — try next */
+    }
+    year += 1;
+  }
+  return hebrewToGregorian(Math.min(day, 29), month, hebrewYearNow(from));
+}
+
 export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): DayInfo {
   const hd = new HDate(date);
   const events = HebrewCalendar.calendar({

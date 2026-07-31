@@ -905,6 +905,26 @@ textarea {
   margin-top: 0.75rem;
 }
 
+.yahrzeit-row {
+  display: grid;
+  grid-template-columns: 1.2fr minmax(14rem, 1.6fr) auto auto;
+  gap: 0.55rem;
+  align-items: start;
+  margin-top: 0.75rem;
+}
+
+.yahrzeit-row > input {
+  margin-top: 0.15rem;
+}
+
+.yahrzeit-row .check {
+  margin-top: 0.55rem;
+}
+
+.yahrzeit-row .btn {
+  margin-top: 0.35rem;
+}
+
 .member-form-add {
   margin-top: 1rem;
   padding-top: 0.85rem;
@@ -1017,6 +1037,10 @@ textarea {
   .announce-row,
   .member-form {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .yahrzeit-row {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -38,7 +38,8 @@ import {
 import { getHistoryEntry, loadHistory } from '../lib/history';
 import { ensureCustomFontsLoaded } from '../lib/customFonts';
 import { expandConfigMedia } from '../lib/mediaPersist';
-import { HEBREW_MONTHS, getDayInfo } from '../lib/jewish';
+import { getDayInfo } from '../lib/jewish';
+import { HebrewDatePicker } from '../components/HebrewDatePicker';
 import { daysLeft, isLicenseValid } from '../lib/license';
 import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
@@ -1602,7 +1603,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
             </div>
             <p className="hint">{t('admin.yahrzeitHint')}</p>
             {config.yahrzeits.map((y) => (
-              <div className="announce-row" key={y.id}>
+              <div className="yahrzeit-row" key={y.id}>
                 <input
                   value={y.name}
                   onChange={(e) =>
@@ -1614,31 +1615,14 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                   }
                   placeholder={t('common.name')}
                 />
-                <select
-                  value={y.hebrewMonth}
-                  onChange={(e) =>
+                <HebrewDatePicker
+                  value={{ hebrewDay: y.hebrewDay, hebrewMonth: y.hebrewMonth }}
+                  onChange={(next) =>
                     update({
                       yahrzeits: config.yahrzeits.map((x) =>
-                        x.id === y.id ? { ...x, hebrewMonth: Number(e.target.value) } : x,
-                      ),
-                    })
-                  }
-                >
-                  {HEBREW_MONTHS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={y.hebrewDay}
-                  onChange={(e) =>
-                    update({
-                      yahrzeits: config.yahrzeits.map((x) =>
-                        x.id === y.id ? { ...x, hebrewDay: Number(e.target.value) || 1 } : x,
+                        x.id === y.id
+                          ? { ...x, hebrewDay: next.hebrewDay, hebrewMonth: next.hebrewMonth }
+                          : x,
                       ),
                     })
                   }
