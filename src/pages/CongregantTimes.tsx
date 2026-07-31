@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { BrandLogo } from '../components/BrandLogo';
 import { CandleTimesBoard } from '../components/CandleTimesBoard';
 import { NotFoundScreen } from '../components/NotFoundScreen';
@@ -34,7 +34,6 @@ export function CongregantTimes() {
   const [zmanimMap, setZmanimMap] = useState<HebcalZmanimResult['times']>({});
   const [shabbatZmanimMap, setShabbatZmanimMap] = useState<HebcalZmanimResult['times']>({});
   const [day, setDay] = useState<DayInfo>(getDayInfo());
-  const [clock, setClock] = useState('');
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null);
 
   useEffect(() => {
@@ -101,18 +100,11 @@ export function CongregantTimes() {
   useEffect(() => {
     function tick() {
       const now = new Date();
-      setClock(
-        now.toLocaleTimeString('he-IL', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        }),
-      );
       setDay(getDayInfo(now, config?.yahrzeits ?? []));
       if (config) setModeInfo(getModeInfo(config.cityId, config.modes, now));
     }
     tick();
-    const id = setInterval(tick, 1000);
+    const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
   }, [config?.cityId, config?.modes, config?.yahrzeits]);
 
@@ -157,7 +149,6 @@ export function CongregantTimes() {
         <p className="ct-date">
           יום {day.weekday} · {day.hebrewDate}
         </p>
-        <p className="ct-clock time-ltr">{clock}</p>
         {day.parasha ? <p className="ct-parasha">פרשת {day.parasha}</p> : null}
       </header>
 
@@ -170,20 +161,6 @@ export function CongregantTimes() {
             <h2>כניסת שבת</h2>
           )}
           <CandleTimesBoard board={modeInfo.candleBoard} showCandles showTitle={false} />
-        </section>
-      ) : null}
-
-      {zmanim.length > 0 ? (
-        <section className="ct-card">
-          <h2>זמני היום</h2>
-          <ul className="ct-list">
-            {zmanim.map((z) => (
-              <li key={z.key}>
-                <span>{z.label}</span>
-                <strong className="time-ltr">{z.formatted}</strong>
-              </li>
-            ))}
-          </ul>
         </section>
       ) : null}
 
@@ -236,12 +213,23 @@ export function CongregantTimes() {
         </section>
       ) : null}
 
+      {zmanim.length > 0 ? (
+        <section className="ct-card">
+          <h2>זמני היום</h2>
+          <ul className="ct-list">
+            {zmanim.map((z) => (
+              <li key={z.key}>
+                <span>{z.label}</span>
+                <strong className="time-ltr">{z.formatted}</strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <footer className="ct-footer">
         <BrandLogo size="sm" />
         <span>screensmart · זמני בית הכנסת</span>
-        <Link to={`/display/${encodeURIComponent(synagogueId)}`} className="ct-hall-link">
-          מסך האולם
-        </Link>
       </footer>
     </div>
   );

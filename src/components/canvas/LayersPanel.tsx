@@ -45,11 +45,14 @@ export function LayersPanel({
   const sorted = [...widgets].sort((a, b) => b.z - a.z || a.id.localeCompare(b.id));
 
   return (
-    <div className="cb-layers-panel" dir={dir}>
-      <div className="cb-layers-head">
-        <strong>{t('canvas.layers')}</strong>
+    <details className="cb-layers-panel" dir={dir}>
+      <summary className="cb-layers-head">
+        <strong>
+          {t('canvas.layers')}
+          <span className="cb-layers-count">{widgets.length}</span>
+        </strong>
         <em>{t('canvas.layersHint', { n: widgets.length })}</em>
-      </div>
+      </summary>
       {sorted.length === 0 ? (
         <p className="cb-layers-empty">{t('canvas.noLayers')}</p>
       ) : (
@@ -113,6 +116,6 @@ export function LayersPanel({
           })}
         </ul>
       )}
-    </div>
+    </details>
   );
 }
