@@ -434,7 +434,6 @@ export function Landing() {
             <div className="landing-connected-inner">
               <p className="landing-kicker">{t('landing.connectedKicker')}</p>
               <h2 id="connected-title">{t('landing.connectedTitle')}</h2>
-              <p className="landing-section-lead">{t('landing.connectedLead')}</p>
               <ul className="landing-connected-grid">
                 {connectedShuls.map((shul) => (
                   <li key={shul.id}>

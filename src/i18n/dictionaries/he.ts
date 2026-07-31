@@ -95,7 +95,6 @@ export const he = {
     congregantCta: 'קבלו קישור לבית הכנסת שלכם',
     connectedKicker: 'קהילה',
     connectedTitle: 'בתי כנסת שהתחברו',
-    connectedLead: 'לחצו על הלוגו כדי לפתוח את דף הזמנים שהמתפללים רואים בטלפון.',
     screensKicker: 'סוגי מסכים',
     screensTitle: 'מסכי זמנים והודעות לכל ימות השנה',
     screensLead: 'תצוגה ברורה לקהל — זמני תפילות חול ושבת, שיעורים, כניסת ויציאת שבת, ועוד.',

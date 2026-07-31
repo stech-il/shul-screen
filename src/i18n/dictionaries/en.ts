@@ -101,7 +101,6 @@ export const en: DeepString<typeof he> = {
     congregantCta: 'Get a link for your synagogue',
     connectedKicker: 'Community',
     connectedTitle: 'Synagogues that joined',
-    connectedLead: 'Click a logo to open the congregant times page on mobile.',
     screensKicker: 'Screen types',
     screensTitle: 'Schedule and notice screens for every day of the year',
     screensLead: 'Clear display for the congregation — weekday and Shabbat prayers, classes, Shabbat times, and more.',
