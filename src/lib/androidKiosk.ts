@@ -20,7 +20,7 @@ export function isNativeCapacitorShell(): boolean {
   }
 }
 
-/** True inside the hall kiosk APK — not the phone management app. */
+/** True inside the beit midrash kiosk APK — not the phone management app. */
 export function isAndroidKiosk(): boolean {
   if (isManageShellBuild()) return false;
   return isNativeCapacitorShell();

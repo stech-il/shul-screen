@@ -4,7 +4,7 @@
 
 | Flavor | חבילה | שימוש |
 |--------|--------|--------|
-| **kiosk** | `il.screensmart.app` | מסך אולם (landscape, immersive) |
+| **kiosk** | `il.screensmart.app` | מסך בית המדרש (landscape, immersive) |
 | **manage** | `il.screensmart.manage` | ניהול מהטלפון → Google Play |
 
 מדריך מלא לניהול + Play Store: [docs/manage-app.md](../docs/manage-app.md).
@@ -45,7 +45,7 @@ npm run android:manage-bundle
 | `capacitor.config.ts` | לפי `VITE_APP_SHELL=manage` מחליף appId / שם |
 | Flavor `manage` | portrait, בלי immersive, פתיחה ל־`/manage` |
 | Flavor `kiosk` | landscape + keep-awake + מסך מלא |
-| `/kiosk-setup` | רישום מזהה למסך אולם |
+| `/kiosk-setup` | רישום מזהה למסך בית המדרש |
 | `/manage` | כניסת ניהול מהטלפון |
 
 ## סקריפטים

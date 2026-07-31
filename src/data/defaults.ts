@@ -119,7 +119,7 @@ export const DEMO_TIMES_CONFIG: SynagogueConfig = {
   announcements: [
     {
       id: 'demo-a1',
-      text: 'שיעור לנשים · יום ג׳ בשעה 20:00 באולם הגדול',
+      text: 'שיעור לנשים · יום ג׳ בשעה 20:00 בבית המדרש הגדול',
       enabled: true,
     },
   ],
