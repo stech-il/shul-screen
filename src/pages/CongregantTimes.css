@@ -56,15 +56,18 @@
   animation: ct-rise 0.55s ease both;
 }
 
+.ct-brand {
+  margin: 0;
+  line-height: 0;
+}
+
 .ct-logo {
-  width: 4.5rem;
-  height: 4.5rem;
+  width: min(72vw, 220px);
+  height: auto;
+  max-height: 7.5rem;
   object-fit: contain;
-  margin: 0 auto 0.65rem;
+  margin: 0 auto;
   display: block;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.55);
-  padding: 0.25rem;
 }
 
 .ct-name {
@@ -133,6 +136,7 @@
   color: var(--ct-ink);
   border-bottom: 1px solid var(--ct-line);
   padding-bottom: 0.45rem;
+  text-align: center;
 }
 
 .ct-list {
@@ -196,6 +200,42 @@
 .ct-candles .candle-times-board,
 .ct-candles .candle-banner-board {
   margin-top: 0.25rem;
+}
+
+.ct-special {
+  text-align: center;
+  background: rgba(176, 138, 60, 0.1);
+  border-color: rgba(176, 138, 60, 0.28);
+}
+
+.ct-special h2 {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0.35rem;
+}
+
+.ct-special-label {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+  color: var(--ct-gold);
+  letter-spacing: 0.02em;
+}
+
+.ct-special-sub {
+  margin: 0;
+  color: var(--ct-muted);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.ct-mourning {
+  background: rgba(26, 42, 50, 0.06);
+  border-color: rgba(26, 42, 50, 0.14);
+}
+
+.ct-mourning .ct-special-label {
+  color: var(--ct-muted);
 }
 
 .ct-announce-list {

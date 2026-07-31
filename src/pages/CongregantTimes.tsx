@@ -16,7 +16,14 @@ import { subscribeLiveUpdates } from '../lib/liveSync';
 import { getModeInfo } from '../lib/modes';
 import { toPlainDisplayText } from '../lib/sanitizeHtml';
 import { isAnnouncementActive, startAutoSync, syncConfig } from '../lib/storage';
-import type { ComputedZman, DayInfo, ModeInfo, SynagogueConfig, ZmanKey } from '../types';
+import type {
+  ComputedZman,
+  DayInfo,
+  ModeInfo,
+  ScheduleBlock,
+  SynagogueConfig,
+  ZmanKey,
+} from '../types';
 import './CongregantTimes.css';
 
 export function CongregantTimes() {
@@ -113,9 +120,11 @@ export function CongregantTimes() {
     return config.announcements.filter((a) => isAnnouncementActive(a));
   }, [config, day.hebrewDate]);
 
-  const blocks = useMemo(() => {
-    if (!config) return [];
-    return config.blocks.filter((b) => b.enabled).filter((b) => {
+  const isShiurBlock = (title: string) => /שיעור|shiur/i.test(title);
+
+  const { prayerBlocks, shiurBlocks } = useMemo(() => {
+    if (!config) return { prayerBlocks: [], shiurBlocks: [] };
+    const enabled = config.blocks.filter((b) => b.enabled).filter((b) => {
       if (!modeInfo || modeInfo.mode === 'weekday' || modeInfo.mode === 'erev-shabbat') {
         return true;
       }
@@ -125,7 +134,13 @@ export function CongregantTimes() {
       }
       return true;
     });
+    return {
+      prayerBlocks: enabled.filter((b) => !isShiurBlock(b.title)),
+      shiurBlocks: enabled.filter((b) => isShiurBlock(b.title)),
+    };
   }, [config, modeInfo]);
+
+  const special = config?.modes.specialMode ?? 'normal';
 
   if (!synagogueId) return <NotFoundScreen screenId="" />;
   if (missing) return <NotFoundScreen screenId={synagogueId} />;
@@ -140,16 +155,60 @@ export function CongregantTimes() {
   const logoSrc =
     config.media?.logoDataUrl || config.design?.logoUrl || config.branding?.logoUrl || '';
 
+  function renderBlock(block: ScheduleBlock) {
+    return (
+      <section className="ct-card" key={block.id}>
+        <h2>{toPlainDisplayText(block.title)}</h2>
+        <ul className="ct-list">
+          {block.items.map((item) => {
+            const blockZmanim = isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap;
+            const timeStr = item.noTime
+              ? ''
+              : resolveFromZmanimMap(
+                  blockZmanim,
+                  item.time,
+                  item.fromZman,
+                  item.offsetMinutes ?? 0,
+                );
+            if (item.noTime || !timeStr) {
+              return (
+                <li key={item.id} className="ct-heading">
+                  <span>
+                    {toPlainDisplayText(item.title)}
+                    {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
+                  </span>
+                </li>
+              );
+            }
+            return (
+              <li key={item.id}>
+                <span>
+                  {toPlainDisplayText(item.title)}
+                  {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
+                </span>
+                <strong className="time-ltr">{timeStr}</strong>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    );
+  }
+
   return (
     <div className="ct-page" dir="rtl" lang="he">
       <div className="ct-atmosphere" aria-hidden />
       <header className="ct-hero">
-        {logoSrc ? <img className="ct-logo" src={logoSrc} alt="" /> : null}
-        <h1 className="ct-name">{toPlainDisplayText(config.name)}</h1>
+        {logoSrc ? (
+          <h1 className="ct-brand">
+            <img className="ct-logo" src={logoSrc} alt={toPlainDisplayText(config.name)} />
+          </h1>
+        ) : (
+          <h1 className="ct-name">{toPlainDisplayText(config.name)}</h1>
+        )}
         <p className="ct-date">
           יום {day.weekday} · {day.hebrewDate}
         </p>
-        {day.parasha ? <p className="ct-parasha">פרשת {day.parasha}</p> : null}
       </header>
 
       {modeInfo?.candleBoard &&
@@ -164,47 +223,30 @@ export function CongregantTimes() {
         </section>
       ) : null}
 
-      {blocks.map((block) => (
-        <section className="ct-card" key={block.id}>
-          <h2>{toPlainDisplayText(block.title)}</h2>
-          <ul className="ct-list">
-            {block.items.map((item) => {
-              const blockZmanim = isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap;
-              const timeStr = item.noTime
-                ? ''
-                : resolveFromZmanimMap(
-                    blockZmanim,
-                    item.time,
-                    item.fromZman,
-                    item.offsetMinutes ?? 0,
-                  );
-              if (item.noTime || !timeStr) {
-                return (
-                  <li key={item.id} className="ct-heading">
-                    <span>
-                      {toPlainDisplayText(item.title)}
-                      {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
-                    </span>
-                  </li>
-                );
-              }
-              return (
-                <li key={item.id}>
-                  <span>
-                    {toPlainDisplayText(item.title)}
-                    {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
-                  </span>
-                  <strong className="time-ltr">{timeStr}</strong>
-                </li>
-              );
-            })}
-          </ul>
+      {prayerBlocks.map(renderBlock)}
+
+      {special === 'event' ? (
+        <section className="ct-card ct-special">
+          <p className="ct-special-label">הודעה מיוחדת</p>
+          <h2>{toPlainDisplayText(config.modes.eventTitle) || 'אירוע'}</h2>
+          {config.modes.eventSubtitle ? (
+            <p className="ct-special-sub">{toPlainDisplayText(config.modes.eventSubtitle)}</p>
+          ) : null}
         </section>
-      ))}
+      ) : null}
+
+      {special === 'mourning' ? (
+        <section className="ct-card ct-special ct-mourning">
+          <p className="ct-special-label">{'לע\u05F4נ'}</p>
+          <h2>{toPlainDisplayText(config.modes.mourningName) || 'נשמת המנוח/ה'}</h2>
+        </section>
+      ) : null}
+
+      {shiurBlocks.map(renderBlock)}
 
       {announcements.length > 0 ? (
         <section className="ct-card ct-announce">
-          <h2>הודעות</h2>
+          <h2>הודעות מיוחדות</h2>
           <ul className="ct-announce-list">
             {announcements.map((a) => (
               <li key={a.id}>{toPlainDisplayText(a.text)}</li>
