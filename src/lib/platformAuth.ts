@@ -31,6 +31,8 @@ export interface PlatformCreds {
   lastName?: string;
   email?: string;
   phone?: string;
+  /** When false, password-only login (no daily SMS OTP). Default true. */
+  requireSmsOtp?: boolean;
 }
 
 /** Public account row (no password hash). */
@@ -40,6 +42,7 @@ export interface PlatformAccountPublic {
   lastName: string;
   email: string;
   phone: string;
+  requireSmsOtp: boolean;
 }
 
 /** Multi-account store (migrated from single PlatformCreds). */
@@ -52,6 +55,7 @@ export type PlatformProfileInput = {
   lastName?: string;
   email?: string;
   phone?: string;
+  requireSmsOtp?: boolean;
 };
 
 const DEFAULT_USER =
@@ -99,6 +103,10 @@ function cleanPhone(value: unknown): string {
   return d;
 }
 
+function accountRequiresSmsOtp(raw: { requireSmsOtp?: boolean } | null | undefined): boolean {
+  return raw?.requireSmsOtp !== false;
+}
+
 function normalizeAccount(raw: PlatformCreds): PlatformCreds {
   return {
     username: normalizeUsername(raw.username),
@@ -107,6 +115,7 @@ function normalizeAccount(raw: PlatformCreds): PlatformCreds {
     lastName: cleanName(raw.lastName),
     email: cleanEmail(raw.email),
     phone: cleanPhone(raw.phone),
+    requireSmsOtp: accountRequiresSmsOtp(raw),
   };
 }
 
@@ -118,6 +127,7 @@ function toPublic(account: PlatformCreds): PlatformAccountPublic {
     lastName: a.lastName || '',
     email: a.email || '',
     phone: a.phone || '',
+    requireSmsOtp: accountRequiresSmsOtp(a),
   };
 }
 
@@ -197,6 +207,10 @@ function mergeProfile(account: PlatformCreds, profile?: PlatformProfileInput): P
     lastName: profile.lastName !== undefined ? cleanName(profile.lastName) : account.lastName,
     email: profile.email !== undefined ? cleanEmail(profile.email) : account.email,
     phone: profile.phone !== undefined ? cleanPhone(profile.phone) : account.phone,
+    requireSmsOtp:
+      profile.requireSmsOtp !== undefined
+        ? Boolean(profile.requireSmsOtp)
+        : accountRequiresSmsOtp(account),
   });
 }
 
@@ -431,6 +445,7 @@ export async function listPlatformAccounts(): Promise<PlatformAccountPublic[]> {
           lastName?: string;
           email?: string;
           phone?: string;
+          requireSmsOtp?: boolean;
         }[];
       };
       for (const row of data.accounts || []) {
@@ -443,6 +458,12 @@ export async function listPlatformAccounts(): Promise<PlatformAccountPublic[]> {
           lastName: cleanName(row.lastName) || prev?.lastName || '',
           email: cleanEmail(row.email) || prev?.email || '',
           phone: cleanPhone(row.phone) || prev?.phone || '',
+          requireSmsOtp:
+            row.requireSmsOtp !== undefined
+              ? Boolean(row.requireSmsOtp)
+              : prev
+                ? accountRequiresSmsOtp(prev)
+                : true,
         });
       }
     }
@@ -469,13 +490,18 @@ export async function addPlatformAccount(
   if (profile.phone && !phone) {
     return { ok: false, error: 'מספר נייד לא תקין (05XXXXXXXX)' };
   }
+  const requireSmsOtp =
+    profile.requireSmsOtp !== undefined ? Boolean(profile.requireSmsOtp) : true;
+  if (requireSmsOtp && !phone) {
+    return { ok: false, error: 'חובה להזין נייד למשתמש שדורש OTP' };
+  }
 
   const store = await loadStore();
   if (store.accounts.some((a) => normalizeUsername(a.username) === u)) {
     return { ok: false, error: 'שם המשתמש כבר קיים' };
   }
   const passwordHash = await hashPassword(password);
-  const account = mergeProfile({ username: u, passwordHash }, profile);
+  const account = mergeProfile({ username: u, passwordHash }, { ...profile, requireSmsOtp });
   saveStore({ accounts: [...store.accounts, account] });
 
   try {
@@ -490,6 +516,7 @@ export async function addPlatformAccount(
         lastName: account.lastName,
         email: account.email,
         phone: account.phone,
+        requireSmsOtp: account.requireSmsOtp,
       }),
     });
   } catch {
@@ -543,6 +570,7 @@ export async function updatePlatformAccountProfile(
         lastName: profile.lastName,
         email: profile.email,
         phone: profile.phone,
+        requireSmsOtp: profile.requireSmsOtp,
       }),
     });
   } catch {

@@ -125,6 +125,7 @@ export function Agency() {
     lastName: '',
     email: '',
     phone: '',
+    requireSmsOtp: true,
   });
   const [platUserMsg, setPlatUserMsg] = useState('');
   const [platReset, setPlatReset] = useState<{ username: string; pass: string; pass2: string } | null>(
@@ -399,6 +400,7 @@ export function Agency() {
       lastName: platUserForm.lastName,
       email: platUserForm.email,
       phone: platUserForm.phone,
+      requireSmsOtp: platUserForm.requireSmsOtp,
     });
     if (!result.ok) {
       setPlatUserMsg(result.error);
@@ -411,6 +413,7 @@ export function Agency() {
       lastName: '',
       email: '',
       phone: '',
+      requireSmsOtp: true,
     });
     setPlatUserMsg(`המשתמש «${result.username}» נוסף`);
     setPlatformUsers(await listPlatformAccounts());
@@ -425,6 +428,7 @@ export function Agency() {
       lastName: platEdit.lastName,
       email: platEdit.email,
       phone: platEdit.phone,
+      requireSmsOtp: platEdit.requireSmsOtp,
     });
     if (!result.ok) {
       setPlatUserMsg(result.error);
@@ -1299,6 +1303,9 @@ export function Agency() {
                             ) : (
                               <span className="hint">אין נייד ל־SMS</span>
                             )}
+                            <span className="hint">
+                              {user.requireSmsOtp ? 'דורש OTP ב־SMS' : 'בלי OTP'}
+                            </span>
                           </div>
                           <div className="platform-user-actions">
                             <button
@@ -1372,9 +1379,20 @@ export function Agency() {
                         placeholder="05XXXXXXXX"
                         dir="ltr"
                         style={{ textAlign: 'left' }}
+                        required={platEdit.requireSmsOtp}
                       />
                     </label>
                   </div>
+                  <label className="check remember-check">
+                    <input
+                      type="checkbox"
+                      checked={platEdit.requireSmsOtp}
+                      onChange={(e) =>
+                        setPlatEdit({ ...platEdit, requireSmsOtp: e.target.checked })
+                      }
+                    />
+                    דורש אימות SMS (OTP) בכל כניסה — פעם ביום
+                  </label>
                   <div className="settings-card-actions">
                     <button type="submit" className="btn primary">
                       שמור פרטים
@@ -1478,7 +1496,7 @@ export function Agency() {
                         setPlatUserForm({ ...platUserForm, phone: e.target.value })
                       }
                       placeholder="05XXXXXXXX"
-                      required
+                      required={platUserForm.requireSmsOtp}
                       dir="ltr"
                       style={{ textAlign: 'left' }}
                     />
@@ -1511,6 +1529,16 @@ export function Agency() {
                     />
                   </label>
                 </div>
+                <label className="check remember-check">
+                  <input
+                    type="checkbox"
+                    checked={platUserForm.requireSmsOtp}
+                    onChange={(e) =>
+                      setPlatUserForm({ ...platUserForm, requireSmsOtp: e.target.checked })
+                    }
+                  />
+                  דורש אימות SMS (OTP) בכל כניסה — פעם ביום
+                </label>
                 <div className="settings-card-actions">
                   <button type="submit" className="btn primary">
                     הוסף משתמש

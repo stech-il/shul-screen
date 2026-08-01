@@ -123,10 +123,16 @@ function ensurePlatformSeed() {
     lastName: '',
     email: '',
     phone: seedPhone,
+    requireSmsOtp: true,
   });
   savePlatformAccounts(store);
   console.warn(`[auth] seeded platform admin "${seedUser}" from PLATFORM_ADMIN_* env`);
   return store;
+}
+
+function accountRequiresSmsOtp(account) {
+  // Explicit false disables; missing field defaults to true (secure)
+  return account?.requireSmsOtp !== false;
 }
 
 function normalizeUsername(username) {
@@ -168,11 +174,14 @@ function profileFromBody(body = {}) {
   const phoneRaw = body.phone !== undefined ? String(body.phone || '') : undefined;
   const phone =
     phoneRaw === undefined ? undefined : phoneRaw.trim() ? normalizeMobilePhone(phoneRaw) : '';
+  const requireSmsOtp =
+    body.requireSmsOtp !== undefined ? Boolean(body.requireSmsOtp) : undefined;
   return {
     firstName: cleanProfileField(body.firstName),
     lastName: cleanProfileField(body.lastName),
     email: cleanProfileField(body.email, 120).toLowerCase(),
     phone,
+    requireSmsOtp,
   };
 }
 
@@ -183,6 +192,7 @@ function publicPlatformAccount(account) {
     lastName: cleanProfileField(account.lastName),
     email: cleanProfileField(account.email, 120).toLowerCase(),
     phone: normalizeMobilePhone(account.phone) || '',
+    requireSmsOtp: accountRequiresSmsOtp(account),
   };
 }
 
@@ -212,8 +222,10 @@ function handlePlatformAccountCreate(body) {
   if (body.phone && !profile.phone) {
     return { status: 400, body: { ok: false, error: 'מספר נייד לא תקין (05XXXXXXXX)' } };
   }
-  if (smsConfigured() && !profile.phone) {
-    return { status: 400, body: { ok: false, error: 'חובה להזין מספר נייד לאימות SMS' } };
+  const requireSmsOtp =
+    profile.requireSmsOtp !== undefined ? profile.requireSmsOtp : true;
+  if (smsConfigured() && requireSmsOtp && !profile.phone) {
+    return { status: 400, body: { ok: false, error: 'חובה להזין מספר נייד למשתמש שדורש OTP' } };
   }
   const store = loadPlatformAccounts();
   if (store.accounts.some((a) => normalizeUsername(a.username) === username)) {
@@ -226,6 +238,7 @@ function handlePlatformAccountCreate(body) {
     lastName: profile.lastName || '',
     email: profile.email || '',
     phone: profile.phone || '',
+    requireSmsOtp,
   });
   savePlatformAccounts(store);
   return {
@@ -242,7 +255,8 @@ function handlePlatformAccountReset(body) {
     body.firstName !== undefined ||
     body.lastName !== undefined ||
     body.email !== undefined ||
-    body.phone !== undefined;
+    body.phone !== undefined ||
+    body.requireSmsOtp !== undefined;
   if (!username) return { status: 400, body: { ok: false, error: 'חסר שם משתמש' } };
   if (password != null && password.length > 0 && password.length < 8) {
     return { status: 400, body: { ok: false, error: 'סיסמה חייבת לפחות 8 תווים' } };
@@ -259,6 +273,8 @@ function handlePlatformAccountReset(body) {
     if (!password) {
       return { status: 404, body: { ok: false, error: 'משתמש לא נמצא' } };
     }
+    const requireSmsOtp =
+      profile.requireSmsOtp !== undefined ? profile.requireSmsOtp : true;
     store.accounts.push({
       username,
       passwordHash: hashPassword(password),
@@ -266,9 +282,22 @@ function handlePlatformAccountReset(body) {
       lastName: profile.lastName || '',
       email: profile.email || '',
       phone: profile.phone || '',
+      requireSmsOtp,
     });
   } else {
     const cur = store.accounts[idx];
+    const nextRequire =
+      hasProfilePatch && body.requireSmsOtp !== undefined
+        ? profile.requireSmsOtp
+        : accountRequiresSmsOtp(cur);
+    const nextPhone =
+      hasProfilePatch && body.phone !== undefined ? profile.phone || '' : cur.phone || '';
+    if (smsConfigured() && nextRequire && !normalizeMobilePhone(nextPhone)) {
+      return {
+        status: 400,
+        body: { ok: false, error: 'למשתמש שדורש OTP חובה מספר נייד תקין' },
+      };
+    }
     store.accounts[idx] = {
       username,
       passwordHash: password ? hashPassword(password) : cur.passwordHash,
@@ -277,7 +306,8 @@ function handlePlatformAccountReset(body) {
       lastName:
         hasProfilePatch && body.lastName !== undefined ? profile.lastName : cur.lastName || '',
       email: hasProfilePatch && body.email !== undefined ? profile.email : cur.email || '',
-      phone: hasProfilePatch && body.phone !== undefined ? profile.phone || '' : cur.phone || '',
+      phone: nextPhone,
+      requireSmsOtp: nextRequire,
     };
   }
   savePlatformAccounts(store);
@@ -619,8 +649,8 @@ async function handlePlatformLogin(body) {
     return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
   }
 
-  // Once SMS is configured — require OTP once per Jerusalem calendar day
-  if (smsConfigured()) {
+  // SMS OTP once per Jerusalem day — only for accounts marked requireSmsOtp
+  if (smsConfigured() && accountRequiresSmsOtp(account)) {
     if (!isSmsVerifiedToday(account.username)) {
       const phone = normalizeMobilePhone(account.phone);
       if (!phone) {
@@ -691,7 +721,7 @@ async function handlePlatformSmsResend(body) {
   if (!account || !verifyPassword(password, account.passwordHash)) {
     return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
   }
-  if (isSmsVerifiedToday(account.username)) {
+  if (!accountRequiresSmsOtp(account) || isSmsVerifiedToday(account.username)) {
     return { status: 200, body: platformSessionBody(account) };
   }
   const phone = normalizeMobilePhone(account.phone);
