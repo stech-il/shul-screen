@@ -4,6 +4,7 @@
  */
 import { getBundle, getRecord, listBundles, listRecords, putRecord } from './cloudStore.mjs';
 import { mailConfigured, mailStatus, sendMail, verifySmtp } from './mail.mjs';
+import { requireCronOrPlatform, requirePlatform, sendJson as authSendJson } from './apiAuth.mjs';
 
 const PREFIX = 'notify-log';
 const PLATFORM_ID = '_platform';
@@ -441,45 +442,41 @@ function readBody(req) {
   });
 }
 
-function sendJson(res, status, obj) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  });
+function sendJson(res, status, obj, req) {
   if (status === 204) {
-    res.end();
+    authSendJson(res, 204, {}, req);
     return;
   }
-  res.end(JSON.stringify(obj));
+  authSendJson(res, status, obj, req);
 }
 
 export async function handleNotifications(req, res, url) {
   if (req.method === 'OPTIONS') {
-    sendJson(res, 204, {});
+    sendJson(res, 204, {}, req);
     return;
   }
 
   try {
     if (url.pathname === '/api/notifications/status' && req.method === 'GET') {
-      sendJson(res, 200, mailStatus());
+      if (!requirePlatform(req, res)) return;
+      sendJson(res, 200, mailStatus(), req);
       return;
     }
 
     if (url.pathname === '/api/notifications/verify' && req.method === 'POST') {
+      if (!requirePlatform(req, res)) return;
       const result = await verifySmtp();
-      sendJson(res, result.ok ? 200 : 400, result);
+      sendJson(res, result.ok ? 200 : 400, result, req);
       return;
     }
 
     if (url.pathname === '/api/notifications/test' && req.method === 'POST') {
+      if (!requirePlatform(req, res)) return;
       const raw = await readBody(req);
       const body = JSON.parse(raw.toString('utf8') || '{}');
       const to = String(body.to || '').trim();
       if (!to) {
-        sendJson(res, 400, { error: 'missing to' });
+        sendJson(res, 400, { error: 'missing to' }, req);
         return;
       }
       const result = await sendMail({
@@ -491,23 +488,25 @@ export async function handleNotifications(req, res, url) {
           '<p>אם קיבלת מייל זה — חיבור ה־SMTP עובד כראוי.</p>',
         ),
       });
-      sendJson(res, result.ok ? 200 : 500, result);
+      sendJson(res, result.ok ? 200 : 500, result, req);
       return;
     }
 
     if (url.pathname === '/api/notifications/run' && req.method === 'POST') {
+      if (!requireCronOrPlatform(req, res)) return;
       const result = await runNotificationCycle();
-      sendJson(res, 200, result);
+      sendJson(res, 200, result, req);
       return;
     }
 
     if (url.pathname === '/api/notifications/event' && req.method === 'POST') {
+      if (!requireCronOrPlatform(req, res)) return;
       const raw = await readBody(req);
       const body = JSON.parse(raw.toString('utf8') || '{}');
       const type = String(body.type || '');
       const synagogueId = String(body.synagogueId || '');
       if (!synagogueId) {
-        sendJson(res, 400, { error: 'missing synagogueId' });
+        sendJson(res, 400, { error: 'missing synagogueId' }, req);
         return;
       }
       let result;
@@ -527,17 +526,17 @@ export async function handleNotifications(req, res, url) {
           paidUntil: body.paidUntil,
         });
       } else {
-        sendJson(res, 400, { error: 'unknown type' });
+        sendJson(res, 400, { error: 'unknown type' }, req);
         return;
       }
-      sendJson(res, 200, result);
+      sendJson(res, 200, result, req);
       return;
     }
 
-    sendJson(res, 404, { error: 'not found' });
+    sendJson(res, 404, { error: 'not found' }, req);
   } catch (err) {
     console.error('notifications api', err);
-    sendJson(res, 500, { error: String(err?.message || err) });
+    sendJson(res, 500, { error: String(err?.message || err) }, req);
   }
 }
 

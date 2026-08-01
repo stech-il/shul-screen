@@ -79,12 +79,10 @@ export function listDrills() {
  * @param {URL} url
  */
 export async function handleOrefDrill(req, res, url) {
-  const sendJson = (status, obj) => {
-    res.statusCode = status;
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-store');
-    res.end(JSON.stringify(obj));
-  };
+  const { requirePlatform, requireSynagogueAccess, sendJson: authSendJson } = await import(
+    './apiAuth.mjs'
+  );
+  const sendJson = (status, obj) => authSendJson(res, status, obj, req);
 
   if (req.method === 'OPTIONS') {
     sendJson(204, {});
@@ -94,6 +92,7 @@ export async function handleOrefDrill(req, res, url) {
   const path = url.pathname.replace(/\/$/, '') || '/';
 
   if (path === '/api/oref/drill' && req.method === 'GET') {
+    if (!requirePlatform(req, res)) return true;
     sendJson(200, { drills: listDrills() });
     return true;
   }
@@ -108,8 +107,10 @@ export async function handleOrefDrill(req, res, url) {
       sendJson(400, { error: 'JSON לא תקין' });
       return true;
     }
+    const synagogueId = String(body.synagogueId || '').trim();
+    if (!synagogueId || !requireSynagogueAccess(req, res, synagogueId)) return true;
     try {
-      const drill = startDrill(body.synagogueId, body);
+      const drill = startDrill(synagogueId, body);
       sendJson(200, { ok: true, drill });
     } catch (e) {
       sendJson(400, { error: String(e.message || e) });
@@ -121,10 +122,12 @@ export async function handleOrefDrill(req, res, url) {
   if (m) {
     const synagogueId = decodeURIComponent(m[1]);
     if (req.method === 'GET') {
+      // Display screens poll drills without a session
       sendJson(200, { drill: getDrill(synagogueId) });
       return true;
     }
     if (req.method === 'DELETE') {
+      if (!requireSynagogueAccess(req, res, synagogueId)) return true;
       sendJson(200, stopDrill(synagogueId));
       return true;
     }

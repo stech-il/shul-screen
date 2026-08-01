@@ -13,6 +13,15 @@ import { fileURLToPath } from 'node:url';
 import { getBundle, putBundle } from './cloudStore.mjs';
 import { getPlatformSettings } from './billing.mjs';
 import { mailConfigured, sendMail } from './mail.mjs';
+import {
+  checkRateLimit,
+  clientIp,
+  createSession,
+  readBodyLimited,
+  requirePlatform,
+  sendJson as authSendJson,
+  verifyPassword as authVerifyPassword,
+} from './apiAuth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -31,24 +40,12 @@ const PUBLIC_ORIGIN = String(
 /** @type {Map<string, object>} */
 const tokens = new Map();
 
-function sendJson(res, status, obj) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  });
-  res.end(JSON.stringify(obj));
+function sendJson(res, status, obj, req) {
+  authSendJson(res, status, obj, req);
 }
 
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on('data', (c) => chunks.push(c));
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
-  });
+async function readBody(req) {
+  return readBodyLimited(req);
 }
 
 function ensureRoot() {
@@ -89,15 +86,25 @@ function hashPassword(password) {
 }
 
 function verifyPassword(password, stored) {
-  if (!stored) return false;
-  if (stored.includes(':')) {
-    const [saltHex, hash] = stored.split(':');
-    if (!saltHex || !hash) return false;
-    const next = crypto.createHash('sha256').update(`${saltHex}:${password}`).digest('hex');
-    return next === hash;
-  }
-  const legacy = crypto.createHash('sha256').update(password).digest('hex');
-  return legacy === stored;
+  return authVerifyPassword(password, stored);
+}
+
+function ensurePlatformSeed() {
+  const store = loadPlatformAccounts();
+  if (store.accounts.length) return store;
+  const user = normalizeUsername(process.env.PLATFORM_ADMIN_USER || '');
+  const pass = String(process.env.PLATFORM_ADMIN_PASSWORD || '');
+  if (!user || pass.length < 8) return store;
+  store.accounts.push({
+    username: user,
+    passwordHash: hashPassword(pass),
+    firstName: '',
+    lastName: '',
+    email: '',
+  });
+  savePlatformAccounts(store);
+  console.warn(`[auth] seeded platform admin "${user}" from PLATFORM_ADMIN_* env`);
+  return store;
 }
 
 function normalizeUsername(username) {
@@ -360,9 +367,8 @@ async function handleForgot(body) {
     );
     if (!member) return { status: 200, body: GENERIC_OK };
 
-    const to =
-      String(config.contactEmail || '').trim() ||
-      String(body.email || '').trim();
+    // Only synagogue contactEmail — never trust body.email (account takeover)
+    const to = String(config.contactEmail || member.email || '').trim();
     if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
       return { status: 200, body: GENERIC_OK };
     }
@@ -390,8 +396,11 @@ async function handleForgot(body) {
   }
 
   if (kind === 'platform') {
+    const store = ensurePlatformSeed();
+    const account = store.accounts.find((a) => normalizeUsername(a.username) === username);
+    if (!account) return { status: 200, body: GENERIC_OK };
     const plat = await getPlatformSettings();
-    const to = String(plat.adminEmail || '').trim();
+    const to = String(account.email || plat.adminEmail || '').trim();
     if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
       return { status: 200, body: GENERIC_OK };
     }
@@ -525,7 +534,7 @@ function handlePlatformLogin(body) {
   if (!username || !password) {
     return { status: 400, body: { ok: false, error: 'חסרים פרטי התחברות' } };
   }
-  const store = loadPlatformAccounts();
+  const store = ensurePlatformSeed();
   if (!store.accounts.length) {
     return { status: 404, body: { ok: false, error: 'no-server-accounts' } };
   }
@@ -533,10 +542,16 @@ function handlePlatformLogin(body) {
   if (!account || !verifyPassword(password, account.passwordHash)) {
     return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
   }
+  const session = createSession({
+    kind: 'platform',
+    username: normalizeUsername(account.username),
+  });
   return {
     status: 200,
     body: {
       ok: true,
+      token: session.token,
+      expiresAt: session.expiresAt,
       username: account.username,
       firstName: cleanProfileField(account.firstName),
       lastName: cleanProfileField(account.lastName),
@@ -545,25 +560,98 @@ function handlePlatformLogin(body) {
   };
 }
 
+async function handleMemberLogin(body) {
+  const synagogueId = String(body.synagogueId || '').trim();
+  const username = normalizeUsername(body.username);
+  const password = String(body.password || '');
+  if (!synagogueId || !username || !password) {
+    return { status: 400, body: { ok: false, error: 'חסרים פרטי התחברות' } };
+  }
+  const bundle = await getBundle(synagogueId);
+  const config = bundle?.config;
+  if (!config) {
+    return { status: 404, body: { ok: false, error: 'בית כנסת לא נמצא' } };
+  }
+  const members = Array.isArray(config.members) ? config.members : [];
+  if (!members.length) {
+    const bootUser = 'admin';
+    const bootPass = 'admin123';
+    if (username === bootUser && password === bootPass) {
+      const session = createSession({
+        kind: 'member',
+        synagogueId,
+        memberId: 'bootstrap',
+        role: 'owner',
+        username: bootUser,
+        memberName: 'מנהל',
+      });
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          token: session.token,
+          expiresAt: session.expiresAt,
+          member: { id: 'bootstrap', name: 'מנהל', username: bootUser, role: 'owner' },
+        },
+      };
+    }
+    return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
+  }
+  const member = members.find((m) => normalizeUsername(m.username || m.name || '') === username);
+  if (!member || !verifyPassword(password, member.passwordHash || member.pinHash || '')) {
+    return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
+  }
+  const session = createSession({
+    kind: 'member',
+    synagogueId,
+    memberId: member.id,
+    role: member.role || 'editor',
+    username: normalizeUsername(member.username || member.name),
+    memberName: member.name || member.username,
+  });
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      token: session.token,
+      expiresAt: session.expiresAt,
+      member: {
+        id: member.id,
+        name: member.name,
+        username: member.username,
+        role: member.role,
+        email: member.email || '',
+      },
+    },
+  };
+}
+
 export async function handlePasswordReset(req, res, url) {
   if (req.method === 'OPTIONS') {
-    sendJson(res, 204, {});
+    sendJson(res, 204, {}, req);
     return true;
   }
 
   try {
+    const ip = clientIp(req);
+
     if (url.pathname === '/api/auth/forgot-password' && req.method === 'POST') {
+      const rl = checkRateLimit(`forgot:${ip}`, 10, 60 * 60 * 1000);
+      if (!rl.ok) {
+        sendJson(res, 429, { ok: false, error: 'יותר מדי בקשות — נסו מאוחר יותר' }, req);
+        return true;
+      }
       const raw = await readBody(req);
       const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
       const result = await handleForgot(body);
-      sendJson(res, result.status, result.body);
+      sendJson(res, result.status, result.body, req);
       return true;
     }
 
     if (url.pathname === '/api/auth/reset-password' && req.method === 'GET') {
       const token = String(url.searchParams.get('token') || '').trim();
       const result = handlePeek(token);
-      sendJson(res, result.status, result.body);
+      sendJson(res, result.status, result.body, req);
       return true;
     }
 
@@ -571,50 +659,69 @@ export async function handlePasswordReset(req, res, url) {
       const raw = await readBody(req);
       const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
       const result = await handleReset(body);
-      sendJson(res, result.status, result.body);
+      sendJson(res, result.status, result.body, req);
       return true;
     }
 
     if (url.pathname === '/api/auth/platform-login' && req.method === 'POST') {
+      const rl = checkRateLimit(`platlogin:${ip}`, 30, 15 * 60 * 1000);
+      if (!rl.ok) {
+        sendJson(res, 429, { ok: false, error: 'יותר מדי ניסיונות התחברות' }, req);
+        return true;
+      }
       const raw = await readBody(req);
       const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
       const result = handlePlatformLogin(body);
-      sendJson(res, result.status, result.body);
+      sendJson(res, result.status, result.body, req);
       return true;
     }
 
-    if (url.pathname === '/api/auth/platform-accounts' && req.method === 'GET') {
-      const result = handlePlatformAccountsList();
-      sendJson(res, result.status, result.body);
-      return true;
-    }
-
-    if (url.pathname === '/api/auth/platform-accounts' && req.method === 'POST') {
+    if (url.pathname === '/api/auth/member-login' && req.method === 'POST') {
+      const rl = checkRateLimit(`memlogin:${ip}`, 40, 15 * 60 * 1000);
+      if (!rl.ok) {
+        sendJson(res, 429, { ok: false, error: 'יותר מדי ניסיונות התחברות' }, req);
+        return true;
+      }
       const raw = await readBody(req);
       const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
-      const result = handlePlatformAccountCreate(body);
-      sendJson(res, result.status, result.body);
+      const result = await handleMemberLogin(body);
+      sendJson(res, result.status, result.body, req);
       return true;
     }
 
-    if (url.pathname === '/api/auth/platform-accounts' && req.method === 'PUT') {
-      const raw = await readBody(req);
-      const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
-      const result = handlePlatformAccountReset(body);
-      sendJson(res, result.status, result.body);
-      return true;
-    }
-
-    if (url.pathname === '/api/auth/platform-accounts' && req.method === 'DELETE') {
-      const raw = await readBody(req);
-      const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
-      const result = handlePlatformAccountDelete(body);
-      sendJson(res, result.status, result.body);
-      return true;
+    if (url.pathname === '/api/auth/platform-accounts') {
+      if (!requirePlatform(req, res)) return true;
+      if (req.method === 'GET') {
+        const result = handlePlatformAccountsList();
+        sendJson(res, result.status, result.body, req);
+        return true;
+      }
+      if (req.method === 'POST') {
+        const raw = await readBody(req);
+        const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
+        const result = handlePlatformAccountCreate(body);
+        sendJson(res, result.status, result.body, req);
+        return true;
+      }
+      if (req.method === 'PUT') {
+        const raw = await readBody(req);
+        const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
+        const result = handlePlatformAccountReset(body);
+        sendJson(res, result.status, result.body, req);
+        return true;
+      }
+      if (req.method === 'DELETE') {
+        const raw = await readBody(req);
+        const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
+        const result = handlePlatformAccountDelete(body);
+        sendJson(res, result.status, result.body, req);
+        return true;
+      }
     }
   } catch (err) {
     console.error('password-reset api', err);
-    sendJson(res, 500, { ok: false, error: String(err?.message || err) });
+    const status = err?.statusCode === 413 ? 413 : 500;
+    sendJson(res, status, { ok: false, error: String(err?.message || err) }, req);
     return true;
   }
 

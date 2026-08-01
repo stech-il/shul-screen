@@ -1,14 +1,9 @@
 /** Client helpers for SMTP / trial notification API. */
 
+import { apiFetch } from './serverAuth';
+
 async function api(path: string, init?: RequestInit) {
-  const res = await fetch(path, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
-    },
-    cache: 'no-store',
-  });
+  const res = await apiFetch(path, init);
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
     throw new Error(String(data.error || `HTTP ${res.status}`));

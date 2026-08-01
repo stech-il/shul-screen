@@ -223,12 +223,32 @@ export function Login() {
 
       const staySignedIn = manageLogin ? true : remember;
 
+      const { memberLoginRemote } = await import('../lib/passwordReset');
+      const { setMemberApiToken } = await import('../lib/serverAuth');
+      const remote = await memberLoginRemote(id, user, pass);
+      if (remote.ok) {
+        setMemberApiToken(remote.token);
+        const canOffer =
+          (passkeyAvailable || googleEnabled || bioAvailable) && Boolean(user && pass);
+        finishLogin({
+          memberId: remote.member.id,
+          memberName: remote.member.name || t('login.manager'),
+          role: (remote.member.role as UserRole) || 'owner',
+          remember: staySignedIn,
+          offerExtras: canOffer,
+          username: user,
+          password: pass,
+        });
+        return;
+      }
+
       if (!latest.members.length) {
         const ok = user === BOOTSTRAP_USER && pass === BOOTSTRAP_PASS;
         if (!ok) {
-          setError(t('login.bootstrapHint', { user: BOOTSTRAP_USER, pass: BOOTSTRAP_PASS }));
+          setError(remote.error || t('login.bootstrapHint', { user: BOOTSTRAP_USER, pass: BOOTSTRAP_PASS }));
           return;
         }
+        // Dev / offline bootstrap only — no API token
         finishLogin({
           memberId: 'bootstrap',
           memberName: t('login.manager'),
@@ -243,7 +263,7 @@ export function Login() {
         if (await memberUsernameExists(latest.members, user)) {
           setError(t('login.wrongPassword'));
         } else {
-          setError(t('login.userNotFound'));
+          setError(remote.error || t('login.userNotFound'));
         }
         return;
       }

@@ -25,6 +25,13 @@ import {
   removeCoupon,
   saveCoupon,
 } from './coupons.mjs';
+import {
+  requirePlatform,
+  requireSynagogueAccess,
+  requireWebhookSecret,
+  resolveAuth,
+  sendJson as authSendJson,
+} from './apiAuth.mjs';
 
 const SUMIT_BASE = 'https://api.sumit.co.il';
 const COMPANY_ID = Number(process.env.SUMIT_COMPANY_ID || 0);
@@ -672,15 +679,8 @@ function readBody(req) {
   });
 }
 
-function sendJson(res, status, obj) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,PUT,POST,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  });
-  res.end(JSON.stringify(obj));
+function sendJson(res, status, obj, req) {
+  authSendJson(res, status, obj, req);
 }
 
 function publicRecord(rec) {
@@ -800,7 +800,7 @@ async function loadSubscriptionPublic(id, { sync = false, force = false } = {}) 
 
 export async function handleBilling(req, res, url) {
   if (req.method === 'OPTIONS') {
-    sendJson(res, 204, {});
+    sendJson(res, 204, {}, req);
     return;
   }
 
@@ -808,77 +808,101 @@ export async function handleBilling(req, res, url) {
     const platform = billingConfigured()
       ? await getPlatformSettings().catch(() => defaultPlatform())
       : defaultPlatform();
-    sendJson(res, 200, {
-      configured: billingConfigured(),
-      companyId: billingConfigured() ? COMPANY_ID : null,
-      publicKey: billingConfigured() ? PUBLIC_KEY : null,
-      adminEmail: platform.adminEmail || '',
-    });
+    sendJson(
+      res,
+      200,
+      {
+        configured: billingConfigured(),
+        companyId: billingConfigured() ? COMPANY_ID : null,
+        publicKey: billingConfigured() ? PUBLIC_KEY : null,
+        // adminEmail is platform-only — omit from public config
+      },
+      req,
+    );
     return;
   }
 
   if (url.pathname === '/api/billing/platform' && req.method === 'GET') {
+    if (!requirePlatform(req, res)) return;
     if (!billingConfigured()) {
-      sendJson(res, 200, {
-        adminEmail: '',
-        defaultAmount: 99,
-        configured: false,
-      });
+      sendJson(
+        res,
+        200,
+        {
+          adminEmail: '',
+          defaultAmount: 99,
+          configured: false,
+        },
+        req,
+      );
       return;
     }
     const platform = await getPlatformSettings();
-    sendJson(res, 200, {
-      adminEmail: platform.adminEmail || '',
-      defaultAmount:
-        Number(platform.defaultAmount) > 0 ? Number(platform.defaultAmount) : 99,
-      configured: true,
-    });
+    sendJson(
+      res,
+      200,
+      {
+        adminEmail: platform.adminEmail || '',
+        defaultAmount:
+          Number(platform.defaultAmount) > 0 ? Number(platform.defaultAmount) : 99,
+        configured: true,
+      },
+      req,
+    );
     return;
   }
 
   if (url.pathname === '/api/billing/platform' && req.method === 'PUT') {
+    if (!requirePlatform(req, res)) return;
     if (!billingConfigured()) {
-      sendJson(res, 503, { error: 'סליקה לא מוגדרת בשרת' });
+      sendJson(res, 503, { error: 'סליקה לא מוגדרת בשרת' }, req);
       return;
     }
     const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
     const email = String(body.adminEmail || '').trim();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      sendJson(res, 400, { error: 'כתובת מייל לא תקינה' });
+      sendJson(res, 400, { error: 'כתובת מייל לא תקינה' }, req);
       return;
     }
     const patch = { adminEmail: email };
     if (typeof body.defaultAmount === 'number') {
       const amt = Math.round(body.defaultAmount * 100) / 100;
       if (!Number.isFinite(amt) || amt < 0) {
-        sendJson(res, 400, { error: 'סכום ברירת מחדל לא תקין' });
+        sendJson(res, 400, { error: 'סכום ברירת מחדל לא תקין' }, req);
         return;
       }
       patch.defaultAmount = amt;
     }
     const platform = await savePlatformSettings(patch);
-    sendJson(res, 200, {
-      adminEmail: platform.adminEmail || '',
-      defaultAmount:
-        Number(platform.defaultAmount) > 0 ? Number(platform.defaultAmount) : 99,
-      configured: true,
-    });
+    sendJson(
+      res,
+      200,
+      {
+        adminEmail: platform.adminEmail || '',
+        defaultAmount:
+          Number(platform.defaultAmount) > 0 ? Number(platform.defaultAmount) : 99,
+        configured: true,
+      },
+      req,
+    );
     return;
   }
 
   // —— Coupons ——
   if (url.pathname === '/api/billing/coupons' && req.method === 'GET') {
-    sendJson(res, 200, { items: await listCoupons() });
+    if (!requirePlatform(req, res)) return;
+    sendJson(res, 200, { items: await listCoupons() }, req);
     return;
   }
 
   if (url.pathname === '/api/billing/coupons' && req.method === 'POST') {
+    if (!requirePlatform(req, res)) return;
     const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
     try {
       const item = await saveCoupon(body);
-      sendJson(res, 201, { ok: true, item });
+      sendJson(res, 201, { ok: true, item }, req);
     } catch (err) {
-      sendJson(res, 400, { error: String(err?.message || err) });
+      sendJson(res, 400, { error: String(err?.message || err) }, req);
     }
     return;
   }
@@ -887,6 +911,8 @@ export async function handleBilling(req, res, url) {
     const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
     try {
       const id = String(body.synagogueId || '').trim();
+      if (id && !requireSynagogueAccess(req, res, id)) return;
+      if (!id && !requirePlatform(req, res)) return;
       const rec = id ? await getSubscription(id) : null;
       const list =
         Number(body.listAmount) > 0
@@ -895,38 +921,41 @@ export async function handleBilling(req, res, url) {
             ? Number(rec.listAmount)
             : Number(rec?.amount) || 0;
       const preview = await previewCoupon(body.code, list);
-      sendJson(res, 200, preview);
+      sendJson(res, 200, preview, req);
     } catch (err) {
-      sendJson(res, 400, { error: String(err?.message || err) });
+      sendJson(res, 400, { error: String(err?.message || err) }, req);
     }
     return;
   }
 
   const couponMatch = url.pathname.match(/^\/api\/billing\/coupons\/([^/]+)$/);
   if (couponMatch && req.method === 'PUT') {
+    if (!requirePlatform(req, res)) return;
     const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
     try {
       const item = await saveCoupon({
         ...body,
         code: decodeURIComponent(couponMatch[1]),
       });
-      sendJson(res, 200, { ok: true, item });
+      sendJson(res, 200, { ok: true, item }, req);
     } catch (err) {
-      sendJson(res, 400, { error: String(err?.message || err) });
+      sendJson(res, 400, { error: String(err?.message || err) }, req);
     }
     return;
   }
   if (couponMatch && req.method === 'DELETE') {
+    if (!requirePlatform(req, res)) return;
     try {
-      sendJson(res, 200, await removeCoupon(decodeURIComponent(couponMatch[1])));
+      sendJson(res, 200, await removeCoupon(decodeURIComponent(couponMatch[1])), req);
     } catch (err) {
-      sendJson(res, 400, { error: String(err?.message || err) });
+      sendJson(res, 400, { error: String(err?.message || err) }, req);
     }
     return;
   }
 
   // SUMIT Trigger / webhook — extend license when HOK auto-charges
   if (url.pathname === '/api/billing/webhook' && req.method === 'POST') {
+    if (!requireWebhookSecret(req, res)) return;
     try {
       const raw = (await readBody(req)).toString('utf8') || '';
       let payload = {};
@@ -978,54 +1007,75 @@ export async function handleBilling(req, res, url) {
           { extend: true },
         );
       }
-      sendJson(res, 200, { ok: true });
+      sendJson(res, 200, { ok: true }, req);
     } catch (err) {
       console.error('billing webhook', err);
-      sendJson(res, 200, { ok: false }); // acknowledge to avoid SUMIT retries storm
+      sendJson(res, 200, { ok: false }, req); // acknowledge to avoid SUMIT retries storm
     }
     return;
   }
 
   if (!billingConfigured()) {
-    sendJson(res, 503, {
-      error: 'סליקה לא מוגדרת בשרת (SUMIT_COMPANY_ID / SUMIT_API_KEY / SUMIT_API_PUBLIC_KEY)',
-    });
+    sendJson(
+      res,
+      503,
+      {
+        error: 'סליקה לא מוגדרת בשרת (SUMIT_COMPANY_ID / SUMIT_API_KEY / SUMIT_API_PUBLIC_KEY)',
+      },
+      req,
+    );
     return;
   }
 
   try {
     if (url.pathname === '/api/billing/subscriptions' && req.method === 'GET') {
+      if (!requirePlatform(req, res)) return;
       const all = await listRecords(PREFIX);
-      sendJson(res, 200, {
-        items: all
-          .filter((r) => r?.synagogueId && r.synagogueId !== PLATFORM_ID)
-          .map((r) => publicRecord({ ...defaultSubscription(r.synagogueId), ...r })),
-      });
+      sendJson(
+        res,
+        200,
+        {
+          items: all
+            .filter((r) => r?.synagogueId && r.synagogueId !== PLATFORM_ID)
+            .map((r) => publicRecord({ ...defaultSubscription(r.synagogueId), ...r })),
+        },
+        req,
+      );
       return;
     }
 
     const m = url.pathname.match(/^\/api\/billing\/subscriptions\/([^/]+)(?:\/([a-z]+))?$/);
     if (!m) {
-      sendJson(res, 404, { error: 'not found' });
+      sendJson(res, 404, { error: 'not found' }, req);
       return;
     }
     const id = decodeURIComponent(m[1]);
     if (id === PLATFORM_ID) {
-      sendJson(res, 404, { error: 'not found' });
+      sendJson(res, 404, { error: 'not found' }, req);
       return;
     }
     const action = m[2] || '';
+    if (!requireSynagogueAccess(req, res, id)) return;
 
     if (req.method === 'GET' && !action) {
       // sync=1: pull from SUMIT only if weekly cache expired (or force=1)
       const sync = url.searchParams.get('sync') === '1';
       const force = url.searchParams.get('force') === '1';
-      sendJson(res, 200, await loadSubscriptionPublic(id, { sync, force }));
+      sendJson(res, 200, await loadSubscriptionPublic(id, { sync, force }), req);
       return;
     }
 
     if (req.method === 'PUT' && action === 'settings') {
       const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
+      // Amount / active only by platform; synagogue can update invoice email
+      const auth = resolveAuth(req);
+      if (
+        (typeof body.amount === 'number' || typeof body.active === 'boolean') &&
+        auth?.kind !== 'platform'
+      ) {
+        sendJson(res, 403, { error: 'רק מנהל מערכת יכול לשנות סכום או סטטוס מנוי' }, req);
+        return;
+      }
       const rec = await getSubscription(id);
       if (typeof body.amount === 'number' && body.amount >= 0) {
         const amt = Math.round(body.amount * 100) / 100;
@@ -1042,7 +1092,7 @@ export async function handleBilling(req, res, url) {
       if (typeof body.invoiceEmail === 'string') {
         const email = body.invoiceEmail.trim();
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          sendJson(res, 400, { error: 'כתובת מייל לחשבונית לא תקינה' });
+          sendJson(res, 400, { error: 'כתובת מייל לחשבונית לא תקינה' }, req);
           return;
         }
         rec.invoiceEmail = email;
@@ -1055,7 +1105,7 @@ export async function handleBilling(req, res, url) {
         }
       }
       await saveSubscription(rec);
-      sendJson(res, 200, publicRecord(rec));
+      sendJson(res, 200, publicRecord(rec), req);
       return;
     }
 
@@ -1067,9 +1117,9 @@ export async function handleBilling(req, res, url) {
           redeem: false,
         });
         await saveSubscription(next);
-        sendJson(res, 200, { ok: true, subscription: publicRecord(next), preview });
+        sendJson(res, 200, { ok: true, subscription: publicRecord(next), preview }, req);
       } catch (err) {
-        sendJson(res, 400, { error: String(err?.message || err) });
+        sendJson(res, 400, { error: String(err?.message || err) }, req);
       }
       return;
     }
@@ -1077,7 +1127,7 @@ export async function handleBilling(req, res, url) {
     if (req.method === 'POST' && action === 'subscribe') {
       const body = JSON.parse((await readBody(req)).toString('utf8') || '{}');
       if (!body.singleUseToken) {
-        sendJson(res, 400, { error: 'missing singleUseToken' });
+        sendJson(res, 400, { error: 'missing singleUseToken' }, req);
         return;
       }
       const { subscription, license } = await chargeAndRenew(id, {
@@ -1085,27 +1135,38 @@ export async function handleBilling(req, res, url) {
         payer: { name: body.name, email: body.email, phone: body.phone },
         couponCode: body.couponCode ? String(body.couponCode) : undefined,
       });
-      sendJson(res, 200, {
-        ok: true,
-        subscription: publicRecord(subscription),
-        license,
-      });
+      sendJson(
+        res,
+        200,
+        {
+          ok: true,
+          subscription: publicRecord(subscription),
+          license,
+        },
+        req,
+      );
       return;
     }
 
     if (req.method === 'POST' && action === 'charge') {
+      if (!requirePlatform(req, res)) return;
       const { subscription, license } = await chargeAndRenew(id);
-      sendJson(res, 200, {
-        ok: true,
-        subscription: publicRecord(subscription),
-        license,
-      });
+      sendJson(
+        res,
+        200,
+        {
+          ok: true,
+          subscription: publicRecord(subscription),
+          license,
+        },
+        req,
+      );
       return;
     }
 
     if (req.method === 'POST' && action === 'sync') {
       // Explicit refresh — bypasses weekly throttle
-      sendJson(res, 200, await loadSubscriptionPublic(id, { sync: true, force: true }));
+      sendJson(res, 200, await loadSubscriptionPublic(id, { sync: true, force: true }), req);
       return;
     }
 
@@ -1124,13 +1185,13 @@ export async function handleBilling(req, res, url) {
       rec.active = false;
       rec.status = 'canceled';
       await saveSubscription(rec);
-      sendJson(res, 200, publicRecord(rec));
+      sendJson(res, 200, publicRecord(rec), req);
       return;
     }
 
-    sendJson(res, 405, { error: 'method not allowed' });
+    sendJson(res, 405, { error: 'method not allowed' }, req);
   } catch (err) {
     console.error('billing api', err);
-    sendJson(res, 500, { error: String(err?.message || err) });
+    sendJson(res, 500, { error: String(err?.message || err) }, req);
   }
 }

@@ -18,6 +18,14 @@ import {
   verifyRegistrationResponse,
 } from '@simplewebauthn/server';
 import { getBundle, putBundle } from './cloudStore.mjs';
+import {
+  checkRateLimit,
+  clientIp,
+  createSession,
+  readBodyLimited,
+  sendJson as authSendJson,
+  verifyPassword as authVerifyPassword,
+} from './apiAuth.mjs';
 
 const PUBLIC_ORIGIN = String(
   process.env.PUBLIC_ORIGIN ||
@@ -34,36 +42,35 @@ const GOOGLE_CLIENT_ID = String(
 /** @type {Map<string, { kind: string; synagogueId: string; memberId?: string; expiresAt: number; expect?: object }>} */
 const challenges = new Map();
 
-function sendJson(res, status, obj) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  });
-  res.end(JSON.stringify(obj));
+function sendJson(res, status, obj, req) {
+  authSendJson(res, status, obj, req);
 }
 
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on('data', (c) => chunks.push(c));
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
-  });
+async function readBody(req) {
+  return readBodyLimited(req);
 }
 
 function verifyPassword(password, stored) {
-  const s = String(stored || '');
-  if (!s) return false;
-  if (s.includes(':')) {
-    const [salt, hash] = s.split(':');
-    const check = crypto.createHash('sha256').update(`${salt}:${password}`).digest('hex');
-    return check === hash;
-  }
-  const legacy = crypto.createHash('sha256').update(password).digest('hex');
-  return legacy === s;
+  return authVerifyPassword(password, stored);
+}
+
+function issueMemberToken(synagogueId, member) {
+  const session = createSession({
+    kind: 'member',
+    synagogueId,
+    memberId: member.id,
+    role: member.role || 'editor',
+    username: String(member.username || member.name || '')
+      .trim()
+      .toLowerCase(),
+    memberName: member.name || member.username,
+  });
+  return {
+    ok: true,
+    token: session.token,
+    expiresAt: session.expiresAt,
+    member: publicMember(member),
+  };
 }
 
 function memberPasswordHash(m) {
@@ -106,11 +113,7 @@ function findMemberByGoogle(config, profile) {
     if (member) return member;
   }
 
-  if (email && normalizeEmail(config.contactEmail) === email) {
-    return members.find((m) => m.role === 'owner') || members[0] || null;
-  }
-
-  // No members yet — allow first Google login via synagogue contact email
+  // Only when no members exist — contact email may bootstrap first owner login
   if (!members.length && email && normalizeEmail(config.contactEmail) === email) {
     return {
       id: 'bootstrap',
@@ -209,7 +212,7 @@ async function authenticateLocalMember(config, username, password) {
 
 export async function handleAltAuth(req, res, url) {
   if (req.method === 'OPTIONS' && url.pathname.startsWith('/api/auth/')) {
-    sendJson(res, 204, {});
+    sendJson(res, 204, {}, req);
     return true;
   }
 
@@ -219,31 +222,36 @@ export async function handleAltAuth(req, res, url) {
         ok: true,
         enabled: Boolean(GOOGLE_CLIENT_ID),
         clientId: GOOGLE_CLIENT_ID || '',
-      });
+      }, req);
       return true;
     }
 
     if (url.pathname === '/api/auth/google' && req.method === 'POST') {
+      const rl = checkRateLimit(`google:${clientIp(req)}`, 40, 15 * 60 * 1000);
+      if (!rl.ok) {
+        sendJson(res, 429, { ok: false, error: 'יותר מדי ניסיונות התחברות' }, req);
+        return true;
+      }
       const raw = await readBody(req);
       const body = JSON.parse(raw.toString('utf8') || '{}');
       const synagogueId = String(body.synagogueId || '').trim();
       if (!synagogueId) {
-        sendJson(res, 400, { ok: false, error: 'חסר מזהה בית כנסת' });
+        sendJson(res, 400, { ok: false, error: 'חסר מזהה בית כנסת' }, req);
         return true;
       }
       const profile = await verifyGoogleIdToken(body.idToken);
       const bundle = await getBundle(synagogueId);
       if (!bundle?.config) {
-        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' });
+        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' }, req);
         return true;
       }
-      const member = findMemberByGoogle(bundle.config, profile);
+      let member = findMemberByGoogle(bundle.config, profile);
       if (!member) {
         sendJson(res, 403, {
           ok: false,
           email: profile.email,
           error: `לא נמצא משתמש עם האימייל ${profile.email}. בלשונית משתמשים הזינו את אותו אימייל בשדה האימייל (או כשם משתמש), לחצו שמירה למסך, ונסו שוב.`,
-        });
+        }, req);
         return true;
       }
       // Persist googleSub / email for faster future matches (skip synthetic bootstrap)
@@ -273,14 +281,10 @@ export async function handleAltAuth(req, res, url) {
             },
             syncedAt: new Date().toISOString(),
           });
-          sendJson(res, 200, {
-            ok: true,
-            member: publicMember(members.find((m) => m.id === member.id) || member),
-          });
-          return true;
+          member = members.find((m) => m.id === member.id) || member;
         }
       }
-      sendJson(res, 200, { ok: true, member: publicMember(member) });
+      sendJson(res, 200, issueMemberToken(synagogueId, member), req);
       return true;
     }
 
@@ -289,12 +293,12 @@ export async function handleAltAuth(req, res, url) {
       const body = JSON.parse(raw.toString('utf8') || '{}');
       const synagogueId = String(body.synagogueId || '').trim();
       if (!synagogueId) {
-        sendJson(res, 400, { ok: false, error: 'חסר מזהה בית כנסת' });
+        sendJson(res, 400, { ok: false, error: 'חסר מזהה בית כנסת' }, req);
         return true;
       }
       const bundle = await getBundle(synagogueId);
       if (!bundle?.config) {
-        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' });
+        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' }, req);
         return true;
       }
       const member = await authenticateLocalMember(
@@ -303,7 +307,7 @@ export async function handleAltAuth(req, res, url) {
         body.password,
       );
       if (!member) {
-        sendJson(res, 401, { ok: false, error: 'שם משתמש או סיסמה שגויים' });
+        sendJson(res, 401, { ok: false, error: 'שם משתמש או סיסמה שגויים' }, req);
         return true;
       }
       const profile = await verifyGoogleIdToken(body.idToken);
@@ -322,17 +326,19 @@ export async function handleAltAuth(req, res, url) {
         },
         syncedAt: new Date().toISOString(),
       });
-      sendJson(res, 200, {
-        ok: true,
-        member: publicMember(members.find((m) => m.id === member.id)),
-      });
+      sendJson(
+        res,
+        200,
+        issueMemberToken(synagogueId, members.find((m) => m.id === member.id) || member),
+        req,
+      );
       return true;
     }
 
     if (url.pathname === '/api/auth/webauthn/status' && req.method === 'GET') {
       const synagogueId = String(url.searchParams.get('synagogueId') || '').trim();
       if (!synagogueId) {
-        sendJson(res, 400, { ok: false, error: 'חסר מזהה' });
+        sendJson(res, 400, { ok: false, error: 'חסר מזהה' }, req);
         return true;
       }
       const bundle = await getBundle(synagogueId);
@@ -341,7 +347,7 @@ export async function handleAltAuth(req, res, url) {
         (n, m) => n + (Array.isArray(m.passkeys) ? m.passkeys.length : 0),
         0,
       );
-      sendJson(res, 200, { ok: true, passkeyCount: count, enabled: count > 0 });
+      sendJson(res, 200, { ok: true, passkeyCount: count, enabled: count > 0 }, req);
       return true;
     }
 
@@ -351,7 +357,7 @@ export async function handleAltAuth(req, res, url) {
       const synagogueId = String(body.synagogueId || '').trim();
       const bundle = await getBundle(synagogueId);
       if (!bundle?.config) {
-        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' });
+        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' }, req);
         return true;
       }
       const member = await authenticateLocalMember(
@@ -360,7 +366,7 @@ export async function handleAltAuth(req, res, url) {
         body.password,
       );
       if (!member) {
-        sendJson(res, 401, { ok: false, error: 'שם משתמש או סיסמה שגויים' });
+        sendJson(res, 401, { ok: false, error: 'שם משתמש או סיסמה שגויים' }, req);
         return true;
       }
       const { rpID, origin } = rpFromRequest(req);
@@ -388,7 +394,7 @@ export async function handleAltAuth(req, res, url) {
         memberId: member.id,
         expect: { challenge: options.challenge, rpID, origin },
       });
-      sendJson(res, 200, { ok: true, options, memberId: member.id });
+      sendJson(res, 200, { ok: true, options, memberId: member.id }, req);
       return true;
     }
 
@@ -399,12 +405,12 @@ export async function handleAltAuth(req, res, url) {
       const memberId = String(body.memberId || '').trim();
       const challengeRow = takeChallenge(`reg:${synagogueId}:${memberId}`);
       if (!challengeRow?.expect) {
-        sendJson(res, 400, { ok: false, error: 'פג תוקף האתגר — נסו שוב' });
+        sendJson(res, 400, { ok: false, error: 'פג תוקף האתגר — נסו שוב' }, req);
         return true;
       }
       const bundle = await getBundle(synagogueId);
       if (!bundle?.config) {
-        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' });
+        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' }, req);
         return true;
       }
       const verification = await verifyRegistrationResponse({
@@ -414,7 +420,7 @@ export async function handleAltAuth(req, res, url) {
         expectedRPID: challengeRow.expect.rpID,
       });
       if (!verification.verified || !verification.registrationInfo) {
-        sendJson(res, 400, { ok: false, error: 'אימות מפתח נכשל' });
+        sendJson(res, 400, { ok: false, error: 'אימות מפתח נכשל' }, req);
         return true;
       }
       const info = verification.registrationInfo;
@@ -447,7 +453,7 @@ export async function handleAltAuth(req, res, url) {
         },
         syncedAt: new Date().toISOString(),
       });
-      sendJson(res, 200, { ok: true, member: publicMember(members.find((m) => m.id === memberId)) });
+      sendJson(res, 200, { ok: true, member: publicMember(members.find((m) => m.id === memberId)) }, req);
       return true;
     }
 
@@ -457,7 +463,7 @@ export async function handleAltAuth(req, res, url) {
       const synagogueId = String(body.synagogueId || '').trim();
       const bundle = await getBundle(synagogueId);
       if (!bundle?.config) {
-        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' });
+        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' }, req);
         return true;
       }
       const { rpID, origin } = rpFromRequest(req);
@@ -471,7 +477,7 @@ export async function handleAltAuth(req, res, url) {
         }
       }
       if (!allowCredentials.length) {
-        sendJson(res, 400, { ok: false, error: 'לא הוגדר מפתח אימות לבית כנסת זה' });
+        sendJson(res, 400, { ok: false, error: 'לא הוגדר מפתח אימות לבית כנסת זה' }, req);
         return true;
       }
       const options = await generateAuthenticationOptions({
@@ -484,7 +490,7 @@ export async function handleAltAuth(req, res, url) {
         synagogueId,
         expect: { challenge: options.challenge, rpID, origin },
       });
-      sendJson(res, 200, { ok: true, options });
+      sendJson(res, 200, { ok: true, options }, req);
       return true;
     }
 
@@ -498,12 +504,12 @@ export async function handleAltAuth(req, res, url) {
         ? takeChallenge(`login:${synagogueId}:${optChallenge}`)
         : null;
       if (!challengeRow?.expect) {
-        sendJson(res, 400, { ok: false, error: 'פג תוקף האתגר — נסו שוב' });
+        sendJson(res, 400, { ok: false, error: 'פג תוקף האתגר — נסו שוב' }, req);
         return true;
       }
       const bundle = await getBundle(synagogueId);
       if (!bundle?.config) {
-        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' });
+        sendJson(res, 404, { ok: false, error: 'בית כנסת לא נמצא' }, req);
         return true;
       }
       const credId = String(response?.id || '');
@@ -518,7 +524,7 @@ export async function handleAltAuth(req, res, url) {
         }
       }
       if (!member || !passkey) {
-        sendJson(res, 404, { ok: false, error: 'מפתח אימות לא מזוהה' });
+        sendJson(res, 404, { ok: false, error: 'מפתח אימות לא מזוהה' }, req);
         return true;
       }
       const verification = await verifyAuthenticationResponse({
@@ -534,7 +540,7 @@ export async function handleAltAuth(req, res, url) {
         },
       });
       if (!verification.verified) {
-        sendJson(res, 400, { ok: false, error: 'אימות מפתח נכשל' });
+        sendJson(res, 400, { ok: false, error: 'אימות מפתח נכשל' }, req);
         return true;
       }
       const newCounter = verification.authenticationInfo.newCounter;
@@ -557,12 +563,12 @@ export async function handleAltAuth(req, res, url) {
         },
         syncedAt: new Date().toISOString(),
       });
-      sendJson(res, 200, { ok: true, member: publicMember(member) });
+      sendJson(res, 200, issueMemberToken(synagogueId, member), req);
       return true;
     }
   } catch (err) {
     console.error('altAuth', err);
-    sendJson(res, 500, { ok: false, error: String(err?.message || err) });
+    sendJson(res, 500, { ok: false, error: String(err?.message || err) }, req);
     return true;
   }
 

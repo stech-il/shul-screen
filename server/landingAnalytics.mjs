@@ -4,6 +4,7 @@
  * GET  /api/analytics/landing  — totals + today / 7d / 30d
  */
 import { getRecord, putRecord } from './cloudStore.mjs';
+import { requirePlatform, sendJson as authSendJson } from './apiAuth.mjs';
 
 const PREFIX = 'analytics';
 const ID = 'landing';
@@ -119,41 +120,31 @@ export async function getLandingStats() {
   return publicStats(store);
 }
 
-function sendJson(res, status, obj) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  });
-  if (status === 204) {
-    res.end();
-    return;
-  }
-  res.end(JSON.stringify(obj));
+function sendJson(res, status, obj, req) {
+  authSendJson(res, status, obj, req);
 }
 
 export async function handleLandingAnalytics(req, res, url) {
   if (req.method === 'OPTIONS') {
-    sendJson(res, 204, {});
+    sendJson(res, 204, {}, req);
     return true;
   }
 
   try {
     if (url.pathname === '/api/analytics/landing' && req.method === 'GET') {
-      sendJson(res, 200, await getLandingStats());
+      if (!requirePlatform(req, res)) return true;
+      sendJson(res, 200, await getLandingStats(), req);
       return true;
     }
     if (url.pathname === '/api/analytics/landing' && req.method === 'POST') {
-      sendJson(res, 200, await recordLandingVisit());
+      sendJson(res, 200, await recordLandingVisit(), req);
       return true;
     }
-    sendJson(res, 404, { error: 'not found' });
+    sendJson(res, 404, { error: 'not found' }, req);
     return true;
   } catch (err) {
     console.error('landing analytics', err);
-    sendJson(res, 500, { error: String(err?.message || err) });
+    sendJson(res, 500, { error: String(err?.message || err) }, req);
     return true;
   }
 }

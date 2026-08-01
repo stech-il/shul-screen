@@ -131,9 +131,8 @@ export function listHeartbeats(): ScreenHeartbeat[] {
 export async function fetchHeartbeatsFromCloud(): Promise<ScreenHeartbeat[]> {
   try {
     const { cloudUrl } = await import('./apiOrigin');
-    const res = await fetch(cloudUrl(`/api/cloud/heartbeats?_=${Date.now()}`), {
-      cache: 'no-store',
-    });
+    const { apiFetch } = await import('./serverAuth');
+    const res = await apiFetch(cloudUrl(`/api/cloud/heartbeats?_=${Date.now()}`));
     if (!res.ok) return listHeartbeats();
     const data = (await res.json()) as { items?: ScreenHeartbeat[] };
     const items = Array.isArray(data.items) ? data.items : [];

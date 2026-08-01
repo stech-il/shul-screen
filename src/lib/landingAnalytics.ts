@@ -30,9 +30,8 @@ export async function trackLandingVisit(): Promise<void> {
 }
 
 export async function fetchLandingStats(): Promise<LandingStats> {
-  const res = await fetch(cloudUrl(`/api/analytics/landing?_=${Date.now()}`), {
-    cache: 'no-store',
-  });
+  const { apiFetch } = await import('./serverAuth');
+  const res = await apiFetch(cloudUrl(`/api/analytics/landing?_=${Date.now()}`));
   const data = (await res.json().catch(() => ({}))) as LandingStats & {
     ok?: boolean;
     error?: string;

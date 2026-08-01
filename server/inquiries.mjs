@@ -4,6 +4,13 @@
  */
 import { getBundle, getRecord, listRecords, putRecord } from './cloudStore.mjs';
 import { mailConfigured, sendMail } from './mail.mjs';
+import {
+  canAccessSynagogue,
+  requirePlatform,
+  requireSynagogueAccess,
+  resolveAuth,
+  sendJson as authSendJson,
+} from './apiAuth.mjs';
 
 const PREFIX = 'inquiries';
 const PLATFORM_ID = '_platform';
@@ -42,13 +49,8 @@ function readBody(req) {
   });
 }
 
-function sendJson(res, status, obj) {
-  const body = JSON.stringify(obj);
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-  });
-  res.end(body);
+function sendJson(res, status, obj, req) {
+  authSendJson(res, status, obj, req);
 }
 
 function clientIp(req) {
@@ -326,19 +328,14 @@ async function notifyReply(inquiry, reply) {
  */
 export async function handleInquiries(req, res, url) {
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    });
-    res.end();
+    sendJson(res, 204, {}, req);
     return;
   }
 
   try {
     if (url.pathname === '/api/inquiries' && req.method === 'POST') {
       if (!rateOk(clientIp(req))) {
-        sendJson(res, 429, { error: 'נשלחו יותר מדי פניות — נסו שוב בעוד שעה' });
+        sendJson(res, 429, { error: 'נשלחו יותר מדי פניות — נסו שוב בעוד שעה' }, req);
         return;
       }
       const raw = await readBody(req);
@@ -359,27 +356,27 @@ export async function handleInquiries(req, res, url) {
       }
 
       if (!synagogueId) {
-        sendJson(res, 400, { error: 'חסר מזהה בית כנסת' });
+        sendJson(res, 400, { error: 'חסר מזהה בית כנסת' }, req);
         return;
       }
       if (!name || name.length < 2) {
-        sendJson(res, 400, { error: 'נא להזין שם' });
+        sendJson(res, 400, { error: 'נא להזין שם' }, req);
         return;
       }
       if (email) {
         if (!isEmail(email)) {
-          sendJson(res, 400, { error: 'כתובת מייל לא תקינה' });
+          sendJson(res, 400, { error: 'כתובת מייל לא תקינה' }, req);
           return;
         }
       } else if (!isLandingLead) {
-        sendJson(res, 400, { error: 'כתובת מייל לא תקינה' });
+        sendJson(res, 400, { error: 'כתובת מייל לא תקינה' }, req);
         return;
       } else if (!phone || phone.length < 7) {
-        sendJson(res, 400, { error: 'נא להזין טלפון או מייל' });
+        sendJson(res, 400, { error: 'נא להזין טלפון או מייל' }, req);
         return;
       }
       if (!message || message.length < 5) {
-        sendJson(res, 400, { error: 'נא לכתוב הודעה קצרה' });
+        sendJson(res, 400, { error: 'נא לכתוב הודעה קצרה' }, req);
         return;
       }
 
@@ -415,37 +412,61 @@ export async function handleInquiries(req, res, url) {
       const mail = await notifyNewTicket(inquiry).catch((err) => ({
         error: String(err?.message || err),
       }));
-      sendJson(res, 201, {
-        ok: true,
-        id,
-        item: publicInquiry(inquiry),
-        mailConfigured: mailConfigured(),
-        mail,
-      });
+      sendJson(
+        res,
+        201,
+        {
+          ok: true,
+          id,
+          item: publicInquiry(inquiry),
+          mailConfigured: mailConfigured(),
+          mail,
+        },
+        req,
+      );
       return;
     }
 
     if (url.pathname === '/api/inquiries' && req.method === 'GET') {
       const statusFilter = String(url.searchParams.get('status') || '').trim();
       const synagogueFilter = String(url.searchParams.get('synagogueId') || '').trim();
+      const auth = resolveAuth(req);
+      if (!auth) {
+        sendJson(res, 401, { error: 'נדרשת התחברות' }, req);
+        return;
+      }
+      if (auth.kind !== 'platform') {
+        if (!synagogueFilter || !canAccessSynagogue(auth, synagogueFilter)) {
+          sendJson(res, 403, { error: 'אין הרשאה לרשימת פניות' }, req);
+          return;
+        }
+      }
       const items = (await listRecords(PREFIX))
         .map(publicInquiry)
         .filter((i) => (statusFilter && STATUSES.has(statusFilter) ? i.status === statusFilter : true))
         .filter((i) => (synagogueFilter ? i.synagogueId === synagogueFilter : true))
+        .filter((i) =>
+          auth.kind === 'platform' ? true : canAccessSynagogue(auth, i.synagogueId),
+        )
         .sort((a, b) => String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)));
 
       const unreadSupport = items.filter((i) => i.awaiting === 'support' || i.status === 'new').length;
       const unreadCustomer = items.filter((i) => i.awaiting === 'customer').length;
       const unreadMessagesCustomer = items.reduce((n, i) => n + (i.unreadForCustomer || 0), 0);
       const unreadMessagesSupport = items.reduce((n, i) => n + (i.unreadForSupport || 0), 0);
-      sendJson(res, 200, {
-        items,
-        unread: unreadSupport,
-        unreadCustomer,
-        unreadMessages: unreadMessagesSupport,
-        unreadMessagesCustomer,
-        total: items.length,
-      });
+      sendJson(
+        res,
+        200,
+        {
+          items,
+          unread: unreadSupport,
+          unreadCustomer,
+          unreadMessages: unreadMessagesSupport,
+          unreadMessagesCustomer,
+          total: items.length,
+        },
+        req,
+      );
       return;
     }
 
@@ -456,11 +477,18 @@ export async function handleInquiries(req, res, url) {
       const synagogueId = String(body.synagogueId || '').trim();
       const inquiryId = String(body.id || '').trim();
       if (role !== 'customer' && role !== 'support') {
-        sendJson(res, 400, { error: 'תפקיד לא תקין' });
+        sendJson(res, 400, { error: 'תפקיד לא תקין' }, req);
         return;
       }
-      if (role === 'customer' && !synagogueId && !inquiryId) {
-        sendJson(res, 400, { error: 'חסר מזהה בית כנסת' });
+      if (role === 'support') {
+        if (!requirePlatform(req, res)) return;
+      } else if (synagogueId) {
+        if (!requireSynagogueAccess(req, res, synagogueId)) return;
+      } else if (inquiryId) {
+        const existing = await getRecord(PREFIX, inquiryId);
+        if (!existing || !requireSynagogueAccess(req, res, existing.synagogueId)) return;
+      } else {
+        sendJson(res, 400, { error: 'חסר מזהה בית כנסת' }, req);
         return;
       }
 
@@ -483,20 +511,20 @@ export async function handleInquiries(req, res, url) {
         await putRecord(PREFIX, existing.id, updated);
         updatedCount += 1;
       }
-      sendJson(res, 200, { ok: true, updated: updatedCount });
+      sendJson(res, 200, { ok: true, updated: updatedCount }, req);
       return;
     }
 
     const replyMatch = url.pathname.match(/^\/api\/inquiries\/([^/]+)\/replies$/);
     if (replyMatch && req.method === 'POST') {
       if (!rateOk(clientIp(req))) {
-        sendJson(res, 429, { error: 'נשלחו יותר מדי הודעות — נסו שוב בעוד שעה' });
+        sendJson(res, 429, { error: 'נשלחו יותר מדי הודעות — נסו שוב בעוד שעה' }, req);
         return;
       }
       const id = decodeURIComponent(replyMatch[1]);
       const existing = await getRecord(PREFIX, id);
       if (!existing) {
-        sendJson(res, 404, { error: 'פנייה לא נמצאה' });
+        sendJson(res, 404, { error: 'פנייה לא נמצאה' }, req);
         return;
       }
       const raw = await readBody(req);
@@ -509,14 +537,20 @@ export async function handleInquiries(req, res, url) {
         .slice(0, 120);
 
       if (!author) {
-        sendJson(res, 400, { error: 'חסר מחבר הודעה' });
+        sendJson(res, 400, { error: 'חסר מחבר הודעה' }, req);
         return;
       }
 
       const synagogueId = String(existing.synagogueId || '');
+      if (author === 'support') {
+        if (!requirePlatform(req, res)) return;
+      } else if (!requireSynagogueAccess(req, res, synagogueId)) {
+        return;
+      }
+
       const attachments = normalizeAttachments(body.attachments, synagogueId);
       if ((!text || text.length < 1) && !attachments.length) {
-        sendJson(res, 400, { error: 'נא לכתוב תשובה או לצרף קובץ' });
+        sendJson(res, 400, { error: 'נא לכתוב תשובה או לצרף קובץ' }, req);
         return;
       }
       const messages = normalizeMessages(existing);
@@ -548,23 +582,24 @@ export async function handleInquiries(req, res, url) {
       };
       await putRecord(PREFIX, id, updated);
       void notifyReply(updated, reply).catch(() => {});
-      sendJson(res, 201, { ok: true, item: publicInquiry(updated), reply });
+      sendJson(res, 201, { ok: true, item: publicInquiry(updated), reply }, req);
       return;
     }
 
     const patchMatch = url.pathname.match(/^\/api\/inquiries\/([^/]+)$/);
     if (patchMatch && req.method === 'PATCH') {
+      if (!requirePlatform(req, res)) return;
       const id = decodeURIComponent(patchMatch[1]);
       const existing = await getRecord(PREFIX, id);
       if (!existing) {
-        sendJson(res, 404, { error: 'פנייה לא נמצאה' });
+        sendJson(res, 404, { error: 'פנייה לא נמצאה' }, req);
         return;
       }
       const raw = await readBody(req);
       const body = JSON.parse(raw.toString('utf8') || '{}');
       const nextStatus = String(body.status || '').trim();
       if (!STATUSES.has(nextStatus)) {
-        sendJson(res, 400, { error: 'סטטוס לא תקין' });
+        sendJson(res, 400, { error: 'סטטוס לא תקין' }, req);
         return;
       }
       const messages = normalizeMessages(existing);
@@ -576,13 +611,13 @@ export async function handleInquiries(req, res, url) {
         updatedAt: nowIso(),
       };
       await putRecord(PREFIX, id, updated);
-      sendJson(res, 200, { ok: true, item: publicInquiry(updated) });
+      sendJson(res, 200, { ok: true, item: publicInquiry(updated) }, req);
       return;
     }
 
-    sendJson(res, 404, { error: 'not found' });
+    sendJson(res, 404, { error: 'not found' }, req);
   } catch (err) {
     console.error('inquiries api', err);
-    sendJson(res, 500, { error: String(err?.message || err) });
+    sendJson(res, 500, { error: String(err?.message || err) }, req);
   }
 }

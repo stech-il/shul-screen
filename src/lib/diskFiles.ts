@@ -36,14 +36,15 @@ async function parseJson<T>(res: Response): Promise<T> {
 }
 
 export async function fetchDiskInventory(): Promise<DiskInventory> {
-  const res = await fetch('/api/cloud/disk', { cache: 'no-store' });
+  const { apiFetch } = await import('./serverAuth');
+  const res = await apiFetch('/api/cloud/disk');
   return parseJson(res);
 }
 
 export async function deleteDiskFile(relative: string): Promise<{ ok: boolean; deleted: string }> {
-  const res = await fetch('/api/cloud/disk/file', {
+  const { apiFetch } = await import('./serverAuth');
+  const res = await apiFetch('/api/cloud/disk/file', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ relative }),
   });
   return parseJson(res);
@@ -53,9 +54,9 @@ export async function deleteDiskFolder(
   kind: string,
   synagogueId: string,
 ): Promise<{ ok: boolean; removed: number; bytes: number }> {
-  const res = await fetch('/api/cloud/disk/folder', {
+  const { apiFetch } = await import('./serverAuth');
+  const res = await apiFetch('/api/cloud/disk/folder', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ kind, synagogueId }),
   });
   return parseJson(res);

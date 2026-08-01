@@ -201,9 +201,9 @@ export async function startOrefDrill(body: {
   desc?: string;
 }): Promise<{ ok: boolean; error?: string; drill?: OrefDrillState }> {
   try {
-    const res = await fetch(cloudUrl('/api/oref/drill'), {
+    const { apiFetch } = await import('./serverAuth');
+    const res = await apiFetch(cloudUrl('/api/oref/drill'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     const data = await res.json();
@@ -218,7 +218,8 @@ export async function stopOrefDrill(synagogueId: string): Promise<void> {
   const id = encodeURIComponent(String(synagogueId || '').trim());
   if (!id) return;
   try {
-    await fetch(cloudUrl(`/api/oref/drill/${id}`), { method: 'DELETE', cache: 'no-store' });
+    const { apiFetch } = await import('./serverAuth');
+    await apiFetch(cloudUrl(`/api/oref/drill/${id}`), { method: 'DELETE' });
   } catch {
     /* ignore */
   }

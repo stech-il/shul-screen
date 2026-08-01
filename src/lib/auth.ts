@@ -178,6 +178,11 @@ export function touchSession(): Session | null {
 
 export function clearSession(): void {
   clearStored(SESSION_KEY);
+  try {
+    void import('./serverAuth').then((m) => m.clearMemberApiToken());
+  } catch {
+    /* ignore */
+  }
 }
 
 export function canEditSettings(role: Session['role']): boolean {

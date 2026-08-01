@@ -108,10 +108,15 @@ export async function loginWithPasskey(synagogueId: string): Promise<GoogleAuthM
   const verData = (await verRes.json()) as {
     ok?: boolean;
     error?: string;
+    token?: string;
     member?: GoogleAuthMember;
   };
   if (!verRes.ok || !verData.ok || !verData.member) {
     throw new Error(verData.error || 'כניסה עם מפתח נכשלה');
+  }
+  if (verData.token) {
+    const { setMemberApiToken } = await import('./serverAuth');
+    setMemberApiToken(verData.token);
   }
   return verData.member;
 }

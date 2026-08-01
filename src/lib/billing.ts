@@ -5,6 +5,7 @@
  */
 
 import type { LicenseInfo } from '../types';
+import { apiFetch } from './serverAuth';
 
 export interface BillingHistoryItem {
   at: string;
@@ -55,7 +56,7 @@ export interface SubscribeResult {
 }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const res = await apiFetch(path, {
     headers: { 'Content-Type': 'application/json' },
     ...init,
   });

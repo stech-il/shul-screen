@@ -118,9 +118,9 @@ export async function uploadInquiryAttachment(
   const base = safeFileName(file.name.replace(/\.[^.]+$/, '')) || 'file';
   const fileName = `inquiries-${Date.now()}-${base}.${ext}`;
   const { contentType, dataBase64 } = await fileToBase64(file);
-  const res = await fetch(`/api/cloud/media/${encodeURIComponent(synagogueId)}`, {
+  const { apiFetch } = await import('./serverAuth');
+  const res = await apiFetch(`/api/cloud/media/${encodeURIComponent(synagogueId)}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fileName, contentType, dataBase64 }),
   });
   const data = (await res.json().catch(() => ({}))) as {
@@ -181,7 +181,8 @@ export async function fetchInquiries(opts?: {
   if (opts?.status) params.set('status', opts.status);
   if (opts?.synagogueId) params.set('synagogueId', opts.synagogueId);
   const q = params.toString() ? `?${params}` : '';
-  const res = await fetch(`/api/inquiries${q}`, { cache: 'no-store' });
+  const { apiFetch } = await import('./serverAuth');
+  const res = await apiFetch(`/api/inquiries${q}`);
   return parseJson(res);
 }
 
@@ -190,9 +191,9 @@ export async function markInquiriesSeen(input: {
   synagogueId?: string;
   id?: string;
 }): Promise<{ ok: boolean; updated: number }> {
-  const res = await fetch('/api/inquiries/seen', {
+  const { apiFetch } = await import('./serverAuth');
+  const res = await apiFetch('/api/inquiries/seen', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
   return parseJson(res);
@@ -202,9 +203,9 @@ export async function updateInquiryStatus(
   id: string,
   status: InquiryStatus,
 ): Promise<{ ok: boolean; item: Inquiry }> {
-  const res = await fetch(`/api/inquiries/${encodeURIComponent(id)}`, {
+  const { apiFetch } = await import('./serverAuth');
+  const res = await apiFetch(`/api/inquiries/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
   });
   return parseJson(res);
@@ -217,9 +218,9 @@ export async function replyToInquiry(input: {
   name?: string;
   attachments?: InquiryAttachment[];
 }): Promise<{ ok: boolean; item: Inquiry }> {
-  const res = await fetch(`/api/inquiries/${encodeURIComponent(input.id)}/replies`, {
+  const { apiFetch } = await import('./serverAuth');
+  const res = await apiFetch(`/api/inquiries/${encodeURIComponent(input.id)}/replies`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       text: input.text,
       author: input.author,

@@ -11,6 +11,7 @@ import { getBundle, listBundles, putBundle, putRecord, purgeSynagogueData } from
 import { getPlatformSettings } from './billing.mjs';
 import { notifyTrialStarted, notifyAdminNewSignup, mailConfigured } from './notifications.mjs';
 import { recordLandingSignup } from './landingAnalytics.mjs';
+import { requireCronOrPlatform, sendJson as authSendJson } from './apiAuth.mjs';
 
 const TRIAL_DAYS = 7;
 const PLATFORM_ID = '_platform';
@@ -70,19 +71,8 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function sendJson(res, status, obj) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  });
-  if (status === 204) {
-    res.end();
-    return;
-  }
-  res.end(JSON.stringify(obj));
+function sendJson(res, status, obj, req) {
+  authSendJson(res, status, obj, req);
 }
 
 function readBody(req) {
@@ -578,7 +568,7 @@ async function createTrialSignup(req, body) {
 
 export async function handleTrialSignup(req, res, url) {
   if (req.method === 'OPTIONS') {
-    sendJson(res, 204, {});
+    sendJson(res, 204, {}, req);
     return true;
   }
 
@@ -587,21 +577,22 @@ export async function handleTrialSignup(req, res, url) {
       const raw = await readBody(req);
       const body = JSON.parse(raw.toString('utf8') || '{}');
       const result = await createTrialSignup(req, body);
-      sendJson(res, result.status, result.body);
+      sendJson(res, result.status, result.body, req);
       return true;
     }
 
     if (url.pathname === '/api/signup/purge-expired' && req.method === 'POST') {
+      if (!requireCronOrPlatform(req, res)) return true;
       const result = await purgeExpiredLandingTrials();
-      sendJson(res, 200, result);
+      sendJson(res, 200, result, req);
       return true;
     }
 
-    sendJson(res, 404, { error: 'not found' });
+    sendJson(res, 404, { error: 'not found' }, req);
     return true;
   } catch (err) {
     console.error('trial signup api', err);
-    sendJson(res, 500, { ok: false, error: String(err?.message || err) });
+    sendJson(res, 500, { ok: false, error: String(err?.message || err) }, req);
     return true;
   }
 }

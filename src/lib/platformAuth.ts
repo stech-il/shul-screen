@@ -57,13 +57,18 @@ const DEFAULT_USER =
 const DEFAULT_PASS =
   (import.meta.env.VITE_PLATFORM_ADMIN_PASSWORD as string | undefined) || 'ShulAdmin2026!';
 
-/** Extra built-in platform login (injected for agency access). */
-const EXTRA_USER = 'admin';
-const EXTRA_PASS = 'a5744084a';
+/** Optional extra local seed — only in Vite DEV (never ship hardcoded prod passwords). */
+const EXTRA_USER = (import.meta.env.VITE_PLATFORM_EXTRA_USER as string | undefined)?.trim() || '';
+const EXTRA_PASS = (import.meta.env.VITE_PLATFORM_EXTRA_PASSWORD as string | undefined) || '';
 
 function builtinSeeds(): { username: string; password: string }[] {
+  if (!import.meta.env.DEV) return [];
   const seeds = [{ username: DEFAULT_USER, password: DEFAULT_PASS }];
-  if (normalizeUsername(EXTRA_USER) !== normalizeUsername(DEFAULT_USER)) {
+  if (
+    EXTRA_USER &&
+    EXTRA_PASS &&
+    normalizeUsername(EXTRA_USER) !== normalizeUsername(DEFAULT_USER)
+  ) {
     seeds.push({ username: EXTRA_USER, password: EXTRA_PASS });
   }
   return seeds;
@@ -230,6 +235,11 @@ export function touchPlatformSession(): PlatformSession | null {
 
 export function clearPlatformSession(): void {
   clearStored(SESSION_KEY);
+  try {
+    void import('./serverAuth').then((m) => m.clearPlatformApiToken());
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function loginPlatformAdmin(
@@ -248,6 +258,10 @@ export async function loginPlatformAdmin(
         lastName: remote.lastName,
         email: remote.email,
       };
+      if (remote.token) {
+        const { setPlatformApiToken } = await import('./serverAuth');
+        setPlatformApiToken(remote.token);
+      }
       // Keep local profile in sync when server returns it
       const store = await loadStore();
       const idx = store.accounts.findIndex((a) => normalizeUsername(a.username) === u);
@@ -262,7 +276,12 @@ export async function loginPlatformAdmin(
       return { ok: false, error: remote.error };
     }
   } catch {
-    /* fall through to local */
+    /* fall through to local — local-only login cannot call locked APIs */
+  }
+
+  // Offline / no server accounts: allow local verify only in Vite dev
+  if (!import.meta.env.DEV) {
+    return { ok: false, error: 'אין חיבור לשרת — נסו שוב' };
   }
 
   const store = await loadStore();
@@ -310,11 +329,10 @@ export async function changePlatformPassword(
 
   try {
     const { cloudUrl } = await import('./apiOrigin');
-    await fetch(cloudUrl('/api/auth/platform-accounts'), {
+    const { apiFetch } = await import('./serverAuth');
+    await apiFetch(cloudUrl('/api/auth/platform-accounts'), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: u, password: newPassword }),
-      cache: 'no-store',
     });
   } catch {
     /* local still updated */
@@ -330,7 +348,8 @@ export async function listPlatformAccounts(): Promise<PlatformAccountPublic[]> {
   }
   try {
     const { cloudUrl } = await import('./apiOrigin');
-    const res = await fetch(cloudUrl('/api/auth/platform-accounts'), { cache: 'no-store' });
+    const { apiFetch } = await import('./serverAuth');
+    const res = await apiFetch(cloudUrl('/api/auth/platform-accounts'));
     if (res.ok) {
       const data = (await res.json()) as {
         accounts?: { username?: string; firstName?: string; lastName?: string; email?: string }[];
@@ -377,9 +396,9 @@ export async function addPlatformAccount(
 
   try {
     const { cloudUrl } = await import('./apiOrigin');
-    await fetch(cloudUrl('/api/auth/platform-accounts'), {
+    const { apiFetch } = await import('./serverAuth');
+    await apiFetch(cloudUrl('/api/auth/platform-accounts'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username: u,
         password,
@@ -387,7 +406,6 @@ export async function addPlatformAccount(
         lastName: account.lastName,
         email: account.email,
       }),
-      cache: 'no-store',
     });
   } catch {
     /* local still ok */
@@ -428,16 +446,15 @@ export async function updatePlatformAccountProfile(
 
   try {
     const { cloudUrl } = await import('./apiOrigin');
-    await fetch(cloudUrl('/api/auth/platform-accounts'), {
+    const { apiFetch } = await import('./serverAuth');
+    await apiFetch(cloudUrl('/api/auth/platform-accounts'), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username: u,
         firstName: profile.firstName,
         lastName: profile.lastName,
         email: profile.email,
       }),
-      cache: 'no-store',
     });
   } catch {
     /* local still ok when present */
@@ -466,11 +483,10 @@ export async function resetPlatformAccountPassword(
 
   try {
     const { cloudUrl } = await import('./apiOrigin');
-    await fetch(cloudUrl('/api/auth/platform-accounts'), {
+    const { apiFetch } = await import('./serverAuth');
+    await apiFetch(cloudUrl('/api/auth/platform-accounts'), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: u, password: newPassword }),
-      cache: 'no-store',
     });
   } catch {
     /* local still ok */
@@ -497,11 +513,10 @@ export async function deletePlatformAccount(
 
   try {
     const { cloudUrl } = await import('./apiOrigin');
-    const res = await fetch(cloudUrl('/api/auth/platform-accounts'), {
+    const { apiFetch } = await import('./serverAuth');
+    const res = await apiFetch(cloudUrl('/api/auth/platform-accounts'), {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: u }),
-      cache: 'no-store',
     });
     if (!res.ok && res.status !== 404) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };

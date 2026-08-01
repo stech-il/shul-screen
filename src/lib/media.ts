@@ -1,6 +1,7 @@
 /** Media helpers — prefer Supabase Storage when configured, else local data URL */
 
 import { cloudUrl } from './apiOrigin';
+import { apiFetch } from './serverAuth';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -19,9 +20,8 @@ export type MediaUsage = {
 };
 
 export async function fetchMediaUsage(synagogueId: string): Promise<MediaUsage> {
-  const res = await fetch(
+  const res = await apiFetch(
     cloudUrl(`/api/cloud/media/${encodeURIComponent(synagogueId)}/usage?_=${Date.now()}`),
-    { cache: 'no-store' },
   );
   const body = (await res.json().catch(() => ({}))) as Partial<MediaUsage> & {
     ok?: boolean;
@@ -357,9 +357,8 @@ async function uploadToServerCloud(
   const base = safeName(file.name.replace(/\.[^.]+$/, '')) || 'file';
   const fileName = `${folder}-${Date.now()}-${base}.${ext}`;
 
-  const res = await fetch(cloudUrl(`/api/cloud/media/${encodeURIComponent(synagogueId)}`), {
+  const res = await apiFetch(cloudUrl(`/api/cloud/media/${encodeURIComponent(synagogueId)}`), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fileName, contentType, dataBase64 }),
   });
   const body = (await res.json().catch(() => ({}))) as {
@@ -430,9 +429,8 @@ export async function uploadDataUrlToCloud(
               ? 'woff2'
               : 'jpg';
     const fileName = `migrated-${Date.now()}-${safeName(fileNameHint)}.${ext}`;
-    const res = await fetch(cloudUrl(`/api/cloud/media/${encodeURIComponent(synagogueId)}`), {
+    const res = await apiFetch(cloudUrl(`/api/cloud/media/${encodeURIComponent(synagogueId)}`), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileName, contentType, dataBase64: b64 }),
     });
     const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string };

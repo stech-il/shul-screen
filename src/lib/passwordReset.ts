@@ -1,14 +1,8 @@
 import { cloudUrl } from './apiOrigin';
+import { apiFetch, setPlatformApiToken } from './serverAuth';
 
 async function api(path: string, init?: RequestInit) {
-  const res = await fetch(cloudUrl(path), {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
-    },
-    cache: 'no-store',
-  });
+  const res = await apiFetch(cloudUrl(path), init);
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
     throw new Error(String(data.error || `HTTP ${res.status}`));
@@ -65,6 +59,7 @@ export async function platformLoginRemote(
       firstName?: string;
       lastName?: string;
       email?: string;
+      token?: string;
     }
   | { ok: false; error: string; missing?: boolean }
 > {
@@ -81,6 +76,7 @@ export async function platformLoginRemote(
       firstName?: string;
       lastName?: string;
       email?: string;
+      token?: string;
       error?: string;
     };
     if (res.status === 404) {
@@ -89,15 +85,51 @@ export async function platformLoginRemote(
     if (!res.ok || !data.ok) {
       return { ok: false, error: String(data.error || 'שם משתמש או סיסמה שגויים') };
     }
+    if (data.token) setPlatformApiToken(data.token);
     return {
       ok: true,
       username: String(data.username || username),
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
+      token: data.token,
     };
   } catch {
     return { ok: false, error: 'offline', missing: true };
+  }
+}
+
+export async function memberLoginRemote(
+  synagogueId: string,
+  username: string,
+  password: string,
+): Promise<
+  | {
+      ok: true;
+      token: string;
+      member: { id: string; name: string; username?: string; role: string; email?: string };
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    const res = await fetch(cloudUrl('/api/auth/member-login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ synagogueId, username, password }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      token?: string;
+      member?: { id: string; name: string; username?: string; role: string; email?: string };
+      error?: string;
+    };
+    if (!res.ok || !data.ok || !data.token || !data.member) {
+      return { ok: false, error: String(data.error || 'שם משתמש או סיסמה שגויים') };
+    }
+    return { ok: true, token: data.token, member: data.member };
+  } catch {
+    return { ok: false, error: 'אין חיבור לשרת' };
   }
 }
 

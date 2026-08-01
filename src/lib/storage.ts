@@ -316,6 +316,11 @@ async function pushLocalCloud(bundle: CachedBundle): Promise<boolean> {
 /** Built-in Render/Node cloud API (/api/cloud) — durable when CLOUD_GITHUB_TOKEN is set */
 let serverCloudChecked: boolean | null = null;
 
+async function cloudFetch(path: string, init?: RequestInit): Promise<Response> {
+  const { apiFetch } = await import('./serverAuth');
+  return apiFetch(cloudUrl(path), init);
+}
+
 export async function isServerCloudAvailable(): Promise<boolean> {
   if (serverCloudChecked != null) return serverCloudChecked;
   if (typeof fetch === 'undefined' || !navigator.onLine) {
@@ -333,10 +338,7 @@ export async function isServerCloudAvailable(): Promise<boolean> {
 
 async function pullServerCloud(id: string): Promise<CachedBundle | null> {
   try {
-    const res = await fetch(
-      cloudUrl(`/api/cloud/synagogues/${encodeURIComponent(id)}?_=${Date.now()}`),
-      { cache: 'no-store' },
-    );
+    const res = await cloudFetch(`/api/cloud/synagogues/${encodeURIComponent(id)}?_=${Date.now()}`);
     if (res.status === 404) return null;
     if (!res.ok) return null;
     const body = (await res.json()) as CachedBundle;
@@ -352,9 +354,8 @@ async function pullServerCloud(id: string): Promise<CachedBundle | null> {
 
 async function pushServerCloud(bundle: CachedBundle): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(cloudUrl(`/api/cloud/synagogues/${encodeURIComponent(bundle.config.id)}`), {
+    const res = await cloudFetch(`/api/cloud/synagogues/${encodeURIComponent(bundle.config.id)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bundle),
     });
     if (!res.ok) {
@@ -369,7 +370,7 @@ async function pushServerCloud(bundle: CachedBundle): Promise<{ ok: boolean; err
 
 async function listServerCloud(): Promise<CachedBundle[]> {
   try {
-    const res = await fetch(cloudUrl('/api/cloud/synagogues'), { cache: 'no-store' });
+    const res = await cloudFetch('/api/cloud/synagogues');
     if (!res.ok) return [];
     const body = (await res.json()) as {
       items?: Array<{ config: SynagogueConfig; syncedAt?: string }>;
@@ -765,7 +766,7 @@ export async function deleteSynagogue(
   // Always purge Render/disk cloud when available (media, backups, HOK, inquiries…)
   if (await isServerCloudAvailable()) {
     try {
-      const res = await fetch(cloudUrl(`/api/cloud/synagogues/${encodeURIComponent(id)}`), {
+      const res = await cloudFetch(`/api/cloud/synagogues/${encodeURIComponent(id)}`, {
         method: 'DELETE',
       });
       const body = (await res.json().catch(() => ({}))) as {
@@ -826,11 +827,10 @@ export async function changeScreenId(
   }
 
   try {
-    const res = await fetch(
-      cloudUrl(`/api/cloud/synagogues/${encodeURIComponent(from)}/change-id`),
+    const res = await cloudFetch(
+      `/api/cloud/synagogues/${encodeURIComponent(from)}/change-id`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newId: to }),
       },
     );

@@ -169,10 +169,15 @@ export async function loginWithGoogleIdToken(
     ok?: boolean;
     error?: string;
     email?: string;
+    token?: string;
     member?: GoogleAuthMember;
   };
   if (!res.ok || !data.ok || !data.member) {
     throw new GoogleLoginError(data.error || 'התחברות Google נכשלה', data.email);
+  }
+  if (data.token) {
+    const { setMemberApiToken } = await import('./serverAuth');
+    setMemberApiToken(data.token);
   }
   return data.member;
 }
@@ -188,9 +193,18 @@ export async function linkGoogleAccount(input: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  const data = (await res.json()) as { ok?: boolean; error?: string; member?: GoogleAuthMember };
+  const data = (await res.json()) as {
+    ok?: boolean;
+    error?: string;
+    token?: string;
+    member?: GoogleAuthMember;
+  };
   if (!res.ok || !data.ok || !data.member) {
     throw new Error(data.error || 'קישור Google נכשל');
+  }
+  if (data.token) {
+    const { setMemberApiToken } = await import('./serverAuth');
+    setMemberApiToken(data.token);
   }
   return data.member;
 }

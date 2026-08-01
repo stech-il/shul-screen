@@ -149,9 +149,9 @@ async function expandTemplate(template: SavedDesignTemplate): Promise<SavedDesig
 
 async function fetchCloudTemplates(synagogueId: string): Promise<SavedDesignTemplate[] | null> {
   try {
-    const res = await fetch(
+    const { apiFetch } = await import('./serverAuth');
+    const res = await apiFetch(
       `/api/cloud/templates/${encodeURIComponent(synagogueId)}?_=${Date.now()}`,
-      { cache: 'no-store' },
     );
     if (!res.ok) return null;
     const data = (await res.json()) as { items?: SavedDesignTemplate[] };
@@ -166,9 +166,9 @@ async function pushCloudTemplates(
   items: SavedDesignTemplate[],
 ): Promise<boolean> {
   try {
-    const res = await fetch(`/api/cloud/templates/${encodeURIComponent(synagogueId)}`, {
+    const { apiFetch } = await import('./serverAuth');
+    const res = await apiFetch(`/api/cloud/templates/${encodeURIComponent(synagogueId)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items }),
     });
     return res.ok;
