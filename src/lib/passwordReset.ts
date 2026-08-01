@@ -212,6 +212,48 @@ export async function platformLoginSmsResend(
   }
 }
 
+export type SmsSystemStatus = {
+  ok?: boolean;
+  configured: boolean;
+  otpEnabled: boolean;
+  ready: boolean;
+  sender: string | null;
+  userHint: string;
+  notes: string;
+};
+
+export async function fetchSmsStatus(): Promise<SmsSystemStatus> {
+  const res = await apiFetch(cloudUrl('/api/auth/sms-status'));
+  const data = (await res.json().catch(() => ({}))) as SmsSystemStatus & { error?: string };
+  if (!res.ok) {
+    throw new Error(String(data.error || `HTTP ${res.status}`));
+  }
+  return {
+    configured: Boolean(data.configured),
+    otpEnabled: Boolean(data.otpEnabled),
+    ready: Boolean(data.ready),
+    sender: data.sender ?? null,
+    userHint: String(data.userHint || '****'),
+    notes: String(data.notes || ''),
+  };
+}
+
+export async function sendSmsTest(phone?: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+  const res = await apiFetch(cloudUrl('/api/auth/sms-test'), {
+    method: 'POST',
+    body: JSON.stringify({ phone: phone || undefined }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    message?: string;
+    error?: string;
+  };
+  if (!res.ok || !data.ok) {
+    return { ok: false, error: String(data.error || 'בדיקת SMS נכשלה') };
+  }
+  return { ok: true, message: data.message || 'נשלח' };
+}
+
 export async function memberLoginRemote(
   synagogueId: string,
   username: string,

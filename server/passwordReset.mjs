@@ -25,7 +25,10 @@ import {
 import {
   isSmsVerifiedToday,
   normalizeMobilePhone,
+  sendSms,
   smsConfigured,
+  smsOtpEnforcementEnabled,
+  smsStatusPublic,
   startPlatformSmsChallenge,
   verifyPlatformSmsChallenge,
 } from './sms4free.mjs';
@@ -131,8 +134,17 @@ function ensurePlatformSeed() {
 }
 
 function accountRequiresSmsOtp(account) {
-  // Explicit false disables; missing field defaults to true (secure)
+  // Explicit false disables; missing field defaults to true when enforcement is on
   return account?.requireSmsOtp !== false;
+}
+
+/** Global switch + per-account + credentials must all be on. */
+function shouldChallengeSmsOtp(account) {
+  return (
+    smsConfigured() &&
+    smsOtpEnforcementEnabled() &&
+    accountRequiresSmsOtp(account)
+  );
 }
 
 function normalizeUsername(username) {
@@ -224,7 +236,7 @@ function handlePlatformAccountCreate(body) {
   }
   const requireSmsOtp =
     profile.requireSmsOtp !== undefined ? profile.requireSmsOtp : true;
-  if (smsConfigured() && requireSmsOtp && !profile.phone) {
+  if (smsOtpEnforcementEnabled() && smsConfigured() && requireSmsOtp && !profile.phone) {
     return { status: 400, body: { ok: false, error: 'חובה להזין מספר נייד למשתמש שדורש OTP' } };
   }
   const store = loadPlatformAccounts();
@@ -292,7 +304,12 @@ function handlePlatformAccountReset(body) {
         : accountRequiresSmsOtp(cur);
     const nextPhone =
       hasProfilePatch && body.phone !== undefined ? profile.phone || '' : cur.phone || '';
-    if (smsConfigured() && nextRequire && !normalizeMobilePhone(nextPhone)) {
+    if (
+      smsOtpEnforcementEnabled() &&
+      smsConfigured() &&
+      nextRequire &&
+      !normalizeMobilePhone(nextPhone)
+    ) {
       return {
         status: 400,
         body: { ok: false, error: 'למשתמש שדורש OTP חובה מספר נייד תקין' },
@@ -649,8 +666,8 @@ async function handlePlatformLogin(body) {
     return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
   }
 
-  // SMS OTP once per Jerusalem day — only for accounts marked requireSmsOtp
-  if (smsConfigured() && accountRequiresSmsOtp(account)) {
+  // SMS OTP once per Jerusalem day — only when globally enabled + per-account flag
+  if (shouldChallengeSmsOtp(account)) {
     if (!isSmsVerifiedToday(account.username)) {
       const phone = normalizeMobilePhone(account.phone);
       if (!phone) {
@@ -713,15 +730,15 @@ async function handlePlatformSmsResend(body) {
   if (!username || !password) {
     return { status: 400, body: { ok: false, error: 'חסרים פרטי התחברות' } };
   }
-  if (!smsConfigured()) {
-    return { status: 503, body: { ok: false, error: 'SMS לא מוגדר בשרת' } };
+  if (!smsConfigured() || !smsOtpEnforcementEnabled()) {
+    return { status: 503, body: { ok: false, error: 'אימות SMS כבוי או לא מוגדר בשרת' } };
   }
   const store = ensurePlatformSeed();
   const account = store.accounts.find((a) => normalizeUsername(a.username) === username);
   if (!account || !verifyPassword(password, account.passwordHash)) {
     return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
   }
-  if (!accountRequiresSmsOtp(account) || isSmsVerifiedToday(account.username)) {
+  if (!shouldChallengeSmsOtp(account) || isSmsVerifiedToday(account.username)) {
     return { status: 200, body: platformSessionBody(account) };
   }
   const phone = normalizeMobilePhone(account.phone);
@@ -899,6 +916,65 @@ export async function handlePasswordReset(req, res, url) {
       const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
       const result = await handleMemberLogin(body);
       sendJson(res, result.status, result.body, req);
+      return true;
+    }
+
+    if (url.pathname === '/api/auth/sms-status' && req.method === 'GET') {
+      if (!requirePlatform(req, res)) return true;
+      sendJson(res, 200, { ok: true, ...smsStatusPublic() }, req);
+      return true;
+    }
+
+    if (url.pathname === '/api/auth/sms-test' && req.method === 'POST') {
+      const auth = requirePlatform(req, res);
+      if (!auth) return true;
+      const rl = checkRateLimit(`smstest:${ip}`, 6, 15 * 60 * 1000);
+      if (!rl.ok) {
+        sendJson(res, 429, { ok: false, error: 'יותר מדי בדיקות SMS' }, req);
+        return true;
+      }
+      const raw = await readBody(req);
+      const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
+      let phone = normalizeMobilePhone(body.phone);
+      if (!phone) {
+        const store = ensurePlatformSeed();
+        const me = store.accounts.find(
+          (a) => normalizeUsername(a.username) === normalizeUsername(auth.username),
+        );
+        phone = normalizeMobilePhone(me?.phone);
+      }
+      if (!phone) {
+        sendJson(
+          res,
+          400,
+          { ok: false, error: 'חסר מספר נייד לבדיקה — הזינו נייד או עדכנו בפרופיל' },
+          req,
+        );
+        return true;
+      }
+      if (!smsConfigured()) {
+        sendJson(res, 503, { ok: false, error: 'SMS לא מוגדר בשרת', ...smsStatusPublic() }, req);
+        return true;
+      }
+      const sent = await sendSms({
+        recipient: phone,
+        msg: 'screensmart — בדיקת SMS מהמערכת. אם קיבלתם — השולח והמפתח תקינים.',
+      });
+      if (!sent.ok) {
+        sendJson(
+          res,
+          502,
+          { ok: false, error: sent.error, status: sent.status, ...smsStatusPublic() },
+          req,
+        );
+        return true;
+      }
+      sendJson(
+        res,
+        200,
+        { ok: true, message: 'הודעת בדיקה נשלחה', phoneHint: phone.slice(-4), ...smsStatusPublic() },
+        req,
+      );
       return true;
     }
 

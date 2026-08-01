@@ -12,6 +12,11 @@ import {
   TRIAL_DAYS,
 } from '../lib/license';
 import { fetchMailStatus, notifyTrialStarted, sendTestMail } from '../lib/notifications';
+import {
+  fetchSmsStatus,
+  sendSmsTest,
+  type SmsSystemStatus,
+} from '../lib/passwordReset';
 import { fetchInquiries } from '../lib/inquiries';
 import { startOrefDrill, stopOrefDrill } from '../lib/orefAlerts';
 import { InquiriesPanel } from '../components/InquiriesPanel';
@@ -161,6 +166,9 @@ export function Agency() {
     from: string | null;
   } | null>(null);
   const [mailTestMsg, setMailTestMsg] = useState('');
+  const [smsStatus, setSmsStatus] = useState<SmsSystemStatus | null>(null);
+  const [smsTestMsg, setSmsTestMsg] = useState('');
+  const [smsTestPhone, setSmsTestPhone] = useState('');
   const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
   const [subsById, setSubsById] = useState<Record<string, BillingSubscription>>({});
   const [diskStatus, setDiskStatus] = useState<{
@@ -269,6 +277,18 @@ export function Agency() {
     void fetchMailStatus()
       .then(setMailStatus)
       .catch(() => setMailStatus({ configured: false, host: null, from: null }));
+    void fetchSmsStatus()
+      .then(setSmsStatus)
+      .catch(() =>
+        setSmsStatus({
+          configured: false,
+          otpEnabled: false,
+          ready: false,
+          sender: null,
+          userHint: '****',
+          notes: 'לא ניתן לטעון סטטוס SMS',
+        }),
+      );
     void fetchAllSubscriptions()
       .then((items) => {
         const map: Record<string, BillingSubscription> = {};
@@ -871,6 +891,24 @@ export function Agency() {
     }
   }
 
+  async function onTestSms() {
+    setSmsTestMsg('שולח…');
+    try {
+      const result = await sendSmsTest(smsTestPhone.trim() || undefined);
+      if (!result.ok) {
+        setSmsTestMsg(result.error || 'בדיקת SMS נכשלה');
+        const st = await fetchSmsStatus().catch(() => null);
+        if (st) setSmsStatus(st);
+        return;
+      }
+      setSmsTestMsg(result.message || 'הודעת בדיקה נשלחה');
+      const st = await fetchSmsStatus().catch(() => null);
+      if (st) setSmsStatus(st);
+    } catch (err) {
+      setSmsTestMsg(err instanceof Error ? err.message : 'בדיקת SMS נכשלה');
+    }
+  }
+
   async function removeLicense(config: SynagogueConfig) {
     if (!config.license) {
       setMsg('אין רישיון להסרה');
@@ -1218,6 +1256,68 @@ export function Agency() {
                 </button>
               </div>
               {mailTestMsg ? <p className="hint settings-feedback">{mailTestMsg}</p> : null}
+            </article>
+
+            <article className="settings-stat-card">
+              <div className="settings-stat-top">
+                <span className="settings-stat-label">SMS · אימות כניסה</span>
+                {smsStatus == null ? (
+                  <span className="settings-pill">טוען…</span>
+                ) : (
+                  <span
+                    className={`settings-pill ${
+                      smsStatus.ready ? 'ok' : smsStatus.configured ? 'warn' : 'warn'
+                    }`}
+                  >
+                    {smsStatus.ready
+                      ? 'פעיל בכניסה'
+                      : smsStatus.configured
+                        ? 'מוגדר · כבוי בכניסה'
+                        : 'לא מוגדר'}
+                  </span>
+                )}
+              </div>
+              {smsStatus == null ? (
+                <p className="hint">טוען…</p>
+              ) : (
+                <p className={`hint ${smsStatus.ready ? '' : 'warn'}`}>
+                  {smsStatus.notes}
+                  {smsStatus.sender ? (
+                    <>
+                      {' '}
+                      · שולח <span dir="ltr">{smsStatus.sender}</span>
+                    </>
+                  ) : null}
+                </p>
+              )}
+              <div className="settings-fields" style={{ marginTop: '0.5rem' }}>
+                <label>
+                  נייד לבדיקה (אופציונלי)
+                  <input
+                    type="tel"
+                    value={smsTestPhone}
+                    onChange={(e) => setSmsTestPhone(e.target.value)}
+                    placeholder="05XXXXXXXX"
+                    dir="ltr"
+                    style={{ textAlign: 'left' }}
+                  />
+                </label>
+              </div>
+              <div className="settings-card-actions">
+                <button
+                  type="button"
+                  className="btn ghost"
+                  disabled={!smsStatus?.configured || busy}
+                  onClick={() => void onTestSms()}
+                >
+                  שלח SMS בדיקה
+                </button>
+              </div>
+              {smsTestMsg ? <p className="hint settings-feedback">{smsTestMsg}</p> : null}
+              <p className="hint">
+                להפעלת OTP בכניסה אחרי שהבדיקה מצליחה: ב־Render הגדירו{' '}
+                <span dir="ltr">PLATFORM_SMS_OTP_ENABLED=true</span>
+              </p>
             </article>
           </div>
 

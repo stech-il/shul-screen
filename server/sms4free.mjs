@@ -73,6 +73,17 @@ export function smsConfigured() {
   );
 }
 
+/**
+ * Master switch — OTP at login is OFF unless explicitly enabled.
+ * Set PLATFORM_SMS_OTP_ENABLED=true in Render only after sms4free sender is verified.
+ */
+export function smsOtpEnforcementEnabled() {
+  const v = String(process.env.PLATFORM_SMS_OTP_ENABLED || '')
+    .trim()
+    .toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+}
+
 export function smsSender() {
   return String(process.env.SMS4FREE_SENDER || process.env.SMS4FREE_USER || '')
     .trim()
@@ -88,6 +99,34 @@ export function normalizeMobilePhone(raw) {
   return d;
 }
 
+export function phoneHint(phone) {
+  const p = String(phone || '').replace(/\D/g, '');
+  if (p.length < 4) return '****';
+  return `***${p.slice(-4)}`;
+}
+
+export function smsStatusPublic() {
+  const configured = smsConfigured();
+  const otpEnabled = smsOtpEnforcementEnabled();
+  const sender = smsSender();
+  const user = String(process.env.SMS4FREE_USER || '').trim();
+  const ready = configured && otpEnabled && Boolean(sender);
+  return {
+    configured,
+    otpEnabled,
+    ready,
+    sender: sender || null,
+    userHint: phoneHint(user),
+    notes: !configured
+      ? 'חסרים SMS4FREE_KEY / SMS4FREE_USER / SMS4FREE_PASS ב־Render'
+      : !otpEnabled
+        ? 'אימות SMS בכניסה כבוי (PLATFORM_SMS_OTP_ENABLED לא מופעל) — ניתן להיכנס עם סיסמה'
+        : !sender
+          ? 'חסר SMS4FREE_SENDER'
+          : 'מוכן — ודאו שמספר השולח אומת באתר sms4free',
+  };
+}
+
 /** Asia/Jerusalem calendar day YYYY-MM-DD */
 export function jerusalemDayKey(d = new Date()) {
   try {
@@ -100,12 +139,6 @@ export function jerusalemDayKey(d = new Date()) {
   } catch {
     return d.toISOString().slice(0, 10);
   }
-}
-
-export function phoneHint(phone) {
-  const p = String(phone || '').replace(/\D/g, '');
-  if (p.length < 4) return '****';
-  return `***${p.slice(-4)}`;
 }
 
 export function isSmsVerifiedToday(username) {
