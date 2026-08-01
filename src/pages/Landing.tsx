@@ -8,12 +8,17 @@ import { submitInquiry } from '../lib/inquiries';
 import { startTrialSignup, type TrialSignupResult } from '../lib/trialSignup';
 import { trackLandingVisit } from '../lib/landingAnalytics';
 import { fetchPublicSynagogues, type PublicSynagogue } from '../lib/publicDirectory';
+import {
+  campaignWhatsAppUrl,
+  isLandingCampaignActive,
+  LANDING_CAMPAIGN,
+} from '../lib/landingCampaign';
 import './Landing.css';
 
 const WHATSAPP = 'https://wa.me/972524521527';
 const PHONE_TEL = 'tel:0524521527';
 const PHONE_LABEL = '052-4521527';
-const MONTHLY = 99;
+const MONTHLY = LANDING_CAMPAIGN.regularPrice;
 
 const FEATURE_KEYS = [
   'feature1',
@@ -184,6 +189,8 @@ export function Landing() {
   const [trialError, setTrialError] = useState('');
   const [trialResult, setTrialResult] = useState<TrialSignupResult | null>(null);
   const [connectedShuls, setConnectedShuls] = useState<PublicSynagogue[]>([]);
+  const campaignOn = isLandingCampaignActive();
+  const saleWhatsapp = campaignWhatsAppUrl(locale === 'he' ? 'he' : 'en');
 
   useEffect(() => {
     document.title = t('landing.seoTitle');
@@ -517,16 +524,40 @@ export function Landing() {
           </div>
         </section>
 
-        <section className="landing-pricing" id="pricing" aria-labelledby="pricing-title">
+        <section
+          className={`landing-pricing${campaignOn ? ' is-campaign' : ''}`}
+          id="pricing"
+          aria-labelledby="pricing-title"
+        >
           <div className="landing-pricing-inner">
-            <p className="landing-kicker">{t('landing.pricingKicker')}</p>
-            <h2 id="pricing-title">{t('landing.pricingTitle')}</h2>
-            <p className="landing-section-lead">{t('landing.pricingLead')}</p>
-            <p className="landing-price">
-              <strong>{MONTHLY}</strong>
-              <span>{t('landing.perMonth')}</span>
-            </p>
-            <p className="landing-price-note">{t('landing.priceNote')}</p>
+            {campaignOn ? (
+              <>
+                <p className="landing-kicker landing-campaign-kicker">{t('landing.campaignKicker')}</p>
+                <h2 id="pricing-title">{t('landing.campaignTitle')}</h2>
+                <p className="landing-section-lead">{t('landing.campaignLead')}</p>
+                <p className="landing-campaign-price" aria-label={`${LANDING_CAMPAIGN.salePrice} ${t('landing.perMonth')}`}>
+                  <span className="landing-campaign-was">
+                    <span className="sr-only">{t('landing.campaignWas')}</span>
+                    <s>{LANDING_CAMPAIGN.regularPrice}</s>
+                  </span>
+                  <strong>{LANDING_CAMPAIGN.salePrice}</strong>
+                  <span>{t('landing.perMonth')}</span>
+                </p>
+                <p className="landing-campaign-tag">{t('landing.campaignTag')}</p>
+                <p className="landing-price-note">{t('landing.priceNote')}</p>
+              </>
+            ) : (
+              <>
+                <p className="landing-kicker">{t('landing.pricingKicker')}</p>
+                <h2 id="pricing-title">{t('landing.pricingTitle')}</h2>
+                <p className="landing-section-lead">{t('landing.pricingLead')}</p>
+                <p className="landing-price">
+                  <strong>{MONTHLY}</strong>
+                  <span>{t('landing.perMonth')}</span>
+                </p>
+                <p className="landing-price-note">{t('landing.priceNote')}</p>
+              </>
+            )}
             <p className="landing-hardware-note" role="note">
               <strong>{t('landing.hardwareNoteStrong')}</strong>
               {t('landing.hardwareNoteRest')}
@@ -537,9 +568,16 @@ export function Landing() {
               <li>{t('landing.priceInc3')}</li>
               <li>{t('landing.priceInc4')}</li>
             </ul>
-            <a className="landing-btn primary lg" href="#trial">
-              {t('landing.startTrial')}
-            </a>
+            <div className="landing-cta-row landing-pricing-cta">
+              <a className="landing-btn primary lg" href="#trial">
+                {campaignOn ? t('landing.campaignCta') : t('landing.startTrial')}
+              </a>
+              {campaignOn ? (
+                <a className="landing-btn outline lg" href={saleWhatsapp} target="_blank" rel="noreferrer">
+                  {t('landing.campaignWhatsapp')}
+                </a>
+              ) : null}
+            </div>
           </div>
         </section>
 

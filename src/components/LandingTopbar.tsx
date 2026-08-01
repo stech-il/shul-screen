@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BrandLogo } from './BrandLogo';
 import { LangSwitch, useI18n } from '../i18n';
 import { fetchPublicSynagogues } from '../lib/publicDirectory';
+import { isLandingCampaignActive } from '../lib/landingCampaign';
 import '../pages/Landing.css';
 
 const WHATSAPP = 'https://wa.me/972524521527';
@@ -20,6 +21,7 @@ export function LandingTopbar({ onHomePage = false }: Props) {
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginShulId, setLoginShulId] = useState('');
   const [showConnected, setShowConnected] = useState(false);
+  const campaignOn = isLandingCampaignActive();
 
   const section = (id: string) => (onHomePage ? `#${id}` : `/#${id}`);
 
@@ -64,7 +66,9 @@ export function LandingTopbar({ onHomePage = false }: Props) {
         <a href={section('screens')}>{t('landing.navScreens')}</a>
         <a href={section('preview')}>{t('landing.navPreview')}</a>
         <a href={section('manage')}>{t('landing.navSystem')}</a>
-        <a href={section('pricing')}>{t('landing.navPricing')}</a>
+        <a href={section('pricing')}>
+          {campaignOn ? t('landing.navCampaign') : t('landing.navPricing')}
+        </a>
         <a href={section('trial')}>{t('landing.navTrial')}</a>
         <Link to="/guide">{t('landing.navGuide')}</Link>
       </nav>
