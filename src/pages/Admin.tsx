@@ -13,7 +13,7 @@ import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { MediaPickerField, GalleryManager } from '../components/MediaPicker';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { CITIES } from '../data/cities';
-import { hasVisibleText, sanitizeRichHtml } from '../lib/sanitizeHtml';
+import { hasVisibleText, sanitizeRichHtml, toPlainDisplayText } from '../lib/sanitizeHtml';
 import { NUSACH_TEMPLATES, applyNusachTemplate } from '../data/nusach';
 import { ZMAN_DEFS, type ZmanKey } from '../data/zmanim';
 import { useI18n, LangSwitch } from '../i18n';
@@ -43,6 +43,7 @@ import { HebrewDatePicker } from '../components/HebrewDatePicker';
 import { daysLeft, isLicenseValid } from '../lib/license';
 import { upsertGallery } from '../lib/gallery';
 import { useUndoHistory } from '../lib/undoHistory';
+import { isNativeCapacitorShell } from '../lib/androidKiosk';
 import { MANAGE_STUDIO_TABS, loginPathFor } from '../lib/manageApp';
 import {
   authenticateWithBiometric,
@@ -78,6 +79,7 @@ import type {
 import './Admin.css';
 
 type TabId =
+  | 'quick'
   | 'design'
   | 'canvas'
   | 'content'
@@ -102,6 +104,7 @@ const TAB_GROUP_DEFS: { id: TabGroup; labelKey: string }[] = [
 ];
 
 const TAB_DEFS: { id: TabId; labelKey: string; ownerOnly?: boolean; group: TabGroup }[] = [
+  { id: 'quick', labelKey: 'admin.tabQuick', group: 'daily' },
   { id: 'content', labelKey: 'admin.tabContent', group: 'daily' },
   { id: 'announce', labelKey: 'admin.tabAnnounce', group: 'daily' },
   { id: 'zmanim', labelKey: 'admin.tabZmanim', group: 'daily' },
@@ -117,6 +120,9 @@ const TAB_DEFS: { id: TabId; labelKey: string; ownerOnly?: boolean; group: TabGr
   { id: 'support', labelKey: 'admin.tabSupport', group: 'system' },
   { id: 'history', labelKey: 'admin.tabHistory', ownerOnly: true, group: 'system' },
 ];
+
+/** Bottom-nav primary destinations in the phone management app */
+const MANAGE_PRIMARY_TABS = new Set<TabId>(['quick', 'content', 'announce']);
 
 interface Props {
   synagogueId: string;
@@ -177,7 +183,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     } catch {
       /* ignore */
     }
-    return 'content';
+    return manageMode ? 'quick' : 'content';
   });
   const tabGroups = useMemo(
     () =>
@@ -198,6 +204,9 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     [t, manageMode],
   );
   const [collapsedBlocks, setCollapsedBlocks] = useState<Record<string, boolean>>({});
+  const [manageMoreOpen, setManageMoreOpen] = useState(false);
+  const [manageLocked, setManageLocked] = useState(false);
+  const [manageUnlocking, setManageUnlocking] = useState(false);
   const [kioskPin, setKioskPin] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [previewKey, setPreviewKey] = useState(0);
@@ -302,6 +311,36 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       cancelled = true;
     };
   }, [manageMode, session, synagogueId, t, askConfirm]);
+
+  /** Re-lock manage app when returning from background (native APK). */
+  useEffect(() => {
+    if (!manageMode || !isNativeCapacitorShell()) return;
+    let remove: (() => void) | undefined;
+    let wasBackground = false;
+    void (async () => {
+      if (!(await loadBiometricEnabled())) return;
+      if (!(await isBiometricAvailable())) return;
+      try {
+        const { App } = await import('@capacitor/app');
+        const handle = await App.addListener('appStateChange', ({ isActive }) => {
+          if (!isActive) {
+            wasBackground = true;
+            return;
+          }
+          if (!wasBackground) return;
+          wasBackground = false;
+          setManageLocked(true);
+          setManageMoreOpen(false);
+        });
+        remove = () => {
+          void handle.remove();
+        };
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => remove?.();
+  }, [manageMode]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -463,6 +502,20 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
 
   const activePreviewAnnouncement =
     config.announcements.find((a) => a.enabled && hasVisibleText(a.text)) ?? null;
+
+  const quickAnnouncement =
+    config.announcements.find((a) => a.enabled) ??
+    config.announcements.find((a) => hasVisibleText(a.text)) ??
+    config.announcements[0] ??
+    null;
+
+  const quickPrayerRows = config.blocks
+    .filter((b) => b.enabled)
+    .flatMap((b) =>
+      b.items
+        .filter((it) => !it.noTime)
+        .map((item) => ({ blockId: b.id, blockTitle: b.title, item })),
+    );
 
   const canvasPreviewData: CanvasData = {
     name: config.name,
@@ -861,6 +914,89 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     setConfig((c) => (c ? { ...c, modes: { ...c.modes, ...patch } } : c));
   }
 
+  function plainToAnnounceHtml(plain: string): string {
+    const escaped = plain
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return sanitizeRichHtml(escaped.replace(/\n/g, '<br>'));
+  }
+
+  function setQuickAnnouncementText(plain: string) {
+    const html = plainToAnnounceHtml(plain);
+    setConfig((c) => {
+      if (!c) return c;
+      const existing =
+        c.announcements.find((a) => a.enabled) ?? c.announcements[0] ?? null;
+      if (existing) {
+        return {
+          ...c,
+          announcements: c.announcements.map((a) =>
+            a.id === existing.id ? { ...a, text: html, enabled: true } : a,
+          ),
+        };
+      }
+      return {
+        ...c,
+        announcements: [
+          {
+            id: uid(),
+            text: html,
+            enabled: true,
+            startDate: new Date().toISOString().slice(0, 10),
+          },
+        ],
+      };
+    });
+  }
+
+  function setQuickAnnouncementEnabled(enabled: boolean) {
+    setConfig((c) => {
+      if (!c) return c;
+      const target = c.announcements.find((a) => hasVisibleText(a.text)) ?? c.announcements[0];
+      if (!target) {
+        if (!enabled) return c;
+        return {
+          ...c,
+          announcements: [
+            {
+              id: uid(),
+              text: '',
+              enabled: true,
+              startDate: new Date().toISOString().slice(0, 10),
+            },
+          ],
+        };
+      }
+      return {
+        ...c,
+        announcements: c.announcements.map((a) =>
+          a.id === target.id ? { ...a, enabled } : a,
+        ),
+      };
+    });
+  }
+
+  function applySpecialMode(mode: SpecialDisplayMode) {
+    updateModes({ specialMode: mode });
+    setTab('quick');
+    const modeLabel =
+      mode === 'mourning'
+        ? t('admin.modeShortcutMourning')
+        : mode === 'event'
+          ? t('admin.modeShortcutEvent')
+          : t('admin.modeShortcutNormal');
+    setStatus(t('admin.modeShortcutSet', { mode: modeLabel }));
+  }
+
+  function shareCongregantTimesWhatsApp() {
+    if (!config) return;
+    const url = `${window.location.origin}/times/${encodeURIComponent(synagogueId)}`;
+    const text = t('admin.whatsappShareText', { name: config.name, url });
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+    setStatus(t('admin.sharedWhatsApp'));
+  }
+
   function updateCanvas(canvas: CanvasLayoutConfig) {
     setConfig((c) => (c ? { ...c, canvas } : c));
   }
@@ -1006,37 +1142,104 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     </>
   );
 
+  const manageMoreActive = manageMode && (manageMoreOpen || !MANAGE_PRIMARY_TABS.has(tab));
+  const manageDailyMore = tabs.filter(
+    (tabItem) =>
+      tabItem.group === 'daily' &&
+      !MANAGE_PRIMARY_TABS.has(tabItem.id) &&
+      (!tabItem.ownerOnly || isOwner),
+  );
+  const manageSystemMore = tabs.filter(
+    (tabItem) => tabItem.group === 'system' && (!tabItem.ownerOnly || isOwner),
+  );
+
+  async function unlockManageApp() {
+    setManageUnlocking(true);
+    setStatus('');
+    const r = await authenticateWithBiometric(t('manage.biometricReason'));
+    setManageUnlocking(false);
+    if (r.ok) {
+      setManageLocked(false);
+      return;
+    }
+    setStatus(r.error || t('manage.biometricFailed'));
+  }
+
+  function goManageTab(next: TabId) {
+    setManageMoreOpen(false);
+    setTab(next);
+  }
+
   return (
     <div
       className={`admin${tab === 'canvas' ? ' canvas-mode' : ''}${manageMode ? ' manage-mode' : ''}`}
       dir={dir}
       lang={locale}
     >
-      <header className="admin-header sticky-bar">
+      {manageMode && manageLocked ? (
+        <div className="manage-lock-overlay" role="dialog" aria-modal>
+          <div className="manage-lock-card">
+            <p className="manage-mode-badge">{t('manage.modeBadge')}</p>
+            <h2>{t('manage.resumeLockTitle')}</h2>
+            <p>{t('manage.resumeLockLead')}</p>
+            {status ? <p className="manage-lock-error">{status}</p> : null}
+            <button
+              type="button"
+              className="btn primary"
+              disabled={manageUnlocking}
+              onClick={() => void unlockManageApp()}
+            >
+              {manageUnlocking ? t('manage.unlocking') : t('manage.resumeUnlock')}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                clearSession();
+                navigate('/manage');
+              }}
+            >
+              {t('manage.usePassword')}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <header className={`admin-header sticky-bar${manageMode ? ' manage-app-header' : ''}`}>
         <div className="admin-title">
-          <BrandLogo size="sm" className="admin-brand-logo" />
+          {!manageMode ? <BrandLogo size="sm" className="admin-brand-logo" /> : null}
           {manageMode ? <p className="manage-mode-badge">{t('manage.modeBadge')}</p> : null}
-          <p className="eyebrow">
-            {t('admin.eyebrow', {
-              name: memberName,
-              role: memberRole === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor'),
-            })}
-          </p>
+          {!manageMode ? (
+            <p className="eyebrow">
+              {t('admin.eyebrow', {
+                name: memberName,
+                role: memberRole === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor'),
+              })}
+            </p>
+          ) : (
+            <p className="eyebrow manage-app-user">
+              {memberName}
+              {' · '}
+              {memberRole === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor')}
+            </p>
+          )}
           <h1>{config.name}</h1>
           <div className="admin-id-row">
-            <ScreenIdBadge id={synagogueId} size="md" copyable />
+            <ScreenIdBadge id={synagogueId} size={manageMode ? 'sm' : 'md'} copyable />
           </div>
           <div className="admin-meta">
-            <span className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>
-              {licenseBanner}
-            </span>
-            {session.viaPlatform ? (
+            {!manageMode || !licenseOk || (licenseDays != null && licenseDays <= 30) ? (
+              <span className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>
+                {licenseBanner}
+              </span>
+            ) : null}
+            {session.viaPlatform && !manageMode ? (
               <span className="license-banner ok">
                 {t('admin.platformBanner')}{' '}
                 <Link to="/agency">{t('admin.backToAgency')}</Link>
               </span>
             ) : null}
-            {status ? <span className="status">{status}</span> : null}
+            {status && !manageLocked ? <span className="status">{status}</span> : null}
           </div>
         </div>
         <div className="admin-actions">
@@ -1044,7 +1247,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
             <button
               className="btn inquiry-mail-btn has-unread"
               type="button"
-              onClick={() => setTab('support')}
+              onClick={() => goManageTab('support')}
               title={t('admin.inquiryMailTitle', { n: inquiryUnreadMessages })}
               aria-label={t('admin.inquiryMailAria', { n: inquiryUnreadMessages })}
             >
@@ -1054,7 +1257,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
               <span className="inquiry-mail-badge">{inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}</span>
             </button>
           ) : null}
-          <LangSwitch variant="light" />
+          {!manageMode ? <LangSwitch variant="light" /> : null}
           {!manageMode ? (
             <Link className="btn ghost admin-guide-link" to="/guide">
               {t('admin.installGuide')}
@@ -1084,9 +1287,11 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
               </button>
             </>
           ) : null}
-          <button className="btn ghost" type="button" onClick={logout}>
-            {t('admin.logout')}
-          </button>
+          {!manageMode ? (
+            <button className="btn ghost" type="button" onClick={logout}>
+              {t('admin.logout')}
+            </button>
+          ) : null}
           <button
             className={`btn primary ${dirty ? 'dirty' : ''}`}
             type="button"
@@ -1099,6 +1304,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       </header>
 
       <div className={`admin-body${tab === 'canvas' ? ' is-canvas' : ''}`}>
+        {!manageMode ? (
         <nav className="admin-tabs" aria-label={t('admin.navAria')}>
           {tabGroups.map((group) => {
             const items = tabs.filter(
@@ -1127,10 +1333,14 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
             );
           })}
         </nav>
+        ) : null}
 
         <div className="admin-main">
-        {tab !== 'canvas' ? (
+        {!manageMode && tab !== 'canvas' ? (
         <div className="admin-quick" role="navigation" aria-label={t('admin.quickAria')}>
+          <button type="button" className={tab === 'quick' ? 'on' : ''} onClick={() => setTab('quick')}>
+            {t('admin.tabQuick')}
+          </button>
           <button type="button" className={tab === 'content' ? 'on' : ''} onClick={() => setTab('content')}>
             {t('admin.tabContent')}
           </button>
@@ -1143,12 +1353,34 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
           <button type="button" className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>
             {t('admin.tabLive')}
           </button>
+          <button
+            type="button"
+            className={`admin-quick-mode${config.modes.specialMode === 'mourning' ? ' on' : ''}`}
+            onClick={() => applySpecialMode('mourning')}
+          >
+            {t('admin.modeShortcutMourning')}
+          </button>
+          <button
+            type="button"
+            className={`admin-quick-mode${config.modes.specialMode === 'event' ? ' on' : ''}`}
+            onClick={() => applySpecialMode('event')}
+          >
+            {t('admin.modeShortcutEvent')}
+          </button>
+          {config.modes.specialMode !== 'normal' ? (
+            <button type="button" className="admin-quick-mode" onClick={() => applySpecialMode('normal')}>
+              {t('admin.modeShortcutNormal')}
+            </button>
+          ) : null}
           <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
             {t('admin.liveScreen')}
           </Link>
           <Link className="admin-quick-ext" to={`/times/${synagogueId}`} target="_blank" rel="noreferrer">
             {t('admin.congregantTimes')}
           </Link>
+          <button type="button" className="admin-quick-ext" onClick={shareCongregantTimesWhatsApp}>
+            {t('admin.shareWhatsApp')}
+          </button>
           <button
             type="button"
             className="admin-quick-ext"
@@ -1163,6 +1395,127 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
             {t('admin.copyCongregantTimes')}
           </button>
         </div>
+        ) : null}
+
+        {manageMode && manageMoreOpen ? (
+          <div className="manage-more-sheet" role="dialog" aria-label={t('manage.moreTitle')}>
+            <div className="manage-more-head">
+              <h2>{t('manage.moreTitle')}</h2>
+              <button type="button" className="btn ghost" onClick={() => setManageMoreOpen(false)}>
+                {t('common.close')}
+              </button>
+            </div>
+            {manageDailyMore.length ? (
+              <div className="manage-more-group">
+                <p className="manage-more-label">{t('manage.moreDaily')}</p>
+                <div className="manage-more-grid">
+                  {manageDailyMore.map((tabItem) => (
+                    <button
+                      key={tabItem.id}
+                      type="button"
+                      className={`manage-more-item${tab === tabItem.id ? ' on' : ''}`}
+                      onClick={() => goManageTab(tabItem.id)}
+                    >
+                      {tabItem.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className={`manage-more-item${config.modes.specialMode === 'mourning' ? ' on' : ''}`}
+                    onClick={() => {
+                      applySpecialMode('mourning');
+                      setManageMoreOpen(false);
+                    }}
+                  >
+                    {t('admin.modeShortcutMourning')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`manage-more-item${config.modes.specialMode === 'event' ? ' on' : ''}`}
+                    onClick={() => {
+                      applySpecialMode('event');
+                      setManageMoreOpen(false);
+                    }}
+                  >
+                    {t('admin.modeShortcutEvent')}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {manageSystemMore.length ? (
+              <div className="manage-more-group">
+                <p className="manage-more-label">{t('manage.moreSystem')}</p>
+                <div className="manage-more-grid">
+                  {manageSystemMore.map((tabItem) => (
+                    <button
+                      key={tabItem.id}
+                      type="button"
+                      className={`manage-more-item${tab === tabItem.id ? ' on' : ''}`}
+                      onClick={() => goManageTab(tabItem.id)}
+                    >
+                      {tabItem.label}
+                      {tabItem.id === 'support' && inquiryUnreadMessages > 0 ? (
+                        <span className="tab-unread-badge">
+                          {inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="manage-more-group">
+              <p className="manage-more-label">{t('manage.moreLinks')}</p>
+              <div className="manage-more-grid">
+                <button type="button" className="manage-more-item" onClick={() => goManageTab('live')}>
+                  {t('manage.openLive')}
+                </button>
+                <Link className="manage-more-item" to={`/times/${synagogueId}`}>
+                  {t('manage.openTimes')}
+                </Link>
+                <button
+                  type="button"
+                  className="manage-more-item"
+                  onClick={() => {
+                    shareCongregantTimesWhatsApp();
+                    setManageMoreOpen(false);
+                  }}
+                >
+                  {t('admin.shareWhatsApp')}
+                </button>
+                <button
+                  type="button"
+                  className="manage-more-item"
+                  onClick={() => {
+                    const url = `${window.location.origin}/times/${encodeURIComponent(synagogueId)}`;
+                    void navigator.clipboard.writeText(url).then(
+                      () => setStatus(t('admin.copiedCongregantTimes')),
+                      () => setStatus(url),
+                    );
+                    setManageMoreOpen(false);
+                  }}
+                >
+                  {t('admin.copyCongregantTimes')}
+                </button>
+              </div>
+            </div>
+            <div className="manage-more-footer">
+              <LangSwitch variant="light" />
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setManageMoreOpen(false);
+                  navigate('/manage');
+                }}
+              >
+                {t('manage.changeScreen')}
+              </button>
+              <button type="button" className="btn ghost" onClick={() => void logout()}>
+                {t('admin.logout')}
+              </button>
+            </div>
+          </div>
         ) : null}
 
         <div className="admin-grid">
@@ -1825,6 +2178,162 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
           </section>
         ) : null}
 
+        {tab === 'quick' ? (
+          <section className="card wide quick-update">
+            <div className="section-head">
+              <h2>{t('admin.quickTitle')}</h2>
+              {dirty ? (
+                <strong className="warn">{t('admin.pendingPublish')}</strong>
+              ) : (
+                <em>{t('admin.upToDate')}</em>
+              )}
+            </div>
+            <p className="hint">{t('admin.quickHint')}</p>
+
+            <div className="quick-update-grid">
+              <div className="quick-update-block">
+                <h3>{t('admin.quickAnnounce')}</h3>
+                <textarea
+                  className="quick-announce-input"
+                  rows={3}
+                  value={toPlainDisplayText(quickAnnouncement?.text ?? '')}
+                  placeholder={t('admin.quickAnnouncePlaceholder')}
+                  onChange={(e) => setQuickAnnouncementText(e.target.value)}
+                />
+                <div className="quick-update-actions">
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(quickAnnouncement?.enabled)}
+                      onChange={(e) => setQuickAnnouncementEnabled(e.target.checked)}
+                    />
+                    {quickAnnouncement?.enabled
+                      ? t('admin.quickAnnounceOn')
+                      : t('admin.quickAnnounceOff')}
+                  </label>
+                  <button type="button" className="btn ghost" onClick={() => setTab('announce')}>
+                    {t('admin.quickMoreAnnounce')}
+                  </button>
+                </div>
+              </div>
+
+              <div className="quick-update-block">
+                <h3>{t('admin.quickModes')}</h3>
+                <div className="quick-mode-chips" role="group" aria-label={t('admin.quickModes')}>
+                  {(
+                    [
+                      ['normal', t('admin.modeNormal')],
+                      ['event', t('admin.modeEvent')],
+                      ['mourning', t('admin.modeMourning')],
+                    ] as const
+                  ).map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={`quick-mode-chip${config.modes.specialMode === mode ? ' on' : ''}`}
+                      onClick={() => updateModes({ specialMode: mode })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {config.modes.specialMode === 'event' ? (
+                  <div className="quick-mode-fields">
+                    <label>
+                      {t('admin.eventTitle')}
+                      <input
+                        value={config.modes.eventTitle ?? ''}
+                        onChange={(e) => updateModes({ eventTitle: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      {t('admin.eventSubtitle')}
+                      <input
+                        value={config.modes.eventSubtitle ?? ''}
+                        onChange={(e) => updateModes({ eventSubtitle: e.target.value })}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+                {config.modes.specialMode === 'mourning' ? (
+                  <div className="quick-mode-fields">
+                    <label>
+                      {t('admin.mourningName')}
+                      <input
+                        value={config.modes.mourningName ?? ''}
+                        onChange={(e) => updateModes({ mourningName: e.target.value })}
+                        autoFocus={manageMode}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="quick-update-block quick-prayers">
+              <div className="section-head">
+                <h3>{t('admin.quickPrayers')}</h3>
+                <button type="button" className="btn ghost" onClick={() => setTab('content')}>
+                  {t('admin.quickOpenContent')}
+                </button>
+              </div>
+              {quickPrayerRows.length === 0 ? (
+                <div className="admin-empty">
+                  <p>{t('admin.quickNoPrayers')}</p>
+                  <button type="button" className="btn primary" onClick={() => setTab('content')}>
+                    {t('admin.createFirstBlock')}
+                  </button>
+                </div>
+              ) : (
+                <div className="quick-prayer-list">
+                  {quickPrayerRows.map(({ blockId, blockTitle, item }) => (
+                    <div className="quick-prayer-row" key={`${blockId}-${item.id}`}>
+                      <span className="quick-prayer-block">{blockTitle}</span>
+                      <input
+                        value={item.title}
+                        onChange={(e) => updateItem(blockId, item.id, { title: e.target.value })}
+                        placeholder={t('admin.titlePlaceholder')}
+                      />
+                      {item.fromZman ? (
+                        <span className="item-hint" dir="ltr">
+                          {ZMAN_DEFS.find((z) => z.key === item.fromZman)?.label ?? item.fromZman}
+                          {(item.offsetMinutes ?? 0) !== 0
+                            ? ` ${item.offsetMinutes! > 0 ? '+' : ''}${item.offsetMinutes}`
+                            : ''}
+                        </span>
+                      ) : (
+                        <input
+                          type="time"
+                          value={item.time}
+                          onChange={(e) => updateItem(blockId, item.id, { time: e.target.value })}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="quick-update-footer">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={shareCongregantTimesWhatsApp}
+              >
+                {t('admin.shareWhatsApp')}
+              </button>
+              <button
+                type="button"
+                className={`btn primary${dirty ? ' dirty' : ''}`}
+                disabled={saving || !dirty}
+                onClick={() => void onSave()}
+              >
+                {saving ? t('admin.publishing') : dirty ? t('admin.quickPublishCta') : t('admin.publish')}
+              </button>
+            </div>
+          </section>
+        ) : null}
+
         {tab === 'content' ? (
           <section className="card wide">
             <div className="section-head">
@@ -2389,6 +2898,42 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         </button>
       </div>
 
+      {manageMode ? (
+        <nav className="manage-bottom-nav" aria-label={t('admin.navAria')}>
+          <button
+            type="button"
+            className={tab === 'quick' && !manageMoreOpen ? 'on' : ''}
+            onClick={() => goManageTab('quick')}
+          >
+            {t('manage.navQuick')}
+          </button>
+          <button
+            type="button"
+            className={tab === 'content' && !manageMoreOpen ? 'on' : ''}
+            onClick={() => goManageTab('content')}
+          >
+            {t('manage.navPrayers')}
+          </button>
+          <button
+            type="button"
+            className={tab === 'announce' && !manageMoreOpen ? 'on' : ''}
+            onClick={() => goManageTab('announce')}
+          >
+            {t('manage.navNotices')}
+          </button>
+          <button
+            type="button"
+            className={manageMoreActive ? 'on' : ''}
+            onClick={() => setManageMoreOpen((open) => !open)}
+          >
+            {t('manage.navMore')}
+            {inquiryUnreadMessages > 0 ? (
+              <i className="manage-nav-dot" aria-hidden="true" />
+            ) : null}
+          </button>
+        </nav>
+      ) : null}
+
       {passwordReset ? (
         <div
           className="admin-modal-backdrop"
@@ -2445,7 +2990,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         </div>
       ) : null}
 
-      {tab !== 'canvas' ? <SiteFooter /> : null}
+      {!manageMode && tab !== 'canvas' ? <SiteFooter /> : null}
     </div>
   );
 }

@@ -148,6 +148,44 @@
   accent-color: var(--navy);
 }
 
+.manage-home-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.manage-home-recent-label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.manage-home-recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.manage-home-recent-chip {
+  border: 1px solid var(--line);
+  background: #f5f7fa;
+  color: var(--navy);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  direction: ltr;
+}
+
+.manage-home-recent-chip.on {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
 .manage-home .site-footer {
   margin-top: auto;
   padding-top: 2rem;

@@ -13,8 +13,11 @@ import { isManageShellBuild, preferManageRoutes } from './manageApp';
 
 const KEY_SCREEN = 'screensmart.manage.screenId';
 const KEY_BIOMETRIC = 'screensmart.manage.biometric';
+const KEY_RECENT = 'screensmart.manage.recentIds';
 const LS_SCREEN = 'screensmart.manage.screenId';
 const LS_BIOMETRIC = 'screensmart.manage.biometric';
+const LS_RECENT = 'screensmart.manage.recentIds';
+const MAX_RECENT = 6;
 
 function readLs(key: string): string {
   try {
@@ -57,9 +60,55 @@ export async function loadSavedManageScreenId(): Promise<string> {
   return id;
 }
 
+function parseRecentIds(raw: string): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((x) => String(x || '').trim()).filter(Boolean);
+  } catch {
+    return raw
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+}
+
+export async function loadRecentManageScreenIds(): Promise<string[]> {
+  let raw = readLs(LS_RECENT);
+  if (isNativeCapacitorShell()) {
+    try {
+      const { value } = await Preferences.get({ key: KEY_RECENT });
+      if (value?.trim()) raw = value.trim();
+    } catch {
+      /* ignore */
+    }
+  }
+  const ids = parseRecentIds(raw);
+  const current = await loadSavedManageScreenId();
+  if (current && !ids.includes(current)) return [current, ...ids].slice(0, MAX_RECENT);
+  return ids.slice(0, MAX_RECENT);
+}
+
+async function rememberRecentScreenId(screenId: string): Promise<void> {
+  const id = String(screenId || '').trim();
+  if (!id) return;
+  const prev = await loadRecentManageScreenIds();
+  const next = [id, ...prev.filter((x) => x !== id)].slice(0, MAX_RECENT);
+  const raw = JSON.stringify(next);
+  writeLs(LS_RECENT, raw);
+  if (!isNativeCapacitorShell()) return;
+  try {
+    await Preferences.set({ key: KEY_RECENT, value: raw });
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function saveManageScreenId(screenId: string): Promise<void> {
   const id = String(screenId || '').trim();
   writeLs(LS_SCREEN, id);
+  if (id) await rememberRecentScreenId(id);
   if (!isNativeCapacitorShell()) return;
   try {
     if (id) await Preferences.set({ key: KEY_SCREEN, value: id });
@@ -94,10 +143,12 @@ export async function setBiometricEnabled(on: boolean): Promise<void> {
 export async function clearManageAuthPrefs(): Promise<void> {
   clearLs(LS_SCREEN);
   clearLs(LS_BIOMETRIC);
+  clearLs(LS_RECENT);
   if (!isNativeCapacitorShell()) return;
   try {
     await Preferences.remove({ key: KEY_SCREEN });
     await Preferences.remove({ key: KEY_BIOMETRIC });
+    await Preferences.remove({ key: KEY_RECENT });
   } catch {
     /* ignore */
   }

@@ -8,11 +8,18 @@ import {
   authenticateWithBiometric,
   isBiometricAvailable,
   loadBiometricEnabled,
+  loadRecentManageScreenIds,
   loadSavedManageScreenId,
   saveManageScreenId,
   setBiometricEnabled,
 } from '../lib/manageAuth';
-import { markManageSession, loginPathFor, adminPathFor } from '../lib/manageApp';
+import { isNativeCapacitorShell } from '../lib/androidKiosk';
+import {
+  isManageShellBuild,
+  markManageSession,
+  loginPathFor,
+  adminPathFor,
+} from '../lib/manageApp';
 import { isValidScreenId, normalizeScreenId } from '../lib/screenId';
 import { pullFromCloud } from '../lib/storage';
 import { useI18n, LangSwitch } from '../i18n';
@@ -30,16 +37,19 @@ export function ManageHome() {
   const [unlocking, setUnlocking] = useState(false);
   const [checkingId, setCheckingId] = useState(false);
   const [notFoundId, setNotFoundId] = useState('');
+  const [recentIds, setRecentIds] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       markManageSession();
       const saved = await loadSavedManageScreenId();
+      const recent = await loadRecentManageScreenIds();
       const bioOn = await loadBiometricEnabled();
       const bioOk = await isBiometricAvailable();
       if (cancelled) return;
       if (saved) setScreenId(saved);
+      setRecentIds(recent);
       setBioEnabled(bioOn);
       setBioAvailable(bioOk);
 
@@ -205,10 +215,12 @@ export function ManageHome() {
             {t('manage.usePassword')}
           </button>
         </main>
-        <SiteFooter />
+        {!isManageShellBuild() && !isNativeCapacitorShell() ? <SiteFooter /> : null}
       </div>
     );
   }
+
+  const hideMarketingChrome = isManageShellBuild() || isNativeCapacitorShell();
 
   return (
     <div className="manage-home" dir={dir} lang={locale}>
@@ -234,6 +246,23 @@ export function ManageHome() {
               required
             />
           </label>
+          {recentIds.length > 0 ? (
+            <div className="manage-home-recent">
+              <p className="manage-home-recent-label">{t('manage.recentScreens')}</p>
+              <div className="manage-home-recent-list">
+                {recentIds.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`manage-home-recent-chip${normalizeScreenId(screenId) === id ? ' on' : ''}`}
+                    onClick={() => setScreenId(id)}
+                  >
+                    {id}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {error ? <p className="manage-home-error">{error}</p> : null}
           <button type="submit" className="btn primary" disabled={checkingId}>
             {checkingId ? t('common.loading') : t('manage.continue')}
@@ -250,11 +279,13 @@ export function ManageHome() {
           </label>
         ) : null}
         <p className="manage-home-note">{t('manage.note')}</p>
-        <Link className="manage-home-web" to="/">
-          {t('manage.backSite')}
-        </Link>
+        {!hideMarketingChrome ? (
+          <Link className="manage-home-web" to="/">
+            {t('manage.backSite')}
+          </Link>
+        ) : null}
       </main>
-      <SiteFooter />
+      {!hideMarketingChrome ? <SiteFooter /> : null}
     </div>
   );
 }
