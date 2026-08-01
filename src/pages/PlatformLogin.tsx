@@ -1,17 +1,19 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
+  completePlatformSmsLogin,
   getPlatformAdminUsername,
   isPlatformAdminLoggedIn,
   loginPlatformAdmin,
 } from '../lib/platformAuth';
-import { requestPasswordReset } from '../lib/passwordReset';
+import { platformLoginSmsResend, requestPasswordReset } from '../lib/passwordReset';
 import { BrandLogo } from '../components/BrandLogo';
 import { SiteFooter } from '../components/SiteFooter';
 import './Agency.css';
 
 /**
  * Platform super-admin gate at /admin — after login goes straight to /agency.
+ * When SMS is configured on the server, OTP is required once per day.
  */
 export function PlatformLogin() {
   const [loginUser, setLoginUser] = useState(getPlatformAdminUsername());
@@ -19,9 +21,13 @@ export function PlatformLogin() {
   const [loginRemember, setLoginRemember] = useState(true);
   const [error, setError] = useState('');
   const [ok, setOk] = useState(() => isPlatformAdminLoggedIn());
-  const [mode, setMode] = useState<'login' | 'forgot'>('login');
+  const [mode, setMode] = useState<'login' | 'forgot' | 'sms'>('login');
   const [forgotMsg, setForgotMsg] = useState('');
   const [forgotBusy, setForgotBusy] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [smsCode, setSmsCode] = useState('');
+  const [challengeId, setChallengeId] = useState('');
+  const [phoneHint, setPhoneHint] = useState('');
 
   if (ok || isPlatformAdminLoggedIn()) {
     return <Navigate to="/agency" replace />;
@@ -30,12 +36,66 @@ export function PlatformLogin() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    const result = await loginPlatformAdmin(loginUser, loginPass, loginRemember);
-    if (!result.ok) {
-      setError(result.error);
+    setBusy(true);
+    try {
+      const result = await loginPlatformAdmin(loginUser, loginPass, loginRemember);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      if ('smsRequired' in result && result.smsRequired) {
+        setChallengeId(result.challengeId);
+        setPhoneHint(result.phoneHint);
+        setSmsCode('');
+        setMode('sms');
+        return;
+      }
+      setOk(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSmsSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!challengeId || smsCode.trim().length < 4) {
+      setError('נא להזין את הקוד מה־SMS');
       return;
     }
-    setOk(true);
+    setBusy(true);
+    try {
+      const result = await completePlatformSmsLogin(challengeId, smsCode.trim(), loginRemember);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setOk(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSmsResend() {
+    setError('');
+    setBusy(true);
+    try {
+      const result = await platformLoginSmsResend(loginUser, loginPass);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      if (result.token) {
+        setOk(true);
+        return;
+      }
+      setChallengeId(result.challengeId);
+      setPhoneHint(result.phoneHint);
+      setSmsCode('');
+      setForgotMsg('נשלח קוד חדש ב־SMS');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function onForgot(e: FormEvent) {
@@ -108,8 +168,8 @@ export function PlatformLogin() {
               שמור התחברות במכשיר זה (14 יום)
             </label>
             {error ? <p className="agency-flash">{error}</p> : null}
-            <button type="submit" className="btn primary">
-              כניסה
+            <button type="submit" className="btn primary" disabled={busy}>
+              {busy ? 'בודק…' : 'כניסה'}
             </button>
             <button
               type="button"
@@ -121,6 +181,53 @@ export function PlatformLogin() {
               }}
             >
               שכחתי סיסמה
+            </button>
+          </form>
+        ) : mode === 'sms' ? (
+          <form className="agency-login-card" onSubmit={(e) => void onSmsSubmit(e)}>
+            <h2>אימות SMS</h2>
+            <p className="hint">
+              נשלח קוד חד־פעמי למספר {phoneHint || '****'}. נדרש פעם ביום לכל כניסה למנהל
+              המערכת.
+            </p>
+            <label>
+              קוד מה־SMS
+              <input
+                value={smsCode}
+                onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                required
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                dir="ltr"
+                style={{ textAlign: 'left', letterSpacing: '0.2em', fontSize: '1.25rem' }}
+                placeholder="------"
+              />
+            </label>
+            {error ? <p className="agency-flash">{error}</p> : null}
+            {forgotMsg ? <p className="agency-flash ok">{forgotMsg}</p> : null}
+            <button type="submit" className="btn primary" disabled={busy}>
+              {busy ? 'מאמת…' : 'אימות וכניסה'}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={busy}
+              onClick={() => void onSmsResend()}
+            >
+              שלח קוד מחדש
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                setMode('login');
+                setError('');
+                setForgotMsg('');
+                setChallengeId('');
+                setSmsCode('');
+              }}
+            >
+              חזרה להתחברות
             </button>
           </form>
         ) : (

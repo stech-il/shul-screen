@@ -49,10 +49,7 @@ export function completePasswordReset(token: string, password: string) {
   }>;
 }
 
-export async function platformLoginRemote(
-  username: string,
-  password: string,
-): Promise<
+export type PlatformLoginRemoteResult =
   | {
       ok: true;
       username: string;
@@ -60,9 +57,24 @@ export async function platformLoginRemote(
       lastName?: string;
       email?: string;
       token?: string;
+      smsRequired?: false;
     }
-  | { ok: false; error: string; missing?: boolean }
-> {
+  | {
+      ok: true;
+      smsRequired: true;
+      challengeId: string;
+      phoneHint: string;
+      username: string;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+    }
+  | { ok: false; error: string; missing?: boolean };
+
+export async function platformLoginRemote(
+  username: string,
+  password: string,
+): Promise<PlatformLoginRemoteResult> {
   try {
     const res = await fetch(cloudUrl('/api/auth/platform-login'), {
       method: 'POST',
@@ -77,6 +89,9 @@ export async function platformLoginRemote(
       lastName?: string;
       email?: string;
       token?: string;
+      smsRequired?: boolean;
+      challengeId?: string;
+      phoneHint?: string;
       error?: string;
     };
     if (res.status === 404) {
@@ -84,6 +99,18 @@ export async function platformLoginRemote(
     }
     if (!res.ok || !data.ok) {
       return { ok: false, error: String(data.error || 'שם משתמש או סיסמה שגויים') };
+    }
+    if (data.smsRequired && data.challengeId) {
+      return {
+        ok: true,
+        smsRequired: true,
+        challengeId: data.challengeId,
+        phoneHint: String(data.phoneHint || '****'),
+        username: String(data.username || username),
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+      };
     }
     if (data.token) setPlatformApiToken(data.token);
     return {
@@ -96,6 +123,92 @@ export async function platformLoginRemote(
     };
   } catch {
     return { ok: false, error: 'offline', missing: true };
+  }
+}
+
+export async function platformLoginSmsVerify(challengeId: string, code: string): Promise<
+  | {
+      ok: true;
+      username: string;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      token?: string;
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    const res = await fetch(cloudUrl('/api/auth/platform-login/sms'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeId, code }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      username?: string;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      token?: string;
+      error?: string;
+    };
+    if (!res.ok || !data.ok || !data.token) {
+      return { ok: false, error: String(data.error || 'קוד שגוי') };
+    }
+    setPlatformApiToken(data.token);
+    return {
+      ok: true,
+      username: String(data.username || ''),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      token: data.token,
+    };
+  } catch {
+    return { ok: false, error: 'אין חיבור לשרת' };
+  }
+}
+
+export async function platformLoginSmsResend(
+  username: string,
+  password: string,
+): Promise<
+  | { ok: true; challengeId: string; phoneHint: string; token?: string }
+  | { ok: false; error: string }
+> {
+  try {
+    const res = await fetch(cloudUrl('/api/auth/platform-login/sms-resend'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      challengeId?: string;
+      phoneHint?: string;
+      token?: string;
+      smsRequired?: boolean;
+      error?: string;
+    };
+    if (!res.ok || !data.ok) {
+      return { ok: false, error: String(data.error || 'שליחה מחדש נכשלה') };
+    }
+    if (data.token) {
+      setPlatformApiToken(data.token);
+      return { ok: true, challengeId: '', phoneHint: '', token: data.token };
+    }
+    if (!data.challengeId) {
+      return { ok: false, error: 'שליחה מחדש נכשלה' };
+    }
+    return {
+      ok: true,
+      challengeId: data.challengeId,
+      phoneHint: String(data.phoneHint || '****'),
+    };
+  } catch {
+    return { ok: false, error: 'אין חיבור לשרת' };
   }
 }
 

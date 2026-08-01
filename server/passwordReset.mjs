@@ -22,6 +22,12 @@ import {
   sendJson as authSendJson,
   verifyPassword as authVerifyPassword,
 } from './apiAuth.mjs';
+import {
+  isSmsVerifiedToday,
+  smsConfigured,
+  startPlatformSmsChallenge,
+  verifyPlatformSmsChallenge,
+} from './sms4free.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -528,7 +534,23 @@ function handlePeek(token) {
   };
 }
 
-function handlePlatformLogin(body) {
+function platformSessionBody(account) {
+  const session = createSession({
+    kind: 'platform',
+    username: normalizeUsername(account.username),
+  });
+  return {
+    ok: true,
+    token: session.token,
+    expiresAt: session.expiresAt,
+    username: account.username,
+    firstName: cleanProfileField(account.firstName),
+    lastName: cleanProfileField(account.lastName),
+    email: cleanProfileField(account.email, 120).toLowerCase(),
+  };
+}
+
+async function handlePlatformLogin(body) {
   const username = normalizeUsername(body.username);
   const password = String(body.password || '');
   if (!username || !password) {
@@ -542,20 +564,83 @@ function handlePlatformLogin(body) {
   if (!account || !verifyPassword(password, account.passwordHash)) {
     return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
   }
-  const session = createSession({
-    kind: 'platform',
-    username: normalizeUsername(account.username),
-  });
+
+  // Once SMS is configured — require OTP once per Jerusalem calendar day
+  if (smsConfigured()) {
+    if (!isSmsVerifiedToday(account.username)) {
+      const challenge = await startPlatformSmsChallenge(account.username);
+      if (!challenge.ok) {
+        return { status: 503, body: { ok: false, error: challenge.error } };
+      }
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          smsRequired: true,
+          challengeId: challenge.challengeId,
+          phoneHint: challenge.phoneHint,
+          expiresAt: challenge.expiresAt,
+          username: account.username,
+          firstName: cleanProfileField(account.firstName),
+          lastName: cleanProfileField(account.lastName),
+          email: cleanProfileField(account.email, 120).toLowerCase(),
+        },
+      };
+    }
+  }
+
+  return { status: 200, body: platformSessionBody(account) };
+}
+
+function handlePlatformSmsVerify(body) {
+  const challengeId = String(body.challengeId || '').trim();
+  const code = String(body.code || '').trim();
+  if (!challengeId || !code) {
+    return { status: 400, body: { ok: false, error: 'חסר קוד אימות' } };
+  }
+  const verified = verifyPlatformSmsChallenge(challengeId, code);
+  if (!verified.ok) {
+    return { status: 401, body: { ok: false, error: verified.error } };
+  }
+  const store = ensurePlatformSeed();
+  const account = store.accounts.find(
+    (a) => normalizeUsername(a.username) === normalizeUsername(verified.username),
+  );
+  if (!account) {
+    return { status: 404, body: { ok: false, error: 'משתמש לא נמצא' } };
+  }
+  return { status: 200, body: platformSessionBody(account) };
+}
+
+async function handlePlatformSmsResend(body) {
+  const username = normalizeUsername(body.username);
+  const password = String(body.password || '');
+  if (!username || !password) {
+    return { status: 400, body: { ok: false, error: 'חסרים פרטי התחברות' } };
+  }
+  if (!smsConfigured()) {
+    return { status: 503, body: { ok: false, error: 'SMS לא מוגדר בשרת' } };
+  }
+  const store = ensurePlatformSeed();
+  const account = store.accounts.find((a) => normalizeUsername(a.username) === username);
+  if (!account || !verifyPassword(password, account.passwordHash)) {
+    return { status: 401, body: { ok: false, error: 'שם משתמש או סיסמה שגויים' } };
+  }
+  if (isSmsVerifiedToday(account.username)) {
+    return { status: 200, body: platformSessionBody(account) };
+  }
+  const challenge = await startPlatformSmsChallenge(account.username);
+  if (!challenge.ok) {
+    return { status: 503, body: { ok: false, error: challenge.error } };
+  }
   return {
     status: 200,
     body: {
       ok: true,
-      token: session.token,
-      expiresAt: session.expiresAt,
-      username: account.username,
-      firstName: cleanProfileField(account.firstName),
-      lastName: cleanProfileField(account.lastName),
-      email: cleanProfileField(account.email, 120).toLowerCase(),
+      smsRequired: true,
+      challengeId: challenge.challengeId,
+      phoneHint: challenge.phoneHint,
+      expiresAt: challenge.expiresAt,
     },
   };
 }
@@ -671,7 +756,33 @@ export async function handlePasswordReset(req, res, url) {
       }
       const raw = await readBody(req);
       const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
-      const result = handlePlatformLogin(body);
+      const result = await handlePlatformLogin(body);
+      sendJson(res, result.status, result.body, req);
+      return true;
+    }
+
+    if (url.pathname === '/api/auth/platform-login/sms' && req.method === 'POST') {
+      const rl = checkRateLimit(`platsms:${ip}`, 40, 15 * 60 * 1000);
+      if (!rl.ok) {
+        sendJson(res, 429, { ok: false, error: 'יותר מדי ניסיונות' }, req);
+        return true;
+      }
+      const raw = await readBody(req);
+      const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
+      const result = handlePlatformSmsVerify(body);
+      sendJson(res, result.status, result.body, req);
+      return true;
+    }
+
+    if (url.pathname === '/api/auth/platform-login/sms-resend' && req.method === 'POST') {
+      const rl = checkRateLimit(`platsmsresend:${ip}`, 8, 15 * 60 * 1000);
+      if (!rl.ok) {
+        sendJson(res, 429, { ok: false, error: 'יותר מדי שליחות SMS — נסו מאוחר יותר' }, req);
+        return true;
+      }
+      const raw = await readBody(req);
+      const body = raw.length ? JSON.parse(raw.toString('utf8') || '{}') : {};
+      const result = await handlePlatformSmsResend(body);
       sendJson(res, result.status, result.body, req);
       return true;
     }

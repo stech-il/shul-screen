@@ -242,35 +242,74 @@ export function clearPlatformSession(): void {
   }
 }
 
+export type PlatformLoginResult =
+  | { ok: true; session: PlatformSession }
+  | {
+      ok: true;
+      smsRequired: true;
+      challengeId: string;
+      phoneHint: string;
+      username: string;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+    }
+  | { ok: false; error: string };
+
+async function finishPlatformLogin(
+  username: string,
+  remember: boolean,
+  profile: PlatformProfileInput,
+  token?: string,
+): Promise<{ ok: true; session: PlatformSession }> {
+  if (token) {
+    const { setPlatformApiToken } = await import('./serverAuth');
+    setPlatformApiToken(token);
+  }
+  const u = normalizeUsername(username);
+  const store = await loadStore();
+  const idx = store.accounts.findIndex((a) => normalizeUsername(a.username) === u);
+  if (idx >= 0) {
+    const next = [...store.accounts];
+    next[idx] = mergeProfile(next[idx], profile);
+    saveStore({ accounts: next });
+  }
+  return { ok: true, session: savePlatformSession(username, remember, profile) };
+}
+
 export async function loginPlatformAdmin(
   username: string,
   password: string,
   remember = true,
-): Promise<{ ok: true; session: PlatformSession } | { ok: false; error: string }> {
+): Promise<PlatformLoginResult> {
   const u = normalizeUsername(username);
 
   try {
     const { platformLoginRemote } = await import('./passwordReset');
     const remote = await platformLoginRemote(u, password);
-    if (remote.ok) {
-      const profile = {
+    if (remote.ok && 'smsRequired' in remote && remote.smsRequired) {
+      return {
+        ok: true,
+        smsRequired: true,
+        challengeId: remote.challengeId,
+        phoneHint: remote.phoneHint,
+        username: remote.username,
         firstName: remote.firstName,
         lastName: remote.lastName,
         email: remote.email,
       };
-      if (remote.token) {
-        const { setPlatformApiToken } = await import('./serverAuth');
-        setPlatformApiToken(remote.token);
-      }
-      // Keep local profile in sync when server returns it
-      const store = await loadStore();
-      const idx = store.accounts.findIndex((a) => normalizeUsername(a.username) === u);
-      if (idx >= 0) {
-        const next = [...store.accounts];
-        next[idx] = mergeProfile(next[idx], profile);
-        saveStore({ accounts: next });
-      }
-      return { ok: true, session: savePlatformSession(remote.username, remember, profile) };
+    }
+    if (remote.ok) {
+      return finishPlatformLogin(
+        remote.username,
+        remember,
+        {
+          firstName: remote.firstName,
+          lastName: remote.lastName,
+          email: remote.email,
+        },
+        remote.token,
+      );
     }
     if (!remote.missing) {
       return { ok: false, error: remote.error };
@@ -279,7 +318,7 @@ export async function loginPlatformAdmin(
     /* fall through to local — local-only login cannot call locked APIs */
   }
 
-  // Offline / no server accounts: allow local verify only in Vite dev
+  // Offline / no server accounts: allow local verify only in Vite dev (no SMS)
   if (!import.meta.env.DEV) {
     return { ok: false, error: 'אין חיבור לשרת — נסו שוב' };
   }
@@ -299,6 +338,26 @@ export async function loginPlatformAdmin(
       email: account.email,
     }),
   };
+}
+
+export async function completePlatformSmsLogin(
+  challengeId: string,
+  code: string,
+  remember = true,
+): Promise<{ ok: true; session: PlatformSession } | { ok: false; error: string }> {
+  const { platformLoginSmsVerify } = await import('./passwordReset');
+  const remote = await platformLoginSmsVerify(challengeId, code);
+  if (!remote.ok) return { ok: false, error: remote.error };
+  return finishPlatformLogin(
+    remote.username,
+    remember,
+    {
+      firstName: remote.firstName,
+      lastName: remote.lastName,
+      email: remote.email,
+    },
+    remote.token,
+  );
 }
 
 export async function changePlatformPassword(
