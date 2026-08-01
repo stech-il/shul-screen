@@ -73,16 +73,19 @@ export function smsConfigured() {
   );
 }
 
-export function smsRecipient() {
-  return String(process.env.PLATFORM_SMS_TO || process.env.SMS4FREE_USER || '')
-    .trim()
-    .replace(/\s+/g, '');
-}
-
 export function smsSender() {
   return String(process.env.SMS4FREE_SENDER || process.env.SMS4FREE_USER || '')
     .trim()
     .slice(0, 11);
+}
+
+/** Normalize Israeli mobile to 05xxxxxxxx (digits only). */
+export function normalizeMobilePhone(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (d.startsWith('972')) d = `0${d.slice(3)}`;
+  if (d.length === 9 && d.startsWith('5')) d = `0${d}`;
+  if (!/^05\d{8}$/.test(d)) return '';
+  return d;
 }
 
 /** Asia/Jerusalem calendar day YYYY-MM-DD */
@@ -191,16 +194,21 @@ function genOtp() {
 }
 
 /**
- * Create OTP challenge and send SMS.
+ * Create OTP challenge and send SMS to the given mobile.
+ * @param {string} username
+ * @param {string} phoneRaw — per-account mobile (required)
  * @returns {Promise<{ ok: true; challengeId: string; phoneHint: string; expiresAt: number } | { ok: false; error: string }>}
  */
-export async function startPlatformSmsChallenge(username) {
+export async function startPlatformSmsChallenge(username, phoneRaw) {
   const u = String(username || '')
     .trim()
     .toLowerCase();
-  const phone = smsRecipient();
+  const phone = normalizeMobilePhone(phoneRaw);
   if (!phone) {
-    return { ok: false, error: 'לא הוגדר מספר לקבלת קוד SMS (PLATFORM_SMS_TO)' };
+    return {
+      ok: false,
+      error: 'לא הוגדר מספר נייד לחשבון זה — עדכנו טלפון בפרופיל מנהל המערכת',
+    };
   }
 
   // Invalidate prior open challenges for this user

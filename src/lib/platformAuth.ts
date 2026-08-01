@@ -30,6 +30,7 @@ export interface PlatformCreds {
   firstName?: string;
   lastName?: string;
   email?: string;
+  phone?: string;
 }
 
 /** Public account row (no password hash). */
@@ -38,6 +39,7 @@ export interface PlatformAccountPublic {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
 }
 
 /** Multi-account store (migrated from single PlatformCreds). */
@@ -49,6 +51,7 @@ export type PlatformProfileInput = {
   firstName?: string;
   lastName?: string;
   email?: string;
+  phone?: string;
 };
 
 const DEFAULT_USER =
@@ -88,6 +91,14 @@ function cleanEmail(value: unknown): string {
     .slice(0, 120);
 }
 
+function cleanPhone(value: unknown): string {
+  let d = String(value || '').replace(/\D/g, '');
+  if (d.startsWith('972')) d = `0${d.slice(3)}`;
+  if (d.length === 9 && d.startsWith('5')) d = `0${d}`;
+  if (!/^05\d{8}$/.test(d)) return '';
+  return d;
+}
+
 function normalizeAccount(raw: PlatformCreds): PlatformCreds {
   return {
     username: normalizeUsername(raw.username),
@@ -95,6 +106,7 @@ function normalizeAccount(raw: PlatformCreds): PlatformCreds {
     firstName: cleanName(raw.firstName),
     lastName: cleanName(raw.lastName),
     email: cleanEmail(raw.email),
+    phone: cleanPhone(raw.phone),
   };
 }
 
@@ -105,6 +117,7 @@ function toPublic(account: PlatformCreds): PlatformAccountPublic {
     firstName: a.firstName || '',
     lastName: a.lastName || '',
     email: a.email || '',
+    phone: a.phone || '',
   };
 }
 
@@ -183,6 +196,7 @@ function mergeProfile(account: PlatformCreds, profile?: PlatformProfileInput): P
       profile.firstName !== undefined ? cleanName(profile.firstName) : account.firstName,
     lastName: profile.lastName !== undefined ? cleanName(profile.lastName) : account.lastName,
     email: profile.email !== undefined ? cleanEmail(profile.email) : account.email,
+    phone: profile.phone !== undefined ? cleanPhone(profile.phone) : account.phone,
   });
 }
 
@@ -411,7 +425,13 @@ export async function listPlatformAccounts(): Promise<PlatformAccountPublic[]> {
     const res = await apiFetch(cloudUrl('/api/auth/platform-accounts'));
     if (res.ok) {
       const data = (await res.json()) as {
-        accounts?: { username?: string; firstName?: string; lastName?: string; email?: string }[];
+        accounts?: {
+          username?: string;
+          firstName?: string;
+          lastName?: string;
+          email?: string;
+          phone?: string;
+        }[];
       };
       for (const row of data.accounts || []) {
         const u = normalizeUsername(row.username || '');
@@ -422,6 +442,7 @@ export async function listPlatformAccounts(): Promise<PlatformAccountPublic[]> {
           firstName: cleanName(row.firstName) || prev?.firstName || '',
           lastName: cleanName(row.lastName) || prev?.lastName || '',
           email: cleanEmail(row.email) || prev?.email || '',
+          phone: cleanPhone(row.phone) || prev?.phone || '',
         });
       }
     }
@@ -444,6 +465,10 @@ export async function addPlatformAccount(
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { ok: false, error: 'כתובת מייל לא תקינה' };
   }
+  const phone = cleanPhone(profile.phone);
+  if (profile.phone && !phone) {
+    return { ok: false, error: 'מספר נייד לא תקין (05XXXXXXXX)' };
+  }
 
   const store = await loadStore();
   if (store.accounts.some((a) => normalizeUsername(a.username) === u)) {
@@ -464,6 +489,7 @@ export async function addPlatformAccount(
         firstName: account.firstName,
         lastName: account.lastName,
         email: account.email,
+        phone: account.phone,
       }),
     });
   } catch {
@@ -481,6 +507,9 @@ export async function updatePlatformAccountProfile(
   const email = profile.email !== undefined ? cleanEmail(profile.email) : undefined;
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { ok: false, error: 'כתובת מייל לא תקינה' };
+  }
+  if (profile.phone !== undefined && String(profile.phone || '').trim() && !cleanPhone(profile.phone)) {
+    return { ok: false, error: 'מספר נייד לא תקין (05XXXXXXXX)' };
   }
 
   const store = await loadStore();
@@ -513,6 +542,7 @@ export async function updatePlatformAccountProfile(
         firstName: profile.firstName,
         lastName: profile.lastName,
         email: profile.email,
+        phone: profile.phone,
       }),
     });
   } catch {

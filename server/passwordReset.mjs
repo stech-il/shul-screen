@@ -24,6 +24,7 @@ import {
 } from './apiAuth.mjs';
 import {
   isSmsVerifiedToday,
+  normalizeMobilePhone,
   smsConfigured,
   startPlatformSmsChallenge,
   verifyPlatformSmsChallenge,
@@ -97,19 +98,34 @@ function verifyPassword(password, stored) {
 
 function ensurePlatformSeed() {
   const store = loadPlatformAccounts();
+  const seedUser = normalizeUsername(process.env.PLATFORM_ADMIN_USER || '');
+  const seedPhone = normalizeMobilePhone(process.env.PLATFORM_ADMIN_PHONE || '');
+
+  // Backfill phone on the seeded admin if still empty
+  if (store.accounts.length && seedUser && seedPhone) {
+    let changed = false;
+    for (const a of store.accounts) {
+      if (normalizeUsername(a.username) === seedUser && !normalizeMobilePhone(a.phone)) {
+        a.phone = seedPhone;
+        changed = true;
+      }
+    }
+    if (changed) savePlatformAccounts(store);
+  }
+
   if (store.accounts.length) return store;
-  const user = normalizeUsername(process.env.PLATFORM_ADMIN_USER || '');
   const pass = String(process.env.PLATFORM_ADMIN_PASSWORD || '');
-  if (!user || pass.length < 8) return store;
+  if (!seedUser || pass.length < 8) return store;
   store.accounts.push({
-    username: user,
+    username: seedUser,
     passwordHash: hashPassword(pass),
     firstName: '',
     lastName: '',
     email: '',
+    phone: seedPhone,
   });
   savePlatformAccounts(store);
-  console.warn(`[auth] seeded platform admin "${user}" from PLATFORM_ADMIN_* env`);
+  console.warn(`[auth] seeded platform admin "${seedUser}" from PLATFORM_ADMIN_* env`);
   return store;
 }
 
@@ -149,10 +165,14 @@ function cleanProfileField(value, max = 80) {
 }
 
 function profileFromBody(body = {}) {
+  const phoneRaw = body.phone !== undefined ? String(body.phone || '') : undefined;
+  const phone =
+    phoneRaw === undefined ? undefined : phoneRaw.trim() ? normalizeMobilePhone(phoneRaw) : '';
   return {
     firstName: cleanProfileField(body.firstName),
     lastName: cleanProfileField(body.lastName),
     email: cleanProfileField(body.email, 120).toLowerCase(),
+    phone,
   };
 }
 
@@ -162,6 +182,7 @@ function publicPlatformAccount(account) {
     firstName: cleanProfileField(account.firstName),
     lastName: cleanProfileField(account.lastName),
     email: cleanProfileField(account.email, 120).toLowerCase(),
+    phone: normalizeMobilePhone(account.phone) || '',
   };
 }
 
@@ -188,6 +209,12 @@ function handlePlatformAccountCreate(body) {
   if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
     return { status: 400, body: { ok: false, error: 'כתובת מייל לא תקינה' } };
   }
+  if (body.phone && !profile.phone) {
+    return { status: 400, body: { ok: false, error: 'מספר נייד לא תקין (05XXXXXXXX)' } };
+  }
+  if (smsConfigured() && !profile.phone) {
+    return { status: 400, body: { ok: false, error: 'חובה להזין מספר נייד לאימות SMS' } };
+  }
   const store = loadPlatformAccounts();
   if (store.accounts.some((a) => normalizeUsername(a.username) === username)) {
     return { status: 409, body: { ok: false, error: 'שם המשתמש כבר קיים' } };
@@ -195,10 +222,16 @@ function handlePlatformAccountCreate(body) {
   store.accounts.push({
     username,
     passwordHash: hashPassword(password),
-    ...profile,
+    firstName: profile.firstName || '',
+    lastName: profile.lastName || '',
+    email: profile.email || '',
+    phone: profile.phone || '',
   });
   savePlatformAccounts(store);
-  return { status: 201, body: { ok: true, username, ...profile } };
+  return {
+    status: 201,
+    body: { ok: true, username, ...publicPlatformAccount(store.accounts[store.accounts.length - 1]) },
+  };
 }
 
 function handlePlatformAccountReset(body) {
@@ -206,13 +239,19 @@ function handlePlatformAccountReset(body) {
   const password = body.password != null ? String(body.password || '') : null;
   const profile = profileFromBody(body);
   const hasProfilePatch =
-    body.firstName !== undefined || body.lastName !== undefined || body.email !== undefined;
+    body.firstName !== undefined ||
+    body.lastName !== undefined ||
+    body.email !== undefined ||
+    body.phone !== undefined;
   if (!username) return { status: 400, body: { ok: false, error: 'חסר שם משתמש' } };
   if (password != null && password.length > 0 && password.length < 8) {
     return { status: 400, body: { ok: false, error: 'סיסמה חייבת לפחות 8 תווים' } };
   }
   if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
     return { status: 400, body: { ok: false, error: 'כתובת מייל לא תקינה' } };
+  }
+  if (body.phone !== undefined && String(body.phone || '').trim() && !profile.phone) {
+    return { status: 400, body: { ok: false, error: 'מספר נייד לא תקין (05XXXXXXXX)' } };
   }
   const store = loadPlatformAccounts();
   const idx = store.accounts.findIndex((a) => normalizeUsername(a.username) === username);
@@ -223,20 +262,35 @@ function handlePlatformAccountReset(body) {
     store.accounts.push({
       username,
       passwordHash: hashPassword(password),
-      ...(hasProfilePatch ? profile : {}),
+      firstName: profile.firstName || '',
+      lastName: profile.lastName || '',
+      email: profile.email || '',
+      phone: profile.phone || '',
     });
   } else {
     const cur = store.accounts[idx];
     store.accounts[idx] = {
       username,
       passwordHash: password ? hashPassword(password) : cur.passwordHash,
-      firstName: hasProfilePatch && body.firstName !== undefined ? profile.firstName : cur.firstName || '',
-      lastName: hasProfilePatch && body.lastName !== undefined ? profile.lastName : cur.lastName || '',
+      firstName:
+        hasProfilePatch && body.firstName !== undefined ? profile.firstName : cur.firstName || '',
+      lastName:
+        hasProfilePatch && body.lastName !== undefined ? profile.lastName : cur.lastName || '',
       email: hasProfilePatch && body.email !== undefined ? profile.email : cur.email || '',
+      phone: hasProfilePatch && body.phone !== undefined ? profile.phone || '' : cur.phone || '',
     };
   }
   savePlatformAccounts(store);
-  return { status: 200, body: { ok: true, username, ...publicPlatformAccount(store.accounts.find((a) => normalizeUsername(a.username) === username) || { username }) } };
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      username,
+      ...publicPlatformAccount(
+        store.accounts.find((a) => normalizeUsername(a.username) === username) || { username },
+      ),
+    },
+  };
 }
 
 function handlePlatformAccountDelete(body) {
@@ -568,7 +622,18 @@ async function handlePlatformLogin(body) {
   // Once SMS is configured — require OTP once per Jerusalem calendar day
   if (smsConfigured()) {
     if (!isSmsVerifiedToday(account.username)) {
-      const challenge = await startPlatformSmsChallenge(account.username);
+      const phone = normalizeMobilePhone(account.phone);
+      if (!phone) {
+        return {
+          status: 403,
+          body: {
+            ok: false,
+            error:
+              'לא הוגדר נייד לחשבון זה. עדכנו מספר טלפון בפרופיל מנהל המערכת (או PLATFORM_ADMIN_PHONE ב־seed).',
+          },
+        };
+      }
+      const challenge = await startPlatformSmsChallenge(account.username, phone);
       if (!challenge.ok) {
         return { status: 503, body: { ok: false, error: challenge.error } };
       }
@@ -629,7 +694,14 @@ async function handlePlatformSmsResend(body) {
   if (isSmsVerifiedToday(account.username)) {
     return { status: 200, body: platformSessionBody(account) };
   }
-  const challenge = await startPlatformSmsChallenge(account.username);
+  const phone = normalizeMobilePhone(account.phone);
+  if (!phone) {
+    return {
+      status: 403,
+      body: { ok: false, error: 'לא הוגדר נייד לחשבון זה — עדכנו טלפון בפרופיל' },
+    };
+  }
+  const challenge = await startPlatformSmsChallenge(account.username, phone);
   if (!challenge.ok) {
     return { status: 503, body: { ok: false, error: challenge.error } };
   }

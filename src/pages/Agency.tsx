@@ -124,6 +124,7 @@ export function Agency() {
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
   });
   const [platUserMsg, setPlatUserMsg] = useState('');
   const [platReset, setPlatReset] = useState<{ username: string; pass: string; pass2: string } | null>(
@@ -397,12 +398,20 @@ export function Agency() {
       firstName: platUserForm.firstName,
       lastName: platUserForm.lastName,
       email: platUserForm.email,
+      phone: platUserForm.phone,
     });
     if (!result.ok) {
       setPlatUserMsg(result.error);
       return;
     }
-    setPlatUserForm({ username: '', password: '', firstName: '', lastName: '', email: '' });
+    setPlatUserForm({
+      username: '',
+      password: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+    });
     setPlatUserMsg(`המשתמש «${result.username}» נוסף`);
     setPlatformUsers(await listPlatformAccounts());
   }
@@ -415,6 +424,7 @@ export function Agency() {
       firstName: platEdit.firstName,
       lastName: platEdit.lastName,
       email: platEdit.email,
+      phone: platEdit.phone,
     });
     if (!result.ok) {
       setPlatUserMsg(result.error);
@@ -1282,6 +1292,13 @@ export function Agency() {
                                 {user.email}
                               </span>
                             ) : null}
+                            {user.phone ? (
+                              <span className="platform-user-email" dir="ltr">
+                                {user.phone}
+                              </span>
+                            ) : (
+                              <span className="hint">אין נייד ל־SMS</span>
+                            )}
                           </div>
                           <div className="platform-user-actions">
                             <button
@@ -1342,6 +1359,17 @@ export function Agency() {
                         type="email"
                         value={platEdit.email}
                         onChange={(e) => setPlatEdit({ ...platEdit, email: e.target.value })}
+                        dir="ltr"
+                        style={{ textAlign: 'left' }}
+                      />
+                    </label>
+                    <label>
+                      נייד לאימות SMS
+                      <input
+                        type="tel"
+                        value={platEdit.phone}
+                        onChange={(e) => setPlatEdit({ ...platEdit, phone: e.target.value })}
+                        placeholder="05XXXXXXXX"
                         dir="ltr"
                         style={{ textAlign: 'left' }}
                       />
@@ -1437,6 +1465,20 @@ export function Agency() {
                       onChange={(e) =>
                         setPlatUserForm({ ...platUserForm, email: e.target.value })
                       }
+                      dir="ltr"
+                      style={{ textAlign: 'left' }}
+                    />
+                  </label>
+                  <label>
+                    נייד לאימות SMS
+                    <input
+                      type="tel"
+                      value={platUserForm.phone}
+                      onChange={(e) =>
+                        setPlatUserForm({ ...platUserForm, phone: e.target.value })
+                      }
+                      placeholder="05XXXXXXXX"
+                      required
                       dir="ltr"
                       style={{ textAlign: 'left' }}
                     />
