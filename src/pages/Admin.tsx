@@ -33,6 +33,7 @@ import {
   isShabbatScheduleBlock,
   pickEnabledZmanim,
   resolveFromZmanimMap,
+  resolveScheduleItemAt,
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
 import { getHistoryEntry, loadHistory } from '../lib/history';
@@ -517,17 +518,19 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         .map((item) => ({ blockId: b.id, blockTitle: b.title, item })),
     );
 
+  const previewNow = new Date();
+  const previewShabbatFriday = getShabbatZmanimDate(previewNow, previewZmanimMap);
   const canvasPreviewData: CanvasData = {
     name: config.name,
     dedication: config.dedication,
     logoSrc: config.media?.logoDataUrl || config.design.logoUrl || config.branding?.logoUrl,
-    clock: new Date().toLocaleTimeString(dateTag, {
+    clock: previewNow.toLocaleTimeString(dateTag, {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
       hour12: false,
     }),
-    day: getDayInfo(new Date(), config.yahrzeits),
+    day: getDayInfo(previewNow, config.yahrzeits),
     zmanim: previewZmanim,
     blocks: config.blocks.filter((b) => b.enabled),
     resolveTime: (item, block) =>
@@ -539,6 +542,22 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         item.fromZman,
         item.offsetMinutes ?? 0,
       ),
+    resolveItemAt: (item, block) => {
+      if (item.noTime) return null;
+      return resolveScheduleItemAt(
+        block && isShabbatScheduleBlock(block)
+          ? previewShabbatZmanimMap
+          : previewZmanimMap,
+        item.time,
+        item.fromZman,
+        item.offsetMinutes ?? 0,
+        {
+          now: previewNow,
+          shabbatFriday: block && isShabbatScheduleBlock(block) ? previewShabbatFriday : null,
+          block,
+        },
+      );
+    },
     announcement: activePreviewAnnouncement,
     announcementCount: config.announcements.filter((a) => a.enabled && a.text.trim()).length,
     announcementIndex: 0,

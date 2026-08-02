@@ -9,6 +9,7 @@ import {
   isShabbatScheduleBlock,
   pickEnabledZmanim,
   resolveFromZmanimMap,
+  resolveScheduleItemAt,
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
 import { DEMO_TIMES_CONFIG } from '../data/defaults';
@@ -165,6 +166,8 @@ export function CongregantTimes() {
     config.media?.logoDataUrl || config.design?.logoUrl || config.branding?.logoUrl || '';
 
   function renderBlock(block: ScheduleBlock) {
+    const now = new Date();
+    const shabbatFriday = getShabbatZmanimDate(now, zmanimMap);
     return (
       <section className="ct-card" key={block.id}>
         <h2>{toPlainDisplayText(block.title)}</h2>
@@ -189,7 +192,18 @@ export function CongregantTimes() {
                 </li>
               );
             }
-            const upcoming = isUpcomingWithinMinutes(timeStr);
+            const at = resolveScheduleItemAt(
+              blockZmanim,
+              item.time,
+              item.fromZman,
+              item.offsetMinutes ?? 0,
+              {
+                now,
+                shabbatFriday: isShabbatScheduleBlock(block) ? shabbatFriday : null,
+                block,
+              },
+            );
+            const upcoming = isUpcomingWithinMinutes(at, now);
             return (
               <li key={item.id} className={upcoming ? 'is-upcoming' : undefined}>
                 <span>

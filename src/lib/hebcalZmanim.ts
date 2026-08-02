@@ -1,5 +1,6 @@
 import { getCity } from '../data/cities';
 import { ZMAN_DEFS, getZmanLabel, normalizeZmanKey, type ZmanKey } from '../data/zmanim';
+import { parseTimeOnDay } from './upcomingTime';
 import type { City, ComputedZman } from '../types';
 
 export interface HebcalZmanimResult {
@@ -187,11 +188,71 @@ export function resolveFromZmanimMap(
   offsetMinutes = 0,
 ): string {
   if (!fromZman) return fixedTime;
-  const key = normalizeZmanKey(fromZman);
-  if (!key || !times[key]) return fixedTime;
-  const base = times[key]!;
-  const resolved = new Date(base.getTime() + offsetMinutes * 60_000);
-  return formatTime(resolved);
+  const at = resolveScheduleItemAt(times, fixedTime, fromZman, offsetMinutes);
+  return at ? formatTime(at) : fixedTime;
+}
+
+/**
+ * Absolute Date for a schedule row — keeps Friday/Saturday anchors for Shabbat
+ * blocks so upcoming-highlight and comparisons work across the weekend.
+ */
+export function resolveScheduleItemAt(
+  times: Partial<Record<ZmanKey, Date>>,
+  fixedTime: string,
+  fromZman?: string,
+  offsetMinutes = 0,
+  opts?: {
+    now?: Date;
+    /** Friday of the active Shabbat week (from getShabbatZmanimDate with today's zmanim). */
+    shabbatFriday?: Date | null;
+    block?: { id: string; title: string };
+  },
+): Date | null {
+  if (fromZman) {
+    const key = normalizeZmanKey(fromZman);
+    if (key && times[key]) {
+      return new Date(times[key]!.getTime() + offsetMinutes * 60_000);
+    }
+  }
+  const now = opts?.now ?? new Date();
+  const block = opts?.block;
+  const shabbatBlock = block ? isShabbatScheduleBlock(block) : Boolean(opts?.shabbatFriday);
+  if (!shabbatBlock || !opts?.shabbatFriday) {
+    return parseTimeOnDay(fixedTime, now);
+  }
+  const anchor = shabbatFixedTimeAnchorDay(fixedTime, opts.shabbatFriday, block);
+  return parseTimeOnDay(fixedTime, anchor);
+}
+
+/** Motzei Shabbat / Saturday-night blocks. */
+export function isMotzeiScheduleBlock(block: { id: string; title: string }): boolean {
+  return /מוצ["״']?ש|motzei/i.test(`${block.id} ${block.title}`);
+}
+
+/**
+ * Fixed Shabbat HH:MM → Friday (erev) or Saturday (day / Motzei).
+ * Evening (≥15:00) defaults to Friday; Motzei titles always Saturday.
+ * Used only so "upcoming" highlight knows the real calendar day.
+ */
+export function shabbatFixedTimeAnchorDay(
+  fixedTime: string,
+  friday: Date,
+  block?: { id: string; title: string },
+): Date {
+  const saturday = new Date(friday);
+  saturday.setDate(saturday.getDate() + 1);
+  saturday.setHours(12, 0, 0, 0);
+  if (block && isMotzeiScheduleBlock(block)) return saturday;
+  const m = String(fixedTime || '')
+    .trim()
+    .match(/^(\d{1,2}):/);
+  const hour = m ? Number(m[1]) : NaN;
+  if (Number.isFinite(hour) && hour >= 15) {
+    const day = new Date(friday);
+    day.setHours(12, 0, 0, 0);
+    return day;
+  }
+  return saturday;
 }
 
 export function getZmanDateFromMap(

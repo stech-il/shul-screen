@@ -25,6 +25,8 @@ export interface CanvasData {
   zmanim: ComputedZman[];
   blocks: ScheduleBlock[];
   resolveTime: (item: ScheduleItem, block?: ScheduleBlock) => string;
+  /** Absolute time for upcoming highlight (weekday vs Shabbat-aware). */
+  resolveItemAt?: (item: ScheduleItem, block?: ScheduleBlock) => Date | null;
   announcement?: Announcement | null;
   announcementCount: number;
   announcementIndex: number;
@@ -193,7 +195,8 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
                   </li>
                 );
               }
-              const upcoming = isUpcomingWithinMinutes(timeStr);
+              const at = data.resolveItemAt?.(item, block) ?? null;
+              const upcoming = isUpcomingWithinMinutes(at ?? timeStr);
               return (
                 <li key={item.id} className={upcoming ? 'is-upcoming' : undefined}>
                   <span>

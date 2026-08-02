@@ -16,6 +16,7 @@ import {
   isShabbatScheduleBlock,
   pickEnabledZmanim,
   resolveFromZmanimMap,
+  resolveScheduleItemAt,
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
 import { disableKiosk, enableKiosk, isFullscreen, watchWakeLock } from '../lib/kiosk';
@@ -369,6 +370,21 @@ export function Display({ synagogueId }: Props) {
   const carouselItem = activeAnnouncements[carouselIdx % Math.max(activeAnnouncements.length, 1)];
   const isCanvas = effectiveLayout === 'canvas';
 
+  const nowForSchedule = new Date();
+  const shabbatFriday = getShabbatZmanimDate(nowForSchedule, zmanimMap);
+  const displayBlocks = config.blocks
+    .filter((b) => b.enabled)
+    .filter((b) => {
+      if (!modeInfo || modeInfo.mode === 'weekday' || modeInfo.mode === 'erev-shabbat') {
+        return true;
+      }
+      if (modeInfo.mode === 'shabbat') {
+        const t = b.title;
+        if (/חול/.test(t) && /שבת/.test(t) === false) return false;
+      }
+      return true;
+    });
+
   const canvasData: CanvasData = {
     name: config.name,
     dedication: config.dedication,
@@ -376,7 +392,7 @@ export function Display({ synagogueId }: Props) {
     clock,
     day,
     zmanim,
-    blocks: config.blocks.filter((b) => b.enabled),
+    blocks: displayBlocks,
     resolveTime: (item, block) =>
       resolveFromZmanimMap(
         block && isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap,
@@ -384,6 +400,20 @@ export function Display({ synagogueId }: Props) {
         item.fromZman,
         item.offsetMinutes ?? 0,
       ),
+    resolveItemAt: (item, block) => {
+      if (item.noTime) return null;
+      return resolveScheduleItemAt(
+        block && isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap,
+        item.time,
+        item.fromZman,
+        item.offsetMinutes ?? 0,
+        {
+          now: nowForSchedule,
+          shabbatFriday: block && isShabbatScheduleBlock(block) ? shabbatFriday : null,
+          block,
+        },
+      );
+    },
     announcement: carouselItem ?? null,
     announcementCount: activeAnnouncements.length,
     announcementIndex: activeAnnouncements.length
@@ -610,19 +640,7 @@ export function Display({ synagogueId }: Props) {
           ) : null}
 
           {effectiveLayout !== 'event' &&
-            config.blocks
-            .filter((b) => b.enabled)
-            .filter((b) => {
-              if (!modeInfo || modeInfo.mode === 'weekday' || modeInfo.mode === 'erev-shabbat') {
-                return true;
-              }
-              if (modeInfo.mode === 'shabbat') {
-                const t = b.title;
-                if (/חול/.test(t) && /שבת/.test(t) === false) return false;
-              }
-              return true;
-            })
-            .map((block) => (
+            displayBlocks.map((block) => (
               <div className="panel" key={block.id}>
                 <h2>{toPlainDisplayText(block.title)}</h2>
                 <ul className="schedule-list">
@@ -648,7 +666,18 @@ export function Display({ synagogueId }: Props) {
                         </li>
                       );
                     }
-                    const upcoming = isUpcomingWithinMinutes(timeStr);
+                    const at = resolveScheduleItemAt(
+                      blockZmanim,
+                      item.time,
+                      item.fromZman,
+                      item.offsetMinutes ?? 0,
+                      {
+                        now: nowForSchedule,
+                        shabbatFriday: isShabbatScheduleBlock(block) ? shabbatFriday : null,
+                        block,
+                      },
+                    );
+                    const upcoming = isUpcomingWithinMinutes(at, nowForSchedule);
                     return (
                       <li key={item.id} className={upcoming ? 'is-upcoming' : undefined}>
                         <span className="item-title">
