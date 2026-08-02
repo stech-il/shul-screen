@@ -18,6 +18,7 @@ import { getModeInfo } from '../lib/modes';
 import { RichAnnounce } from '../components/RichAnnounce';
 import { toPlainDisplayText } from '../lib/sanitizeHtml';
 import { isAnnouncementActive, startAutoSync, syncConfig } from '../lib/storage';
+import { isUpcomingWithinMinutes } from '../lib/upcomingTime';
 import type {
   ComputedZman,
   DayInfo,
@@ -188,8 +189,9 @@ export function CongregantTimes() {
                 </li>
               );
             }
+            const upcoming = isUpcomingWithinMinutes(timeStr);
             return (
-              <li key={item.id}>
+              <li key={item.id} className={upcoming ? 'is-upcoming' : undefined}>
                 <span>
                   {toPlainDisplayText(item.title)}
                   {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
@@ -271,7 +273,10 @@ export function CongregantTimes() {
           <h2>זמני היום</h2>
           <ul className="ct-list">
             {zmanim.map((z) => (
-              <li key={z.key}>
+              <li
+                key={z.key}
+                className={isUpcomingWithinMinutes(z.time) ? 'is-upcoming' : undefined}
+              >
                 <span>{z.label}</span>
                 <strong className="time-ltr">{z.formatted}</strong>
               </li>

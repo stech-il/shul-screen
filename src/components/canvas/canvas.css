@@ -225,6 +225,42 @@
   font-size: 1.1em;
 }
 
+.cw-list li.is-upcoming,
+.cw-zman.is-upcoming {
+  background: color-mix(in srgb, var(--accent, #a8893d) 26%, transparent);
+  border-radius: 0.35em;
+  padding-inline: 0.25em;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #a8893d) 50%, transparent);
+  animation: cw-upcoming-pulse 2.4s ease-in-out infinite;
+}
+
+.cw-list li.is-upcoming strong,
+.cw-zman.is-upcoming .cw-zman-time {
+  color: var(--accent, #a8893d);
+  font-weight: 800;
+}
+
+.cw-list li.is-upcoming span {
+  font-weight: 700;
+}
+
+@keyframes cw-upcoming-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cw-list li.is-upcoming,
+  .cw-zman.is-upcoming {
+    animation: none;
+  }
+}
+
 .cw-announce p,
 .cw-announce-body {
   margin: 0.2em 0 0;

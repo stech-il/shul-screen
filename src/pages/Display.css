@@ -459,6 +459,44 @@
   color: var(--ink);
 }
 
+/* Highlight a time in the 10 minutes before it starts */
+.zmanim-list li.is-upcoming,
+.schedule-list li.is-upcoming {
+  background: color-mix(in srgb, var(--accent, #c9a227) 28%, transparent);
+  border-radius: 0.45em;
+  padding: 0.2em 0.45em;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #c9a227) 55%, transparent);
+  animation: upcoming-pulse 2.4s ease-in-out infinite;
+}
+
+.zmanim-list li.is-upcoming strong,
+.schedule-list li.is-upcoming strong {
+  color: var(--accent, #c9a227);
+  font-weight: 800;
+}
+
+.zmanim-list li.is-upcoming span,
+.schedule-list li.is-upcoming .item-title {
+  font-weight: 700;
+}
+
+@keyframes upcoming-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zmanim-list li.is-upcoming,
+  .schedule-list li.is-upcoming {
+    animation: none;
+  }
+}
+
 .item-title {
   display: flex;
   flex-direction: column;

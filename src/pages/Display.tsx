@@ -38,6 +38,7 @@ import {
   startAutoSync,
   syncConfig,
 } from '../lib/storage';
+import { isUpcomingWithinMinutes } from '../lib/upcomingTime';
 import { subscribeLiveUpdates } from '../lib/liveSync';
 import { subscribeWeather, weatherCodeToIcon, type WeatherData } from '../lib/weather';
 import type { ComputedZman, DayInfo, ModeInfo, SynagogueConfig, ZmanKey } from '../types';
@@ -578,7 +579,10 @@ export function Display({ synagogueId }: Props) {
             <h2>זמני היום</h2>
             <ul className="zmanim-list">
               {zmanim.map((z) => (
-                <li key={z.key}>
+                <li
+                  key={z.key}
+                  className={isUpcomingWithinMinutes(z.time) ? 'is-upcoming' : undefined}
+                >
                   <span>{z.label}</span>
                   <strong className="time-ltr">{z.formatted}</strong>
                 </li>
@@ -593,7 +597,10 @@ export function Display({ synagogueId }: Props) {
               <h2>זמני היום</h2>
               <ul className="zmanim-list compact">
                 {zmanim.map((z) => (
-                  <li key={z.key}>
+                  <li
+                    key={z.key}
+                    className={isUpcomingWithinMinutes(z.time) ? 'is-upcoming' : undefined}
+                  >
                     <span>{z.label}</span>
                     <strong className="time-ltr">{z.formatted}</strong>
                   </li>
@@ -641,8 +648,9 @@ export function Display({ synagogueId }: Props) {
                         </li>
                       );
                     }
+                    const upcoming = isUpcomingWithinMinutes(timeStr);
                     return (
-                      <li key={item.id}>
+                      <li key={item.id} className={upcoming ? 'is-upcoming' : undefined}>
                         <span className="item-title">
                           {toPlainDisplayText(item.title)}
                           {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}

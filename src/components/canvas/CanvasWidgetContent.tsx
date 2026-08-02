@@ -9,6 +9,7 @@ import type {
   ScheduleItem,
 } from '../../types';
 import { sanitizeRichHtml, toPlainDisplayText } from '../../lib/sanitizeHtml';
+import { isUpcomingWithinMinutes } from '../../lib/upcomingTime';
 import { weatherCodeToIcon } from '../../lib/weather';
 import { CandleTimesBoard, PLACEHOLDER_CANDLE_BOARD } from '../CandleTimesBoard';
 import { RichAnnounce } from '../RichAnnounce';
@@ -144,7 +145,10 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
               </li>
             ) : null}
             {data.zmanim.map((z) => (
-              <li key={z.key}>
+              <li
+                key={z.key}
+                className={isUpcomingWithinMinutes(z.time) ? 'is-upcoming' : undefined}
+              >
                 <span>{z.label}</span>
                 <strong className="time-ltr">{z.formatted}</strong>
               </li>
@@ -158,8 +162,9 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
       const label = title || found?.label || 'זמן';
       const time = found?.formatted ?? (placeholder ? '—' : '');
       const layout = widget.titleLayout || 'above';
+      const upcoming = found ? isUpcomingWithinMinutes(found.time) : false;
       return (
-        <div className={`cw-zman layout-${layout}`}>
+        <div className={`cw-zman layout-${layout}${upcoming ? ' is-upcoming' : ''}`}>
           {widget.showTitle ? <h3 className="cw-zman-title">{label}</h3> : null}
           <p className="cw-zman-time time-ltr">{time}</p>
         </div>
@@ -188,8 +193,9 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
                   </li>
                 );
               }
+              const upcoming = isUpcomingWithinMinutes(timeStr);
               return (
-                <li key={item.id}>
+                <li key={item.id} className={upcoming ? 'is-upcoming' : undefined}>
                   <span>
                     {toPlainDisplayText(item.title)}
                     {item.note ? <em>{toPlainDisplayText(item.note)}</em> : null}
