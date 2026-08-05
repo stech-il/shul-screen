@@ -177,7 +177,8 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       if (
         saved &&
         TAB_DEFS.some((def) => def.id === saved) &&
-        !(manageMode && MANAGE_STUDIO_TABS.has(saved))
+        !(manageMode && MANAGE_STUDIO_TABS.has(saved)) &&
+        !(saved === 'quick' && !manageMode)
       ) {
         return saved;
       }
@@ -196,7 +197,11 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   );
   const tabs = useMemo(
     () =>
-      TAB_DEFS.filter((def) => !(manageMode && MANAGE_STUDIO_TABS.has(def.id))).map((def) => ({
+      TAB_DEFS.filter((def) => {
+        if (def.id === 'quick' && !manageMode) return false;
+        if (manageMode && MANAGE_STUDIO_TABS.has(def.id)) return false;
+        return true;
+      }).map((def) => ({
         id: def.id,
         label: t(def.labelKey),
         ownerOnly: def.ownerOnly,
@@ -288,6 +293,10 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       });
     return stop;
   }, [synagogueId, t]);
+
+  useEffect(() => {
+    if (!manageMode && tab === 'quick') setTab('content');
+  }, [manageMode, tab]);
 
   useEffect(() => {
     if (!manageMode || !session) return;
@@ -996,18 +1005,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     });
   }
 
-  function applySpecialMode(mode: SpecialDisplayMode) {
-    updateModes({ specialMode: mode });
-    setTab('quick');
-    const modeLabel =
-      mode === 'mourning'
-        ? t('admin.modeShortcutMourning')
-        : mode === 'event'
-          ? t('admin.modeShortcutEvent')
-          : t('admin.modeShortcutNormal');
-    setStatus(t('admin.modeShortcutSet', { mode: modeLabel }));
-  }
-
   function shareCongregantTimesWhatsApp() {
     if (!config) return;
     const url = `${window.location.origin}/times/${encodeURIComponent(synagogueId)}`;
@@ -1357,9 +1354,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         <div className="admin-main">
         {!manageMode && tab !== 'canvas' ? (
         <div className="admin-quick" role="navigation" aria-label={t('admin.quickAria')}>
-          <button type="button" className={tab === 'quick' ? 'on' : ''} onClick={() => setTab('quick')}>
-            {t('admin.tabQuick')}
-          </button>
           <button type="button" className={tab === 'content' ? 'on' : ''} onClick={() => setTab('content')}>
             {t('admin.tabContent')}
           </button>
@@ -1372,25 +1366,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
           <button type="button" className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>
             {t('admin.tabLive')}
           </button>
-          <button
-            type="button"
-            className={`admin-quick-mode${config.modes.specialMode === 'mourning' ? ' on' : ''}`}
-            onClick={() => applySpecialMode('mourning')}
-          >
-            {t('admin.modeShortcutMourning')}
-          </button>
-          <button
-            type="button"
-            className={`admin-quick-mode${config.modes.specialMode === 'event' ? ' on' : ''}`}
-            onClick={() => applySpecialMode('event')}
-          >
-            {t('admin.modeShortcutEvent')}
-          </button>
-          {config.modes.specialMode !== 'normal' ? (
-            <button type="button" className="admin-quick-mode" onClick={() => applySpecialMode('normal')}>
-              {t('admin.modeShortcutNormal')}
-            </button>
-          ) : null}
           <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
             {t('admin.liveScreen')}
           </Link>
@@ -1438,26 +1413,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                       {tabItem.label}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    className={`manage-more-item${config.modes.specialMode === 'mourning' ? ' on' : ''}`}
-                    onClick={() => {
-                      applySpecialMode('mourning');
-                      setManageMoreOpen(false);
-                    }}
-                  >
-                    {t('admin.modeShortcutMourning')}
-                  </button>
-                  <button
-                    type="button"
-                    className={`manage-more-item${config.modes.specialMode === 'event' ? ' on' : ''}`}
-                    onClick={() => {
-                      applySpecialMode('event');
-                      setManageMoreOpen(false);
-                    }}
-                  >
-                    {t('admin.modeShortcutEvent')}
-                  </button>
                 </div>
               </div>
             ) : null}
@@ -2236,57 +2191,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 </div>
               </div>
 
-              <div className="quick-update-block">
-                <h3>{t('admin.quickModes')}</h3>
-                <div className="quick-mode-chips" role="group" aria-label={t('admin.quickModes')}>
-                  {(
-                    [
-                      ['normal', t('admin.modeNormal')],
-                      ['event', t('admin.modeEvent')],
-                      ['mourning', t('admin.modeMourning')],
-                    ] as const
-                  ).map(([mode, label]) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      className={`quick-mode-chip${config.modes.specialMode === mode ? ' on' : ''}`}
-                      onClick={() => updateModes({ specialMode: mode })}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {config.modes.specialMode === 'event' ? (
-                  <div className="quick-mode-fields">
-                    <label>
-                      {t('admin.eventTitle')}
-                      <input
-                        value={config.modes.eventTitle ?? ''}
-                        onChange={(e) => updateModes({ eventTitle: e.target.value })}
-                      />
-                    </label>
-                    <label>
-                      {t('admin.eventSubtitle')}
-                      <input
-                        value={config.modes.eventSubtitle ?? ''}
-                        onChange={(e) => updateModes({ eventSubtitle: e.target.value })}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-                {config.modes.specialMode === 'mourning' ? (
-                  <div className="quick-mode-fields">
-                    <label>
-                      {t('admin.mourningName')}
-                      <input
-                        value={config.modes.mourningName ?? ''}
-                        onChange={(e) => updateModes({ mourningName: e.target.value })}
-                        autoFocus={manageMode}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-              </div>
             </div>
 
             <div className="quick-update-block quick-prayers">
