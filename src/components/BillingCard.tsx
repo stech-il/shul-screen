@@ -215,11 +215,6 @@ export function BillingCard({ synagogueId, onRenewed }: Props) {
           ) : (
             <p className="hint">{t('billing.noCard')}</p>
           )}
-          {sub?.lastSumitSyncAt ? (
-            <p className="hint">
-              {t('billing.lastSynced', { date: formatBillingDate(sub.lastSumitSyncAt) })}
-            </p>
-          ) : null}
           {sub?.lastError ? (
             <p className="hint" style={{ color: '#a33' }}>
               {t('billing.lastError', { error: sub.lastError })}
