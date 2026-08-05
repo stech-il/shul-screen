@@ -716,7 +716,7 @@ export function Display({ synagogueId }: Props) {
       )}
 
       <div className="display-branding-footer">
-        screensmart.co.il · 052-4521527
+        www.screensmart.co.il · 052-4521527
       </div>
 
       {showExit ? (
