@@ -119,6 +119,16 @@
   margin-top: 0.2em !important;
 }
 
+.cw-parasha-special {
+  margin-top: 0.35rem !important;
+  font-family: var(--font-body, sans-serif) !important;
+  font-size: 0.72em !important;
+  font-weight: 600;
+  line-height: 1.3 !important;
+  opacity: 0.88;
+  color: var(--accent, currentColor);
+}
+
 .cw-zman {
   display: flex;
   flex-direction: column;

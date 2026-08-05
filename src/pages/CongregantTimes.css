@@ -103,6 +103,23 @@
   color: var(--ct-gold);
 }
 
+.ct-parasha-wrap {
+  margin-top: 0.45rem;
+}
+
+.ct-parasha-wrap .ct-parasha {
+  margin: 0;
+}
+
+.ct-parasha-special {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-ui);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ct-accent);
+  letter-spacing: 0.02em;
+}
+
 .ct-card {
   width: min(440px, 100%);
   margin: 0.75rem auto;

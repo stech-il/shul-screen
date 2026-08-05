@@ -452,6 +452,9 @@ export function Display({ synagogueId }: Props) {
         <div className="side-block">
           <h3>פרשת השבוע</h3>
           <p className="big">{day.parasha}</p>
+          {day.holidays?.length ? (
+            <p className="parasha-special">{day.holidays.join(' · ')}</p>
+          ) : null}
         </div>
       ) : null}
       {config.showDafYomi && day.dafYomi ? (
@@ -481,7 +484,7 @@ export function Display({ synagogueId }: Props) {
           <p className="weather-desc">{weather.description}</p>
         </div>
       ) : null}
-      {config.showCalendarExtras && day.holidays?.length ? (
+      {config.showCalendarExtras && day.holidays?.length && !(config.showParasha && day.parasha) ? (
         <div className="side-block">
           <h3>לוח שנה</h3>
           <p className="big">{day.holidays.join(' · ')}</p>

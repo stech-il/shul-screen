@@ -84,6 +84,9 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <div className="cw-stat">
           {widget.showTitle ? <h3>{title || 'פרשת השבוע'}</h3> : null}
           <p>{data.day.parasha}</p>
+          {data.day.holidays?.length ? (
+            <p className="cw-parasha-special">{data.day.holidays.join(' · ')}</p>
+          ) : null}
         </div>
       ) : (
         <Placeholder label="פרשת השבוע" />
