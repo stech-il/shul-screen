@@ -281,9 +281,14 @@
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
-  color: var(--ct-muted);
+  color: var(--ct-ink);
   font-size: 0.82rem;
   text-align: center;
+  padding: 0.7rem 0.95rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--ct-line);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(26, 42, 50, 0.06);
 }
 
 .ct-support {
