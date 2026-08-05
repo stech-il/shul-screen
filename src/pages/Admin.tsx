@@ -2902,7 +2902,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         </div>
       ) : null}
 
-      {!manageMode && tab !== 'canvas' ? <SiteFooter /> : null}
+      {!manageMode && tab !== 'canvas' ? <SiteFooter credit /> : null}
     </div>
   );
 }

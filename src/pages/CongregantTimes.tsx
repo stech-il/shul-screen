@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BrandLogo } from '../components/BrandLogo';
 import { CandleTimesBoard } from '../components/CandleTimesBoard';
 import { NotFoundScreen } from '../components/NotFoundScreen';
 import {
@@ -20,7 +19,6 @@ import { RichAnnounce } from '../components/RichAnnounce';
 import { toPlainDisplayText } from '../lib/sanitizeHtml';
 import { isAnnouncementActive, startAutoSync, syncConfig } from '../lib/storage';
 import { isUpcomingWithinMinutes } from '../lib/upcomingTime';
-import { APP_VERSION } from '../lib/appVersion';
 import type {
   ComputedZman,
   DayInfo,
@@ -308,8 +306,6 @@ export function CongregantTimes() {
       ) : null}
 
       <footer className="ct-footer">
-        <BrandLogo size="sm" />
-        <span>screensmart · זמני בית הכנסת · v{APP_VERSION}</span>
         <a className="ct-support" href="tel:0524521527">
           להזמנות ותמיכה · 052-4521527
         </a>

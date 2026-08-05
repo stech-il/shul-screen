@@ -2,9 +2,15 @@ import { BrandLogo } from './BrandLogo';
 import { useI18n } from '../i18n';
 import { APP_VERSION } from '../lib/appVersion';
 
-/** Persistent credit / support line at the bottom of management screens. */
-export function SiteFooter() {
+type Props = {
+  /** Brand credit + version — only for per-screen admin (and similar). */
+  credit?: boolean;
+};
+
+/** Persistent credit / support line — opt-in via `credit` so marketing pages stay clean. */
+export function SiteFooter({ credit = false }: Props) {
   const { t, dir, locale } = useI18n();
+  if (!credit) return null;
   return (
     <footer className="site-footer" dir={dir} lang={locale}>
       <p>
