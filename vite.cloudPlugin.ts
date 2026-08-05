@@ -79,6 +79,19 @@ export function cloudApiPlugin(): Plugin {
             }
             return;
           }
+          if (url.startsWith('/api/app-version')) {
+            const ver = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/appVersion.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            const handled = await ver.handleAppVersion(req, res, parsed);
+            if (!handled) {
+              res.statusCode = 404;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ error: 'not found' }));
+            }
+            return;
+          }
           if (url.startsWith('/api/auth')) {
             const auth = await import(
               /* @vite-ignore */ pathToFileURL(resolve('server/passwordReset.mjs')).href

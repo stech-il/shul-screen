@@ -87,3 +87,8 @@ a {
 .site-footer a:hover {
   text-decoration: underline;
 }
+
+.site-footer-version {
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}

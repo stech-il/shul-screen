@@ -23,6 +23,7 @@ import { handleTrialSignup } from './server/trialSignup.mjs';
 import { handleLandingAnalytics } from './server/landingAnalytics.mjs';
 import { handlePublicDirectory } from './server/publicDirectory.mjs';
 import { handleCloud } from './server/cloudHttp.mjs';
+import { handleAppVersion } from './server/appVersion.mjs';
 import { sendJson } from './server/apiAuth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -126,6 +127,10 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === '/healthz') {
     send(res, 200, 'ok', { 'Content-Type': 'text/plain' });
+    return;
+  }
+  if (url.pathname === '/api/app-version') {
+    void handleAppVersion(req, res, url);
     return;
   }
   if (url.pathname.startsWith('/api/cloud')) {

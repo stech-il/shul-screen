@@ -30,6 +30,7 @@ import {
   type MatchedOrefAlert,
 } from '../lib/orefAlerts';
 import { startHeartbeat, trackEvent } from '../lib/analytics';
+import { APP_VERSION } from '../lib/appVersion';
 import { playOrefTone } from '../lib/sound';
 import { getScreenLicenseStatus } from '../lib/license';
 import { RichAnnounce } from '../components/RichAnnounce';
@@ -719,7 +720,7 @@ export function Display({ synagogueId }: Props) {
       )}
 
       <div className="display-branding-footer">
-        www.screensmart.co.il · 052-4521527
+        www.screensmart.co.il · 052-4521527 · v{APP_VERSION}
       </div>
 
       {showExit ? (

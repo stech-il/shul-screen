@@ -1,7 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'node:fs';
 import { cloudApiPlugin } from './vite.cloudPlugin';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version: string;
+};
 
 const orefProxy = {
   '/api/oref/alerts': {
@@ -25,6 +30,9 @@ export default defineConfig({
   // Absolute base on the web so deep links (/display/12) load /assets correctly.
   // Capacitor keeps relative base for the Android WebView bundle.
   base: forCapacitor ? './' : '/',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     cloudApiPlugin(),

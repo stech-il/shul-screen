@@ -1354,18 +1354,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         <div className="admin-main">
         {!manageMode && tab !== 'canvas' ? (
         <div className="admin-quick" role="navigation" aria-label={t('admin.quickAria')}>
-          <button type="button" className={tab === 'content' ? 'on' : ''} onClick={() => setTab('content')}>
-            {t('admin.tabContent')}
-          </button>
-          <button type="button" className={tab === 'announce' ? 'on' : ''} onClick={() => setTab('announce')}>
-            {t('admin.tabAnnounce')}
-          </button>
-          <button type="button" className={tab === 'zmanim' ? 'on' : ''} onClick={() => setTab('zmanim')}>
-            {t('admin.tabZmanim')}
-          </button>
-          <button type="button" className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>
-            {t('admin.tabLive')}
-          </button>
           <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
             {t('admin.liveScreen')}
           </Link>

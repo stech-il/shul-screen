@@ -20,6 +20,7 @@ import { RichAnnounce } from '../components/RichAnnounce';
 import { toPlainDisplayText } from '../lib/sanitizeHtml';
 import { isAnnouncementActive, startAutoSync, syncConfig } from '../lib/storage';
 import { isUpcomingWithinMinutes } from '../lib/upcomingTime';
+import { APP_VERSION } from '../lib/appVersion';
 import type {
   ComputedZman,
   DayInfo,
@@ -308,7 +309,7 @@ export function CongregantTimes() {
 
       <footer className="ct-footer">
         <BrandLogo size="sm" />
-        <span>screensmart · זמני בית הכנסת</span>
+        <span>screensmart · זמני בית הכנסת · v{APP_VERSION}</span>
         <a className="ct-support" href="tel:0524521527">
           להזמנות ותמיכה · 052-4521527
         </a>

@@ -1,5 +1,6 @@
 import { BrandLogo } from './BrandLogo';
 import { useI18n } from '../i18n';
+import { APP_VERSION } from '../lib/appVersion';
 
 /** Persistent credit / support line at the bottom of management screens. */
 export function SiteFooter() {
@@ -13,6 +14,9 @@ export function SiteFooter() {
           <a href="tel:0524521527" dir="ltr">
             052-4521527
           </a>
+          <span className="site-footer-version" dir="ltr">
+            {` · v${APP_VERSION}`}
+          </span>
         </span>
       </p>
     </footer>

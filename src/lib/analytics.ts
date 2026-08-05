@@ -1,11 +1,12 @@
 import type { AnalyticsEvent, ScreenHeartbeat } from '../types';
+import { APP_VERSION } from './appVersion';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { DEFAULT_PUBLIC_ORIGIN } from './screenId';
 
 const EVENTS_KEY = 'shul-screen:analytics';
 const HEART_PREFIX = 'shul-screen:heartbeat:';
 const MAX = 200;
-export const APP_VERSION = '0.3.0';
+export { APP_VERSION } from './appVersion';
 
 function loadLocal(): AnalyticsEvent[] {
   try {

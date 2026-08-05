@@ -68,32 +68,46 @@
 
 .agency-view-tabs {
   display: flex;
-  gap: 0.25rem;
-  padding: 0.22rem;
-  border-radius: 999px;
-  background: rgba(22, 48, 56, 0.06);
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.2rem 0.3rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
   margin-inline-end: 0.35rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .agency-view-tabs button {
-  border: 0;
+  border: 1px solid transparent;
   background: transparent;
   font: inherit;
-  font-size: 0.88rem;
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
   cursor: pointer;
-  color: var(--muted);
+  color: var(--ink);
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  transition: background 0.15s ease;
+}
+
+.agency-view-tabs button:hover {
+  background: rgba(26, 47, 56, 0.06);
 }
 
 .agency-view-tabs button.on {
-  background: #fff;
-  color: var(--ink);
-  font-weight: 600;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+  font-weight: 500;
+  box-shadow: none;
 }
 
 button.stat {

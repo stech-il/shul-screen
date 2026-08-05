@@ -1,7 +1,7 @@
 {
   "name": "screensmart",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "screensmart — מסך תצוגה לבתי כנסת: זמנים, הודעות, פיקוד העורף וקיוסק",
   "author": "screensmart",
   "type": "module",

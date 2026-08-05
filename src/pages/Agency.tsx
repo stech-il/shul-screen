@@ -38,6 +38,7 @@ import {
 } from '../lib/platformAuth';
 import { useSessionKeepAlive } from '../hooks/useSessionKeepAlive';
 import { fetchHeartbeatsFromCloud, findHeartbeat, isScreenOnline } from '../lib/analytics';
+import { APP_VERSION, isOlderVersion } from '../lib/appVersion';
 import { fetchLandingStats, type LandingStats } from '../lib/landingAnalytics';
 import { BrandLogo } from '../components/BrandLogo';
 import { ScreenIdBadge } from '../components/ScreenIdBadge';
@@ -1869,7 +1870,19 @@ export function Agency() {
                             : 'לא הופעל'}
                       </span>
                       <span className="tag">{c.layout === 'canvas' ? 'בונה מסך' : c.layout}</span>
-                      {hb ? <span className="tag">v{hb.version}</span> : null}
+                      {hb ? (
+                        <span
+                          className={`tag${isOlderVersion(hb.version, APP_VERSION) ? ' warn' : ''}`}
+                          title={
+                            isOlderVersion(hb.version, APP_VERSION)
+                              ? `גרסת מסך ישנה — המערכת ב־v${APP_VERSION}`
+                              : `גרסת מסך v${hb.version}`
+                          }
+                        >
+                          v{hb.version}
+                          {isOlderVersion(hb.version, APP_VERSION) ? ' · ישן' : ''}
+                        </span>
+                      ) : null}
                     </div>
 
                     <p className={`shul-billing ${sub?.lastChargeAt ? (sub.status === 'failed' ? 'warn' : 'ok') : ''}`}>

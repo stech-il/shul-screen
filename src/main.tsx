@@ -4,6 +4,7 @@ import App from './App';
 import { bootstrapAndroidKioskRoute, isAndroidKiosk, isNativeCapacitorShell } from './lib/androidKiosk';
 import { isManageShellBuild, markManageSession } from './lib/manageApp';
 import { purgeLegacyDesignTemplateStorage } from './lib/designTemplates';
+import { startAppVersionWatch } from './lib/appVersion';
 import './index.css';
 
 // Free localStorage quota left by older template saves (before IndexedDB migration).
@@ -65,11 +66,15 @@ if ('serviceWorker' in navigator) {
       void reg.update();
       window.setInterval(() => void reg.update(), 60 * 60_000);
     });
+    // Pull a newer deployed build when the server version advances.
+    startAppVersionWatch();
   } else {
     void navigator.serviceWorker.getRegistrations().then((regs) => {
       for (const reg of regs) void reg.unregister();
     });
   }
+} else if (!isNativeCapacitorShell()) {
+  startAppVersionWatch();
 }
 
 /** In-app path change without full reload (Capacitor WebView safe). */
