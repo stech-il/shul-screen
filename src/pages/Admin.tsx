@@ -1222,101 +1222,129 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       ) : null}
 
       <header className={`admin-header sticky-bar${manageMode ? ' manage-app-header' : ''}`}>
-        <div className="admin-title">
-          {!manageMode ? <BrandLogo size="sm" className="admin-brand-logo" /> : null}
-          {manageMode ? <p className="manage-mode-badge">{t('manage.modeBadge')}</p> : null}
-          {!manageMode ? (
-            <p className="eyebrow">
-              {t('admin.eyebrow', {
-                name: memberName,
-                role: memberRole === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor'),
-              })}
-            </p>
-          ) : (
-            <p className="eyebrow manage-app-user">
-              {memberName}
-              {' · '}
-              {memberRole === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor')}
-            </p>
-          )}
-          <h1>{config.name}</h1>
-          <div className="admin-id-row">
-            <ScreenIdBadge id={synagogueId} size={manageMode ? 'sm' : 'md'} copyable />
+        <div className="admin-header-main">
+          <div className="admin-title">
+            <div className="admin-title-row">
+              {!manageMode ? <BrandLogo size="sm" className="admin-brand-logo" /> : null}
+              {manageMode ? <p className="manage-mode-badge">{t('manage.modeBadge')}</p> : null}
+              <h1>{config.name}</h1>
+              <ScreenIdBadge id={synagogueId} size={manageMode ? 'sm' : 'md'} copyable />
+            </div>
+            <div className="admin-meta">
+              {!manageMode ? (
+                <span className="eyebrow">
+                  {t('admin.eyebrow', {
+                    name: memberName,
+                    role: memberRole === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor'),
+                  })}
+                </span>
+              ) : (
+                <span className="eyebrow manage-app-user">
+                  {memberName}
+                  {' · '}
+                  {memberRole === 'owner' ? t('admin.roleOwner') : t('admin.roleEditor')}
+                </span>
+              )}
+              {!manageMode || !licenseOk || (licenseDays != null && licenseDays <= 30) ? (
+                <span className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>
+                  {licenseBanner}
+                </span>
+              ) : null}
+              {session.viaPlatform && !manageMode ? (
+                <span className="license-banner ok">
+                  {t('admin.platformBanner')}{' '}
+                  <Link to="/agency">{t('admin.backToAgency')}</Link>
+                </span>
+              ) : null}
+              {status && !manageLocked ? <span className="status">{status}</span> : null}
+            </div>
           </div>
-          <div className="admin-meta">
-            {!manageMode || !licenseOk || (licenseDays != null && licenseDays <= 30) ? (
-              <span className={`license-banner ${licenseOk ? 'ok' : 'warn'}`}>
-                {licenseBanner}
-              </span>
+          <div className="admin-actions">
+            {inquiryUnreadMessages > 0 ? (
+              <button
+                className="btn inquiry-mail-btn has-unread"
+                type="button"
+                onClick={() => goManageTab('support')}
+                title={t('admin.inquiryMailTitle', { n: inquiryUnreadMessages })}
+                aria-label={t('admin.inquiryMailAria', { n: inquiryUnreadMessages })}
+              >
+                <span className="inquiry-mail-icon" aria-hidden="true">
+                  ✉
+                </span>
+                <span className="inquiry-mail-badge">{inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}</span>
+              </button>
             ) : null}
-            {session.viaPlatform && !manageMode ? (
-              <span className="license-banner ok">
-                {t('admin.platformBanner')}{' '}
-                <Link to="/agency">{t('admin.backToAgency')}</Link>
-              </span>
+            {!manageMode ? <LangSwitch variant="light" /> : null}
+            {!manageMode ? (
+              <Link className="btn ghost admin-guide-link" to="/guide">
+                {t('admin.installGuide')}
+              </Link>
             ) : null}
-            {status && !manageLocked ? <span className="status">{status}</span> : null}
-          </div>
-        </div>
-        <div className="admin-actions">
-          {inquiryUnreadMessages > 0 ? (
+            {!manageMode && (tab === 'design' || tab === 'canvas') ? (
+              <>
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={undoEdit}
+                  disabled={!undo.canUndo}
+                  title={t('admin.undoTitle')}
+                  aria-label={t('admin.undoAria')}
+                >
+                  {t('admin.undo')}
+                </button>
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={redoEdit}
+                  disabled={!undo.canRedo}
+                  title={t('admin.redoTitle')}
+                  aria-label={t('admin.redoAria')}
+                >
+                  {t('admin.redo')}
+                </button>
+              </>
+            ) : null}
+            {!manageMode ? (
+              <button className="btn ghost" type="button" onClick={logout}>
+                {t('admin.logout')}
+              </button>
+            ) : null}
             <button
-              className="btn inquiry-mail-btn has-unread"
+              className={`btn primary ${dirty ? 'dirty' : ''}`}
               type="button"
-              onClick={() => goManageTab('support')}
-              title={t('admin.inquiryMailTitle', { n: inquiryUnreadMessages })}
-              aria-label={t('admin.inquiryMailAria', { n: inquiryUnreadMessages })}
+              onClick={() => void onSave()}
+              disabled={saving || !dirty}
             >
-              <span className="inquiry-mail-icon" aria-hidden="true">
-                ✉
-              </span>
-              <span className="inquiry-mail-badge">{inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}</span>
+              {saving ? t('admin.saving') : dirty ? t('admin.publishDirty') : t('admin.publish')}
             </button>
-          ) : null}
-          {!manageMode ? <LangSwitch variant="light" /> : null}
-          {!manageMode ? (
-            <Link className="btn ghost admin-guide-link" to="/guide">
-              {t('admin.installGuide')}
-            </Link>
-          ) : null}
-          {!manageMode && (tab === 'design' || tab === 'canvas') ? (
-            <>
-              <button
-                className="btn ghost"
-                type="button"
-                onClick={undoEdit}
-                disabled={!undo.canUndo}
-                title={t('admin.undoTitle')}
-                aria-label={t('admin.undoAria')}
-              >
-                {t('admin.undo')}
-              </button>
-              <button
-                className="btn ghost"
-                type="button"
-                onClick={redoEdit}
-                disabled={!undo.canRedo}
-                title={t('admin.redoTitle')}
-                aria-label={t('admin.redoAria')}
-              >
-                {t('admin.redo')}
-              </button>
-            </>
-          ) : null}
-          {!manageMode ? (
-            <button className="btn ghost" type="button" onClick={logout}>
-              {t('admin.logout')}
-            </button>
-          ) : null}
-          <button
-            className={`btn primary ${dirty ? 'dirty' : ''}`}
-            type="button"
-            onClick={() => void onSave()}
-            disabled={saving || !dirty}
-          >
-            {saving ? t('admin.saving') : dirty ? t('admin.publishDirty') : t('admin.publish')}
-          </button>
+          </div>
         </div>
+        {!manageMode && tab !== 'canvas' ? (
+          <div className="admin-quick" role="navigation" aria-label={t('admin.quickAria')}>
+            <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
+              {t('admin.liveScreen')}
+            </Link>
+            <Link className="admin-quick-ext" to={`/times/${synagogueId}`} target="_blank" rel="noreferrer">
+              {t('admin.congregantTimes')}
+            </Link>
+            <button type="button" className="admin-quick-ext" onClick={shareCongregantTimesWhatsApp}>
+              {t('admin.shareWhatsApp')}
+            </button>
+            <button
+              type="button"
+              className="admin-quick-ext"
+              onClick={() => {
+                const url = `${window.location.origin}/times/${encodeURIComponent(synagogueId)}`;
+                void navigator.clipboard.writeText(url).then(
+                  () => setStatus(t('admin.copiedCongregantTimes')),
+                  () => setStatus(url),
+                );
+              }}
+            >
+              {t('admin.copyCongregantTimes')}
+            </button>
+          </div>
+        ) : null}
       </header>
 
       <div className={`admin-body${tab === 'canvas' ? ' is-canvas' : ''}`}>
@@ -1352,33 +1380,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         ) : null}
 
         <div className="admin-main">
-        {!manageMode && tab !== 'canvas' ? (
-        <div className="admin-quick" role="navigation" aria-label={t('admin.quickAria')}>
-          <Link className="admin-quick-ext" to={`/display/${synagogueId}`} target="_blank" rel="noreferrer">
-            {t('admin.liveScreen')}
-          </Link>
-          <Link className="admin-quick-ext" to={`/times/${synagogueId}`} target="_blank" rel="noreferrer">
-            {t('admin.congregantTimes')}
-          </Link>
-          <button type="button" className="admin-quick-ext" onClick={shareCongregantTimesWhatsApp}>
-            {t('admin.shareWhatsApp')}
-          </button>
-          <button
-            type="button"
-            className="admin-quick-ext"
-            onClick={() => {
-              const url = `${window.location.origin}/times/${encodeURIComponent(synagogueId)}`;
-              void navigator.clipboard.writeText(url).then(
-                () => setStatus(t('admin.copiedCongregantTimes')),
-                () => setStatus(url),
-              );
-            }}
-          >
-            {t('admin.copyCongregantTimes')}
-          </button>
-        </div>
-        ) : null}
-
         {manageMode && manageMoreOpen ? (
           <div className="manage-more-sheet" role="dialog" aria-label={t('manage.moreTitle')}>
             <div className="manage-more-head">
