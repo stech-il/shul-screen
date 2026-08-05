@@ -5,10 +5,12 @@ import { APP_VERSION } from '../lib/appVersion';
 type Props = {
   /** Brand credit + version — only for per-screen admin (and similar). */
   credit?: boolean;
+  /** Optional status line (sync / save messages) shown under the credit. */
+  note?: string;
 };
 
 /** Persistent credit / support line — opt-in via `credit` so marketing pages stay clean. */
-export function SiteFooter({ credit = false }: Props) {
+export function SiteFooter({ credit = false, note }: Props) {
   const { t, dir, locale } = useI18n();
   if (!credit) return null;
   return (
@@ -25,6 +27,7 @@ export function SiteFooter({ credit = false }: Props) {
           </span>
         </span>
       </p>
+      {note ? <p className="site-footer-note">{note}</p> : null}
     </footer>
   );
 }

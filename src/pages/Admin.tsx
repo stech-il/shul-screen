@@ -84,13 +84,9 @@ type TabId =
   | 'design'
   | 'canvas'
   | 'content'
-  | 'zmanim'
   | 'announce'
   | 'yahrzeit'
   | 'media'
-  | 'nusach'
-  | 'modes'
-  | 'live'
   | 'history'
   | 'settings'
   | 'users'
@@ -108,14 +104,10 @@ const TAB_DEFS: { id: TabId; labelKey: string; ownerOnly?: boolean; group: TabGr
   { id: 'quick', labelKey: 'admin.tabQuick', group: 'daily' },
   { id: 'content', labelKey: 'admin.tabContent', group: 'daily' },
   { id: 'announce', labelKey: 'admin.tabAnnounce', group: 'daily' },
-  { id: 'zmanim', labelKey: 'admin.tabZmanim', group: 'daily' },
   { id: 'yahrzeit', labelKey: 'admin.tabYahrzeit', group: 'daily' },
-  { id: 'modes', labelKey: 'admin.tabModes', group: 'daily' },
-  { id: 'live', labelKey: 'admin.tabLive', group: 'daily' },
   { id: 'design', labelKey: 'admin.tabDesign', ownerOnly: true, group: 'studio' },
   { id: 'canvas', labelKey: 'admin.tabCanvas', ownerOnly: true, group: 'studio' },
   { id: 'media', labelKey: 'admin.tabMedia', ownerOnly: true, group: 'studio' },
-  { id: 'nusach', labelKey: 'admin.tabNusach', ownerOnly: true, group: 'studio' },
   { id: 'settings', labelKey: 'admin.tabSettings', group: 'system' },
   { id: 'users', labelKey: 'admin.tabUsers', ownerOnly: true, group: 'system' },
   { id: 'support', labelKey: 'admin.tabSupport', group: 'system' },
@@ -173,14 +165,18 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       return 'settings';
     }
     try {
-      const saved = localStorage.getItem(`screensmart:admin-tab:${synagogueId}`) as TabId | null;
+      const saved = localStorage.getItem(`screensmart:admin-tab:${synagogueId}`);
       if (
         saved &&
+        saved !== 'modes' &&
+        saved !== 'live' &&
+        saved !== 'nusach' &&
+        saved !== 'zmanim' &&
         TAB_DEFS.some((def) => def.id === saved) &&
-        !(manageMode && MANAGE_STUDIO_TABS.has(saved)) &&
+        !(manageMode && MANAGE_STUDIO_TABS.has(saved as TabId)) &&
         !(saved === 'quick' && !manageMode)
       ) {
-        return saved;
+        return saved as TabId;
       }
     } catch {
       /* ignore */
@@ -215,7 +211,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   const [manageUnlocking, setManageUnlocking] = useState(false);
   const [kioskPin, setKioskPin] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [previewKey, setPreviewKey] = useState(0);
   const [previewZmanim, setPreviewZmanim] = useState<ComputedZman[]>([]);
   const [previewZmanimMap, setPreviewZmanimMap] = useState<HebcalZmanimResult['times']>({});
   const [previewShabbatZmanimMap, setPreviewShabbatZmanimMap] =
@@ -255,11 +250,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     });
   }
 
-  const previewSrc = useMemo(
-    () => `${window.location.origin}/display/${encodeURIComponent(synagogueId)}?preview=1`,
-    [synagogueId, previewKey],
-  );
-
   useEffect(() => {
     setSession(loadSession());
     const stop = startAutoSync((n) => setStatus(t('admin.statusSynced', { n })));
@@ -274,17 +264,8 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         setConfigRaw(r.bundle.config);
         undo.reset();
         setDirty(false);
-        const mode =
-          r.cloudMode === 'supabase'
-            ? 'Supabase'
-            : r.cloudMode === 'server'
-              ? t('admin.cloudServer')
-              : t('admin.cloudLocal');
-        setStatus(
-          r.online
-            ? t('admin.statusLoaded', { source: r.source, mode })
-            : t('admin.statusOffline'),
-        );
+        if (!r.online) setStatus(t('admin.statusOffline'));
+        else setStatus('');
         setHistory(loadHistory(synagogueId));
       })
       .catch(() => {
@@ -1062,7 +1043,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     const result = await saveConfig(toSave, undefined, { by: memberName, summary });
     setSaving(false);
     refreshHistory();
-    setPreviewKey((k) => k + 1);
     if (!result.ok) {
       setStatus(result.error ?? t('admin.saveFail'));
       toast(result.error ?? t('admin.saveFail'), 'error');
@@ -1256,7 +1236,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                   <Link to="/agency">{t('admin.backToAgency')}</Link>
                 </span>
               ) : null}
-              {status && !manageLocked ? <span className="status">{status}</span> : null}
             </div>
           </div>
           <div className="admin-actions">
@@ -1430,9 +1409,15 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
             <div className="manage-more-group">
               <p className="manage-more-label">{t('manage.moreLinks')}</p>
               <div className="manage-more-grid">
-                <button type="button" className="manage-more-item" onClick={() => goManageTab('live')}>
-                  {t('manage.openLive')}
-                </button>
+                <Link
+                  className="manage-more-item"
+                  to={`/display/${synagogueId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setManageMoreOpen(false)}
+                >
+                  {t('admin.liveScreen')}
+                </Link>
                 <Link className="manage-more-item" to={`/times/${synagogueId}`}>
                   {t('manage.openTimes')}
                 </Link>
@@ -1690,80 +1675,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
               ) : null}
             </section>
 
-            {isOwner ? (
-              <>
-                <section className="card emergency-card">
-                  <h2>{t('admin.emergencyTitle')}</h2>
-                  <p className="hint">{t('admin.emergencyHint')}</p>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={config.emergency.active}
-                      onChange={(e) =>
-                        update({
-                          emergency: {
-                            ...config.emergency,
-                            active: e.target.checked,
-                            updatedAt: new Date().toISOString(),
-                          },
-                        })
-                      }
-                    />
-                    {t('admin.enableEmergency')}
-                  </label>
-                  <label>
-                    {t('admin.message')}
-                    <textarea
-                      rows={3}
-                      value={config.emergency.message}
-                      onChange={(e) =>
-                        update({
-                          emergency: {
-                            ...config.emergency,
-                            message: e.target.value,
-                            updatedAt: new Date().toISOString(),
-                          },
-                        })
-                      }
-                      placeholder={t('admin.emergencyPlaceholder')}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="btn danger"
-                    onClick={() =>
-                      void onSave(
-                        config.emergency.active
-                          ? t('admin.emergencyOnSummary')
-                          : t('admin.emergencyOffSummary'),
-                      )
-                    }
-                  >
-                    {t('admin.saveEmergencyNow')}
-                  </button>
-                </section>
-
-                <section className="card">
-                  <h2>{t('admin.kioskExitTitle')}</h2>
-                  <form className="inline-form" onSubmit={setKioskExitPin}>
-                    <input
-                      type="password"
-                      value={kioskPin}
-                      onChange={(e) => setKioskPin(e.target.value)}
-                      placeholder={t('admin.newPin')}
-                    />
-                    <button type="submit" className="btn ghost">
-                      {t('admin.update')}
-                    </button>
-                  </form>
-                </section>
-              </>
-            ) : null}
-          </>
-        ) : null}
-
-        {tab === 'modes' ? (
-          <>
             <section className="card">
               <h2>{t('admin.modesShabbat')}</h2>
               <p className="hint">{t('admin.modesShabbatHint')}</p>
@@ -1880,33 +1791,120 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 </label>
               ) : null}
             </section>
-          </>
-        ) : null}
 
-        {tab === 'nusach' && isOwner ? (
-          <section className="card wide">
-            <h2>{t('admin.nusachTitle')}</h2>
-            <p className="hint">{t('admin.nusachHint')}</p>
-            <div className="preset-grid">
-              {NUSACH_TEMPLATES.map((nusachTpl) => (
-                <button
-                  key={nusachTpl.id}
-                  type="button"
-                  className={`preset-card ${config.nusach === nusachTpl.id ? 'active' : ''}`}
-                  onClick={() => {
-                    void (async () => {
-                      if (!(await askConfirm(t('admin.confirmNusach')))) return;
-                      setConfig((c) => (c ? applyNusachTemplate(c, nusachTpl.id) : c));
-                      setStatus(t('admin.nusachApplied', { name: nusachTpl.name }));
-                    })();
-                  }}
-                >
-                  <strong>{nusachTpl.name}</strong>
-                  <em>{nusachTpl.description}</em>
-                </button>
-              ))}
-            </div>
-          </section>
+            <section className="card wide">
+              <h2>{t('admin.zmanimTitle')}</h2>
+              <div className="chips">
+                {ZMAN_DEFS.map((z) => (
+                  <label
+                    key={z.key}
+                    className={`chip ${config.enabledZmanim.includes(z.key) ? 'on' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={config.enabledZmanim.includes(z.key)}
+                      onChange={() => toggleZman(z.key)}
+                    />
+                    {z.label}
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            {isOwner ? (
+              <>
+                <section className="card emergency-card">
+                  <h2>{t('admin.emergencyTitle')}</h2>
+                  <p className="hint">{t('admin.emergencyHint')}</p>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={config.emergency.active}
+                      onChange={(e) =>
+                        update({
+                          emergency: {
+                            ...config.emergency,
+                            active: e.target.checked,
+                            updatedAt: new Date().toISOString(),
+                          },
+                        })
+                      }
+                    />
+                    {t('admin.enableEmergency')}
+                  </label>
+                  <label>
+                    {t('admin.message')}
+                    <textarea
+                      rows={3}
+                      value={config.emergency.message}
+                      onChange={(e) =>
+                        update({
+                          emergency: {
+                            ...config.emergency,
+                            message: e.target.value,
+                            updatedAt: new Date().toISOString(),
+                          },
+                        })
+                      }
+                      placeholder={t('admin.emergencyPlaceholder')}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn danger"
+                    onClick={() =>
+                      void onSave(
+                        config.emergency.active
+                          ? t('admin.emergencyOnSummary')
+                          : t('admin.emergencyOffSummary'),
+                      )
+                    }
+                  >
+                    {t('admin.saveEmergencyNow')}
+                  </button>
+                </section>
+
+                <section className="card">
+                  <h2>{t('admin.kioskExitTitle')}</h2>
+                  <form className="inline-form" onSubmit={setKioskExitPin}>
+                    <input
+                      type="password"
+                      value={kioskPin}
+                      onChange={(e) => setKioskPin(e.target.value)}
+                      placeholder={t('admin.newPin')}
+                    />
+                    <button type="submit" className="btn ghost">
+                      {t('admin.update')}
+                    </button>
+                  </form>
+                </section>
+
+                <section className="card wide">
+                  <h2>{t('admin.nusachTitle')}</h2>
+                  <p className="hint">{t('admin.nusachHint')}</p>
+                  <div className="preset-grid">
+                    {NUSACH_TEMPLATES.map((nusachTpl) => (
+                      <button
+                        key={nusachTpl.id}
+                        type="button"
+                        className={`preset-card ${config.nusach === nusachTpl.id ? 'active' : ''}`}
+                        onClick={() => {
+                          void (async () => {
+                            if (!(await askConfirm(t('admin.confirmNusach')))) return;
+                            setConfig((c) => (c ? applyNusachTemplate(c, nusachTpl.id) : c));
+                            setStatus(t('admin.nusachApplied', { name: nusachTpl.name }));
+                          })();
+                        }}
+                      >
+                        <strong>{nusachTpl.name}</strong>
+                        <em>{nusachTpl.description}</em>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              </>
+            ) : null}
+          </>
         ) : null}
 
         {tab === 'yahrzeit' ? (
@@ -2065,34 +2063,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
           </section>
         ) : null}
 
-        {tab === 'live' ? (
-          <section className="card wide live-preview-card">
-            <div className="section-head">
-              <h2>{t('admin.liveTitle')}</h2>
-              <div className="row-actions">
-                <button type="button" className="btn ghost" onClick={() => setPreviewKey((k) => k + 1)}>
-                  {t('admin.refresh')}
-                </button>
-                <Link className="btn ghost" to={`/display/${synagogueId}`} target="_blank">
-                  {t('admin.openWindow')}
-                </Link>
-                <Link className="btn ghost" to={`/times/${synagogueId}`} target="_blank">
-                  {t('admin.congregantTimes')}
-                </Link>
-              </div>
-            </div>
-            <p className="hint">{t('admin.liveHint')}</p>
-            <div className="preview-frame-wrap">
-              <iframe
-                key={previewKey}
-                title={t('admin.previewIframeTitle')}
-                className="preview-frame"
-                src={previewSrc}
-              />
-            </div>
-          </section>
-        ) : null}
-
         {tab === 'history' && isOwner ? (
           <section className="card wide">
             <h2>{t('admin.historyTitle')}</h2>
@@ -2117,27 +2087,6 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 ))}
               </ul>
             )}
-          </section>
-        ) : null}
-
-        {tab === 'zmanim' ? (
-          <section className="card wide">
-            <h2>{t('admin.zmanimTitle')}</h2>
-            <div className="chips">
-              {ZMAN_DEFS.map((z) => (
-                <label
-                  key={z.key}
-                  className={`chip ${config.enabledZmanim.includes(z.key) ? 'on' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={config.enabledZmanim.includes(z.key)}
-                    onChange={() => toggleZman(z.key)}
-                  />
-                  {z.label}
-                </label>
-              ))}
-            </div>
           </section>
         ) : null}
 
@@ -2902,7 +2851,9 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         </div>
       ) : null}
 
-      {!manageMode && tab !== 'canvas' ? <SiteFooter credit /> : null}
+      {!manageMode && tab !== 'canvas' ? (
+        <SiteFooter credit note={!manageLocked && status ? status : undefined} />
+      ) : null}
     </div>
   );
 }

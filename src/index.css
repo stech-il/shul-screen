@@ -92,3 +92,9 @@ a {
   opacity: 0.85;
   font-variant-numeric: tabular-nums;
 }
+
+.site-footer-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted, #5a6b7d);
+}

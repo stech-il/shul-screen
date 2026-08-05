@@ -1,6 +1,6 @@
 /** Mobile management shell — times & settings only (no screen design). */
 
-export const MANAGE_STUDIO_TABS = new Set(['design', 'canvas', 'media', 'nusach']);
+export const MANAGE_STUDIO_TABS = new Set(['design', 'canvas', 'media']);
 
 const LS_FLAG = 'screensmart.manageApp';
 
