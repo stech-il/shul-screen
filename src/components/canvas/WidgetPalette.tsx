@@ -20,7 +20,7 @@ const PALETTE_SECTION_DEFS: {
   {
     id: 'extra',
     labelKey: 'panels.paletteExtra',
-    types: ['parasha', 'dafYomi', 'omer', 'weather', 'yahrzeit', 'calendar', 'countdown'],
+    types: ['parasha', 'dafYomi', 'omer', 'weather', 'yahrzeit', 'calendar', 'roshChodesh', 'shabbatMevarchim', 'molad', 'specialShabbat', 'countdown'],
   },
 ];
 
@@ -45,6 +45,10 @@ const ICONS: Record<CanvasWidgetType, string> = {
   announcements: '✎',
   yahrzeit: 'נ',
   calendar: '📅',
+  roshChodesh: 'ר',
+  shabbatMevarchim: 'מ',
+  molad: '☽',
+  specialShabbat: 'ש',
   countdown: '⏳',
 };
 

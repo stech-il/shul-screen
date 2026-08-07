@@ -272,6 +272,10 @@ function buildConfig({ id, name, cityId, email, phone, contactName, username, pa
     showOrefAlerts: true,
     showYahrzeit: true,
     showCalendarExtras: true,
+    showRoshChodesh: true,
+    showShabbatMevarchim: true,
+    showMolad: true,
+    showSpecialShabbat: true,
     showOmer: true,
     orefAreaExtra: '',
     modes: {

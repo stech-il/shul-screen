@@ -12,7 +12,7 @@ import {
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
 import { DEMO_TIMES_CONFIG } from '../data/defaults';
-import { getDayInfo } from '../lib/jewish';
+import { getDayInfo, parashaSpecialsForConfig } from '../lib/jewish';
 import { subscribeLiveUpdates } from '../lib/liveSync';
 import { getModeInfo } from '../lib/modes';
 import { RichAnnounce } from '../components/RichAnnounce';
@@ -235,9 +235,12 @@ export function CongregantTimes() {
         {day.parasha ? (
           <div className="ct-parasha-wrap">
             <p className="ct-parasha">{day.parasha}</p>
-            {day.holidays?.length ? (
-              <p className="ct-parasha-special">{day.holidays.join(' · ')}</p>
-            ) : null}
+            {(() => {
+              const specials = config ? parashaSpecialsForConfig(day, config) : [];
+              return specials.length ? (
+                <p className="ct-parasha-special">{specials.join(' · ')}</p>
+              ) : null;
+            })()}
           </div>
         ) : null}
       </header>

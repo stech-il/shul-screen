@@ -1,6 +1,6 @@
 import { HDate, HebrewCalendar, months, flags } from '@hebcal/core';
 import { DafYomi } from '@hebcal/learning';
-import type { DayInfo, YahrzeitEntry } from '../types';
+import type { DayInfo, SynagogueConfig, YahrzeitEntry } from '../types';
 
 const WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
@@ -86,33 +86,87 @@ export function nextGregorianForHebrewDay(
   return hebrewToGregorian(Math.min(day, 29), month, hebrewYearNow(from));
 }
 
+function pushUnique(list: string[], label: string) {
+  if (label && !list.includes(label)) list.push(label);
+}
+
+function eventLabel(e: { getDesc: () => string; render: (l: string) => string }): string {
+  try {
+    return e.render('he');
+  } catch {
+    return e.getDesc();
+  }
+}
+
+/**
+ * Labels shown under the weekly parasha on classic layouts,
+ * filtered by admin display toggles.
+ */
+export function parashaSpecialsForConfig(
+  day: DayInfo,
+  config: Pick<
+    SynagogueConfig,
+    | 'showCalendarExtras'
+    | 'showRoshChodesh'
+    | 'showShabbatMevarchim'
+    | 'showMolad'
+    | 'showSpecialShabbat'
+  >,
+): string[] {
+  const out: string[] = [];
+  if (config.showCalendarExtras !== false) {
+    for (const x of day.holidays ?? []) pushUnique(out, x);
+  }
+  if (config.showRoshChodesh !== false) {
+    for (const x of day.roshChodesh ?? []) pushUnique(out, x);
+  }
+  if (config.showShabbatMevarchim !== false) {
+    for (const x of day.shabbatMevarchim ?? []) pushUnique(out, x);
+  }
+  if (config.showMolad !== false) {
+    for (const x of day.molad ?? []) pushUnique(out, x);
+  }
+  if (config.showSpecialShabbat !== false) {
+    for (const x of day.specialShabbat ?? []) pushUnique(out, x);
+  }
+  return out;
+}
+
 export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): DayInfo {
   const hd = new HDate(date);
-  const events = HebrewCalendar.calendar({
-    start: hd,
-    end: hd,
+  const calOpts = {
     sedrot: true,
     omer: true,
     il: true,
+    molad: true,
+    shabbatMevarchim: true,
+  } as const;
+
+  const events = HebrewCalendar.calendar({
+    start: hd,
+    end: hd,
+    ...calOpts,
   });
 
-  const parashaEvent = events.find((e) => e.getDesc().startsWith('Parashat'));
+  const daysUntilShabbat = (6 - date.getDay() + 7) % 7 || 7;
+  const shabbat = new Date(date);
+  shabbat.setDate(shabbat.getDate() + (date.getDay() === 6 ? 0 : daysUntilShabbat));
+  const shHd = new HDate(shabbat);
+  const shEvents =
+    date.getDay() === 6
+      ? events
+      : HebrewCalendar.calendar({
+          start: shHd,
+          end: shHd,
+          ...calOpts,
+        });
+
+  const parashaEvent =
+    events.find((e) => e.getDesc().startsWith('Parashat')) ??
+    shEvents.find((e) => e.getDesc().startsWith('Parashat'));
   let parasha = '';
   if (parashaEvent) {
     parasha = parashaEvent.render('he').replace(/^פרשת\s*/, '');
-  } else {
-    const daysUntilShabbat = (6 - date.getDay() + 7) % 7 || 7;
-    const shabbat = new Date(date);
-    shabbat.setDate(shabbat.getDate() + (date.getDay() === 6 ? 0 : daysUntilShabbat));
-    const shHd = new HDate(shabbat);
-    const shEvents = HebrewCalendar.calendar({
-      start: shHd,
-      end: shHd,
-      sedrot: true,
-      il: true,
-    });
-    const pe = shEvents.find((e) => e.getDesc().startsWith('Parashat'));
-    if (pe) parasha = pe.render('he').replace(/^פרשת\s*/, '');
   }
 
   let dafYomi = '';
@@ -124,10 +178,16 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
 
   const holidays: string[] = [];
   const memorials: string[] = [];
+  const roshChodesh: string[] = [];
+  const shabbatMevarchim: string[] = [];
+  const molad: string[] = [];
+  const specialShabbat: string[] = [];
   let omer: DayInfo['omer'] = null;
-  for (const e of events) {
+
+  function classifyEvent(e: (typeof events)[number], fromShabbatWeek: boolean) {
     const desc = e.getDesc();
     if (desc.startsWith('Omer') && typeof (e as { getTodayIs?: (l: string) => string }).getTodayIs === 'function') {
+      if (omer || fromShabbatWeek) return;
       const oe = e as unknown as {
         render: (l: string) => string;
         renderBrief: (l: string) => string;
@@ -137,33 +197,48 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
         getDaysWithinWeeks: () => number;
       };
       const dayMatch = /^Omer\s+(\d+)/i.exec(desc);
-      const day = dayMatch ? Number(dayMatch[1]) : oe.getWeeks() * 7 + oe.getDaysWithinWeeks();
+      const dayNum = dayMatch ? Number(dayMatch[1]) : oe.getWeeks() * 7 + oe.getDaysWithinWeeks();
       omer = {
-        day,
+        day: dayNum,
         label: oe.renderBrief('he') || oe.render('he'),
         todayIs: oe.getTodayIs('he'),
         sefira: oe.sefira('he'),
       };
-      continue;
+      return;
     }
+
     const f = e.getFlags();
-    let label = '';
-    try {
-      label = e.render('he');
-    } catch {
-      label = desc;
-    }
-    if (!label || label.startsWith('פרשת') || desc.startsWith('Parashat')) continue;
+    const label = eventLabel(e);
+    if (!label || label.startsWith('פרשת') || desc.startsWith('Parashat')) return;
+
     if (f & flags.MAJOR_FAST || /יזכור|זכרון|שואה|צה״ל|צה\"ל|חללי/.test(label)) {
-      memorials.push(label);
-    } else if (
-      f & flags.CHAG ||
-      f & flags.MINOR_HOLIDAY ||
-      f & flags.ROSH_CHODESH ||
-      f & flags.SPECIAL_SHABBAT
-    ) {
-      holidays.push(label);
+      if (!fromShabbatWeek) pushUnique(memorials, label);
+      return;
     }
+    if (f & flags.MOLAD) {
+      pushUnique(molad, label);
+      return;
+    }
+    if (f & flags.SHABBAT_MEVARCHIM) {
+      pushUnique(shabbatMevarchim, label);
+      return;
+    }
+    if (f & flags.SPECIAL_SHABBAT) {
+      pushUnique(specialShabbat, label);
+      return;
+    }
+    if (f & flags.ROSH_CHODESH) {
+      if (!fromShabbatWeek) pushUnique(roshChodesh, label);
+      return;
+    }
+    if ((f & flags.CHAG || f & flags.MINOR_HOLIDAY) && !fromShabbatWeek) {
+      pushUnique(holidays, label);
+    }
+  }
+
+  for (const e of events) classifyEvent(e, false);
+  if (date.getDay() !== 6) {
+    for (const e of shEvents) classifyEvent(e, true);
   }
 
   const month = hd.getMonth();
@@ -179,6 +254,10 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
     dafYomi,
     holidays,
     memorials,
+    roshChodesh,
+    shabbatMevarchim,
+    molad,
+    specialShabbat,
     yahrzeitNames,
     omer,
   };

@@ -547,11 +547,12 @@
 .parasha-special {
   margin: 0.4rem 0 0;
   font-family: var(--font-heading);
-  font-size: calc(clamp(1rem, 1.5vw, 1.25rem) * var(--body-scale));
+  font-size: calc(clamp(0.95rem, 1.4vw, 1.15rem) * var(--body-scale));
   font-weight: 600;
   color: var(--accent);
-  line-height: 1.35;
+  line-height: 1.4;
   opacity: 0.92;
+  max-width: 36em;
 }
 .weather-icon {
   margin-inline-end: 0.3em;

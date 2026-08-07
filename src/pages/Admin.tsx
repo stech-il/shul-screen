@@ -1652,6 +1652,10 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                   ['showOrefAlerts', 'admin.showOrefAlerts'],
                   ['showYahrzeit', 'admin.showYahrzeitToday'],
                   ['showCalendarExtras', 'admin.showCalendarExtras'],
+                  ['showRoshChodesh', 'admin.showRoshChodesh'],
+                  ['showShabbatMevarchim', 'admin.showShabbatMevarchim'],
+                  ['showMolad', 'admin.showMolad'],
+                  ['showSpecialShabbat', 'admin.showSpecialShabbat'],
                 ] as const
               ).map(([key, labelKey]) => (
                 <label key={key} className="check">

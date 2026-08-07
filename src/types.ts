@@ -99,6 +99,10 @@ export type CanvasWidgetType =
   | 'announcements'
   | 'yahrzeit'
   | 'calendar'
+  | 'roshChodesh'
+  | 'shabbatMevarchim'
+  | 'molad'
+  | 'specialShabbat'
   | 'countdown'
   | 'omer'
   | 'text'
@@ -306,6 +310,14 @@ export interface SynagogueConfig {
   showOrefAlerts: boolean;
   showYahrzeit: boolean;
   showCalendarExtras: boolean;
+  /** Rosh Chodesh under parasha / classic side panel */
+  showRoshChodesh: boolean;
+  /** Shabbat Mevarchim for this week's parasha */
+  showShabbatMevarchim: boolean;
+  /** Molad announcement (usually with Shabbat Mevarchim) */
+  showMolad: boolean;
+  /** Special Shabbatot (Shekalim, Zachor, …) */
+  showSpecialShabbat: boolean;
   /** Show Sefirat HaOmer on the screen during the counting period */
   showOmer: boolean;
   orefAreaExtra?: string;
@@ -346,8 +358,13 @@ export interface DayInfo {
   weekday: string;
   parasha: string;
   dafYomi: string;
+  /** Chag / minor holidays (today) */
   holidays: string[];
   memorials: string[];
+  roshChodesh: string[];
+  shabbatMevarchim: string[];
+  molad: string[];
+  specialShabbat: string[];
   yahrzeitNames: string[];
   /** Present only during Sefirat HaOmer */
   omer?: {

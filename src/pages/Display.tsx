@@ -9,7 +9,7 @@ import { defaultCanvas } from '../components/canvas/widgets';
 import { getOrefMatchNames } from '../data/cities';
 import { designToCssVars } from '../data/designPresets';
 import { ensureCustomFontsLoaded } from '../lib/customFonts';
-import { getDayInfo } from '../lib/jewish';
+import { getDayInfo, parashaSpecialsForConfig } from '../lib/jewish';
 import {
   fetchHebcalZmanim,
   getShabbatZmanimDate,
@@ -453,9 +453,12 @@ export function Display({ synagogueId }: Props) {
         <div className="side-block">
           <h3>פרשת השבוע</h3>
           <p className="big">{day.parasha}</p>
-          {day.holidays?.length ? (
-            <p className="parasha-special">{day.holidays.join(' · ')}</p>
-          ) : null}
+          {(() => {
+            const specials = parashaSpecialsForConfig(day, config);
+            return specials.length ? (
+              <p className="parasha-special">{specials.join(' · ')}</p>
+            ) : null;
+          })()}
         </div>
       ) : null}
       {config.showDafYomi && day.dafYomi ? (
@@ -489,6 +492,34 @@ export function Display({ synagogueId }: Props) {
         <div className="side-block">
           <h3>לוח שנה</h3>
           <p className="big">{day.holidays.join(' · ')}</p>
+        </div>
+      ) : null}
+      {config.showRoshChodesh !== false && day.roshChodesh?.length && !(config.showParasha && day.parasha) ? (
+        <div className="side-block">
+          <h3>ראש חודש</h3>
+          <p className="big">{day.roshChodesh.join(' · ')}</p>
+        </div>
+      ) : null}
+      {config.showShabbatMevarchim !== false &&
+      day.shabbatMevarchim?.length &&
+      !(config.showParasha && day.parasha) ? (
+        <div className="side-block">
+          <h3>שבת מברכים</h3>
+          <p className="big">{day.shabbatMevarchim.join(' · ')}</p>
+        </div>
+      ) : null}
+      {config.showMolad !== false && day.molad?.length && !(config.showParasha && day.parasha) ? (
+        <div className="side-block">
+          <h3>זמני המולד</h3>
+          <p className="big parasha-special">{day.molad.join(' · ')}</p>
+        </div>
+      ) : null}
+      {config.showSpecialShabbat !== false &&
+      day.specialShabbat?.length &&
+      !(config.showParasha && day.parasha) ? (
+        <div className="side-block">
+          <h3>שבת מיוחדת</h3>
+          <p className="big">{day.specialShabbat.join(' · ')}</p>
         </div>
       ) : null}
       {config.showCalendarExtras && day.memorials?.length ? (

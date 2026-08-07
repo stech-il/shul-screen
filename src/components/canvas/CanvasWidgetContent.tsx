@@ -84,9 +84,6 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <div className="cw-stat">
           {widget.showTitle ? <h3>{title || 'פרשת השבוע'}</h3> : null}
           <p>{data.day.parasha}</p>
-          {data.day.holidays?.length ? (
-            <p className="cw-parasha-special">{data.day.holidays.join(' · ')}</p>
-          ) : null}
         </div>
       ) : (
         <Placeholder label="פרשת השבוע" />
@@ -259,6 +256,66 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <Placeholder label="חגים וימי זיכרון" />
       );
     }
+
+    case 'roshChodesh':
+      return data.day.roshChodesh?.length ? (
+        <div className="cw-stat">
+          {widget.showTitle ? <h3>{title || 'ראש חודש'}</h3> : null}
+          <p>{data.day.roshChodesh.join(' · ')}</p>
+        </div>
+      ) : placeholder ? (
+        <div className="cw-stat">
+          {widget.showTitle ? <h3>{title || 'ראש חודש'}</h3> : null}
+          <p>ראש חודש אלול</p>
+        </div>
+      ) : (
+        <Placeholder label="ראש חודש" />
+      );
+
+    case 'shabbatMevarchim':
+      return data.day.shabbatMevarchim?.length ? (
+        <div className="cw-stat">
+          {widget.showTitle ? <h3>{title || 'שבת מברכים'}</h3> : null}
+          <p>{data.day.shabbatMevarchim.join(' · ')}</p>
+        </div>
+      ) : placeholder ? (
+        <div className="cw-stat">
+          {widget.showTitle ? <h3>{title || 'שבת מברכים'}</h3> : null}
+          <p>שבת מברכים חודש אלול</p>
+        </div>
+      ) : (
+        <Placeholder label="שבת מברכים" />
+      );
+
+    case 'molad':
+      return data.day.molad?.length ? (
+        <div className="cw-stat">
+          {widget.showTitle ? <h3>{title || 'זמני המולד'}</h3> : null}
+          <p className="cw-molad">{data.day.molad.join(' · ')}</p>
+        </div>
+      ) : placeholder ? (
+        <div className="cw-stat">
+          {widget.showTitle ? <h3>{title || 'זמני המולד'}</h3> : null}
+          <p className="cw-molad">מולד הלבנה אלול…</p>
+        </div>
+      ) : (
+        <Placeholder label="זמני המולד" />
+      );
+
+    case 'specialShabbat':
+      return data.day.specialShabbat?.length ? (
+        <div className="cw-stat">
+          {widget.showTitle ? <h3>{title || 'שבת מיוחדת'}</h3> : null}
+          <p>{data.day.specialShabbat.join(' · ')}</p>
+        </div>
+      ) : placeholder ? (
+        <div className="cw-stat">
+          {widget.showTitle ? <h3>{title || 'שבת מיוחדת'}</h3> : null}
+          <p>שבת שקלים</p>
+        </div>
+      ) : (
+        <Placeholder label="שבת מיוחדת" />
+      );
 
     case 'countdown': {
       const board = data.candleBoard ?? (placeholder ? PLACEHOLDER_CANDLE_BOARD : null);
