@@ -44,6 +44,13 @@ interface Props {
 }
 
 function Placeholder({ label }: { label: string }) {
+  // Live kiosk/display must never show empty-state labels (e.g. «ראש חודש»).
+  try {
+    const path = typeof window !== 'undefined' ? window.location.pathname || '' : '';
+    if (path.includes('/display') || path.includes('/screen/')) return null;
+  } catch {
+    /* ignore */
+  }
   return <p className="cw-empty">{label}</p>;
 }
 

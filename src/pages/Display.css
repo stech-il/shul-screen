@@ -787,6 +787,17 @@
   background-color: transparent;
 }
 
+/* Never show empty-state widget labels on the live screen */
+.display .cw-empty {
+  display: none !important;
+}
+.display .canvas-widget:has(> .cw-empty) {
+  display: none !important;
+}
+.display .canvas-widget:not(:has(*)) {
+  display: none !important;
+}
+
 .exit-modal {
   position: fixed;
   inset: 0;

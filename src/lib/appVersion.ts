@@ -3,7 +3,7 @@ import { isNativeCapacitorShell } from './androidKiosk';
 
 /** Injected at build time from package.json — keep in sync with version-history.json */
 export const APP_VERSION =
-  typeof __APP_VERSION__ === 'string' && __APP_VERSION__ ? __APP_VERSION__ : '0.3.3';
+  typeof __APP_VERSION__ === 'string' && __APP_VERSION__ ? __APP_VERSION__ : '0.3.4';
 
 export type AppVersionInfo = {
   version: string;

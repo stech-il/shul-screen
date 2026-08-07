@@ -67,7 +67,8 @@ if ('serviceWorker' in navigator) {
       window.setInterval(() => void reg.update(), 60 * 60_000);
     });
     // Pull a newer deployed build when the server version advances.
-    startAppVersionWatch();
+    // Live displays check more often so empty-label fixes apply without a manual refresh.
+    startAppVersionWatch(isLiveDisplayRoute() ? 2 * 60_000 : 15 * 60_000);
   } else {
     void navigator.serviceWorker.getRegistrations().then((regs) => {
       for (const reg of regs) void reg.unregister();
