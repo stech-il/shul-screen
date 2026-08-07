@@ -58,7 +58,7 @@ if ('serviceWorker' in navigator) {
   // Never register a SW inside Capacitor — it blanks the bundled WebView.
   if (!isNativeCapacitorShell()) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (isLiveDisplayRoute()) return;
+      // Apply updates on live screens too — empty calendar labels must not stick.
       window.location.reload();
     });
     void navigator.serviceWorker.getRegistration().then((reg) => {
