@@ -1,9 +1,31 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { CanvasLayoutConfig, CanvasWidget } from '../../types';
+import type { CanvasLayoutConfig, CanvasWidget, CanvasWidgetType, DayInfo } from '../../types';
 import { CANVAS_REF_WIDTH } from '../../types';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ASPECT_RATIOS } from './widgets';
 import './canvas.css';
+
+/** Calendar widgets that must not leave an empty box on the live screen. */
+function seasonalWidgetHasContent(type: CanvasWidgetType, day: DayInfo): boolean | null {
+  switch (type) {
+    case 'calendar':
+      return Boolean((day.holidays?.length ?? 0) + (day.memorials?.length ?? 0));
+    case 'roshChodesh':
+      return Boolean(day.roshChodesh?.length);
+    case 'shabbatMevarchim':
+      return Boolean(day.shabbatMevarchim?.length);
+    case 'molad':
+      return Boolean(day.molad?.length);
+    case 'specialShabbat':
+      return Boolean(day.specialShabbat?.length);
+    case 'omer':
+      return Boolean(day.omer);
+    case 'yahrzeit':
+      return Boolean(day.yahrzeitNames?.length);
+    default:
+      return null;
+  }
+}
 
 const num = (v: unknown): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) ? v : undefined;
@@ -82,6 +104,11 @@ export function CanvasStage({ canvas, data, children, placeholder, className }: 
       ) : null}
       {canvas.widgets
         .filter((w) => w.visible)
+        .filter((w) => {
+          if (placeholder) return true;
+          const has = seasonalWidgetHasContent(w.type, data.day);
+          return has === null ? true : has;
+        })
         .map((w) => (
           <div
             key={w.id}
