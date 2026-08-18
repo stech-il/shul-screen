@@ -22,6 +22,11 @@ const PALETTE_SECTION_DEFS: {
     labelKey: 'panels.paletteExtra',
     types: ['parasha', 'dafYomi', 'omer', 'weather', 'yahrzeit', 'calendar', 'roshChodesh', 'shabbatMevarchim', 'molad', 'specialShabbat', 'countdown'],
   },
+  {
+    id: 'itim',
+    labelKey: 'panels.paletteItim',
+    types: ['itimMoon', 'itimHalachot', 'itimEvents', 'itimLimud'],
+  },
 ];
 
 const ICONS: Record<CanvasWidgetType, string> = {
@@ -50,6 +55,10 @@ const ICONS: Record<CanvasWidgetType, string> = {
   molad: '☽',
   specialShabbat: 'ש',
   countdown: '⏳',
+  itimMoon: '☾',
+  itimHalachot: '§',
+  itimEvents: '✦',
+  itimLimud: 'ל',
 };
 
 interface Props {

@@ -10,6 +10,7 @@ export function cloudApiPlugin(): Plugin {
   return {
     name: 'shul-cloud-api',
     configureServer(server) {
+      process.env.SCREENSMART_LOCAL_API = '1';
       server.middlewares.use(async (req, res, next) => {
         try {
           const url = req.url || '';
@@ -85,6 +86,19 @@ export function cloudApiPlugin(): Plugin {
             );
             const parsed = new URL(url, 'http://localhost');
             const handled = await ver.handleAppVersion(req, res, parsed);
+            if (!handled) {
+              res.statusCode = 404;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ error: 'not found' }));
+            }
+            return;
+          }
+          if (url.startsWith('/api/itim')) {
+            const itim = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/itimZmanim.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            const handled = await itim.handleItimZmanim(req, res, parsed);
             if (!handled) {
               res.statusCode = 404;
               res.setHeader('Content-Type', 'application/json; charset=utf-8');

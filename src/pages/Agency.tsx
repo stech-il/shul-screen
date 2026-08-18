@@ -1869,7 +1869,13 @@ export function Agency() {
                               : 'פעיל'
                             : 'לא הופעל'}
                       </span>
-                      <span className="tag">{c.layout === 'canvas' ? 'בונה מסך' : c.layout}</span>
+                      <span className="tag">
+                        {c.displayStyle === 'rotating'
+                          ? 'מסכים מתחלפים'
+                          : c.layout === 'canvas'
+                            ? 'בונה מסך'
+                            : c.layout}
+                      </span>
                       {hb ? (
                         <span
                           className={`tag${isOlderVersion(hb.version, APP_VERSION) ? ' warn' : ''}`}

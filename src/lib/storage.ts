@@ -8,6 +8,7 @@ import { pushHistory } from './history';
 import { publishLiveUpdate } from './liveBus';
 import { compactConfigMedia, expandConfigMedia } from './mediaPersist';
 import { getDefaultModes } from './modes';
+import { normalizeRotatingScreens } from './rotatingScreens';
 import { decodeHtmlEntities, hasVisibleText } from './sanitizeHtml';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 
@@ -102,6 +103,9 @@ export function normalizeConfig(config: SynagogueConfig): SynagogueConfig {
     },
     yahrzeits: config.yahrzeits ?? [],
     canvas: normalizeCanvas(config.canvas),
+    displayStyle: config.displayStyle === 'rotating' ? 'rotating' : 'studio',
+    rotatingScreens: normalizeRotatingScreens(config.rotatingScreens),
+    zmanimSource: config.zmanimSource === 'itim' ? 'itim' : 'hebcal',
     design: mergeDesign(config),
     modes,
     emergency: config.emergency ?? {

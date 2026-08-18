@@ -502,6 +502,19 @@ export function DesignStudio({
 
       <StudioSection title={t('panels.designSectionLayout')}>
         <label>
+          {t('design.displayStyle')}
+          <select
+            value={config.displayStyle ?? 'studio'}
+            onChange={(e) =>
+              onChange({ displayStyle: e.target.value === 'rotating' ? 'rotating' : 'studio' })
+            }
+          >
+            <option value="studio">{t('design.displayStyleStudio')}</option>
+            <option value="rotating">{t('design.displayStyleRotating')}</option>
+          </select>
+        </label>
+        {config.displayStyle !== 'rotating' ? (
+        <label>
           {t('design.screenLayout')}
           <select
             value={config.layout}
@@ -514,6 +527,7 @@ export function DesignStudio({
             ))}
           </select>
         </label>
+        ) : null}
         <label>
           {t('design.headerStyle')}
           <select

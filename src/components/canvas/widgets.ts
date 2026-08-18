@@ -28,6 +28,10 @@ export const WIDGET_LABELS: Record<CanvasWidgetType, string> = {
   video: 'וידאו',
   divider: 'מפריד',
   button: 'כפתור',
+  itimMoon: 'זמני ירח',
+  itimHalachot: 'הלכות השבוע',
+  itimEvents: 'מאורעות היום',
+  itimLimud: 'הלימוד היומי',
 };
 
 const SIZE_DEFAULTS: Partial<Record<CanvasWidgetType, { w: number; h: number }>> = {
@@ -56,6 +60,10 @@ const SIZE_DEFAULTS: Partial<Record<CanvasWidgetType, { w: number; h: number }>>
   video: { w: 36, h: 28 },
   divider: { w: 40, h: 4 },
   button: { w: 22, h: 8 },
+  itimMoon: { w: 28, h: 28 },
+  itimHalachot: { w: 30, h: 32 },
+  itimEvents: { w: 28, h: 28 },
+  itimLimud: { w: 28, h: 32 },
 };
 
 export function createWidget(
@@ -73,9 +81,27 @@ export function createWidget(
     h: size.h,
     z,
     visible: true,
-    showTitle: type === 'zmanim' || type === 'block' || type === 'announcements' || type === 'zman' || type === 'countdown',
+    showTitle:
+      type === 'zmanim' ||
+      type === 'block' ||
+      type === 'announcements' ||
+      type === 'zman' ||
+      type === 'countdown' ||
+      type === 'itimMoon' ||
+      type === 'itimHalachot' ||
+      type === 'itimEvents' ||
+      type === 'itimLimud',
     titleLayout: type === 'zman' ? 'above' : 'above',
-    align: type === 'zmanim' || type === 'block' || type === 'countdown' ? 'right' : 'center',
+    align:
+      type === 'zmanim' ||
+      type === 'block' ||
+      type === 'countdown' ||
+      type === 'itimMoon' ||
+      type === 'itimHalachot' ||
+      type === 'itimEvents' ||
+      type === 'itimLimud'
+        ? 'right'
+        : 'center',
     fontScale: type === 'heading' ? 1.35 : 1,
     titleScale: 0.55,
     fontWeight: type === 'zman' || type === 'clock' || type === 'heading' || type === 'button' || type === 'countdown' ? 'bold' : 'normal',
@@ -100,7 +126,18 @@ export function createWidget(
     text: type === 'heading' ? 'כותרת לדוגמה' : type === 'text' ? 'כתבו כאן טקסט…' : undefined,
     buttonLabel: type === 'button' ? 'לחצו כאן' : undefined,
     showCandles: type === 'countdown' ? true : undefined,
-    title: type === 'countdown' ? 'הדלקת נרות' : undefined,
+    title:
+      type === 'countdown'
+        ? 'הדלקת נרות'
+        : type === 'itimMoon'
+          ? 'זמני ירח'
+          : type === 'itimHalachot'
+            ? 'הלכות השבוע'
+            : type === 'itimEvents'
+              ? 'מאורעות היום'
+              : type === 'itimLimud'
+                ? 'הלימוד היומי'
+                : undefined,
     ...extras,
   };
 }

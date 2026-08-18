@@ -31,6 +31,7 @@ import {
   stripSecretsFromBundle,
   stripSecretsFromConfig,
   canAccessSynagogue,
+  isLocalDevApi,
 } from './apiAuth.mjs';
 
 function send(res, status, body, headers = {}) {
@@ -272,7 +273,7 @@ export async function handleCloud(req, res, url) {
         return;
       }
       const auth = resolveAuth(req);
-      const full = canAccessSynagogue(auth, id);
+      const full = canAccessSynagogue(auth, id) || isLocalDevApi();
       sendJson(res, 200, full ? bundle : stripSecretsFromBundle(bundle), req);
       return;
     }

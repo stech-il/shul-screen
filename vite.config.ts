@@ -121,6 +121,15 @@ export default defineConfig({
             },
           },
           {
+            urlPattern: /\/api\/itim\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'itim-zmanim',
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 12 },
+              networkTimeoutSeconds: 10,
+            },
+          },
+          {
             urlPattern: /\/api\/oref\/.*/i,
             handler: 'NetworkOnly',
             options: {

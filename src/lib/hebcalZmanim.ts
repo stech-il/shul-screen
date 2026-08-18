@@ -1,12 +1,15 @@
 import { getCity } from '../data/cities';
 import { ZMAN_DEFS, getZmanLabel, normalizeZmanKey, type ZmanKey } from '../data/zmanim';
+import { fetchItimZmanim, type ZmanimSource } from './itimZmanim';
 import { parseTimeOnDay } from './upcomingTime';
 import type { City, ComputedZman } from '../types';
+
+export type { ZmanimSource };
 
 export interface HebcalZmanimResult {
   date: string;
   times: Partial<Record<ZmanKey, Date>>;
-  source: 'hebcal' | 'cache' | 'local';
+  source: 'hebcal' | 'cache' | 'local' | 'itim';
 }
 
 interface HebcalApiResponse {
@@ -140,7 +143,13 @@ async function localFallback(city: City, date: Date): Promise<HebcalZmanimResult
 export async function fetchHebcalZmanim(
   cityId: string,
   date = new Date(),
+  source: ZmanimSource = 'hebcal',
 ): Promise<HebcalZmanimResult> {
+  if (source === 'itim') {
+    const itim = await fetchItimZmanim(cityId, date);
+    if (itim && Object.keys(itim.times).length) return itim;
+  }
+
   const city = getCity(cityId);
   const cached = loadCache(city, date);
 

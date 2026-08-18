@@ -1606,6 +1606,18 @@ code {
   border-color: var(--ink);
 }
 
+.display-style-picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
+  margin: 0.35rem 0 1rem;
+}
+
+.display-style-picks .preset-card {
+  padding: 0.9rem 1rem;
+  text-align: right;
+}
+
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

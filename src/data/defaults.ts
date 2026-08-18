@@ -2,6 +2,7 @@ import { DEFAULT_ENABLED_ZMANIM } from './zmanim';
 import { DEFAULT_DESIGN } from './designPresets';
 import { defaultCanvas } from '../components/canvas/widgets';
 import { getDefaultModes } from '../lib/modes';
+import { defaultRotatingScreens } from '../lib/rotatingScreens';
 import { hashPassword } from '../lib/auth';
 import type { MediaSettings, SynagogueConfig } from '../types';
 
@@ -27,9 +28,12 @@ export function createDefaultConfigSync(
     id,
     name,
     cityId,
+    zmanimSource: 'hebcal',
     dedication: '',
     theme: 'dark',
     layout: 'elegant',
+    displayStyle: 'studio',
+    rotatingScreens: defaultRotatingScreens(),
     nusach: 'ashkenaz',
     design: { ...DEFAULT_DESIGN },
     media: defaultMedia(),

@@ -6,6 +6,7 @@ import { CandleTimesBoard } from '../components/CandleTimesBoard';
 import { CanvasStage } from '../components/canvas/CanvasStage';
 import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
 import { defaultCanvas } from '../components/canvas/widgets';
+import { RotatingShow } from '../components/RotatingShow';
 import { getOrefMatchNames } from '../data/cities';
 import { designToCssVars } from '../data/designPresets';
 import { ensureCustomFontsLoaded } from '../lib/customFonts';
@@ -19,6 +20,8 @@ import {
   resolveScheduleItemAt,
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
+import { configZmanimSource } from '../lib/itimZmanim';
+import { EMPTY_ITIM_EXTRAS, fetchItimExtras, type ItimExtras } from '../lib/itimExtras';
 import { disableKiosk, enableKiosk, isFullscreen, watchWakeLock } from '../lib/kiosk';
 import { isAndroidKiosk } from '../lib/androidKiosk';
 import { verifyPin } from '../lib/auth';
@@ -65,6 +68,7 @@ export function Display({ synagogueId }: Props) {
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null);
   const [clock, setClock] = useState('');
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [itimExtras, setItimExtras] = useState<ItimExtras>(EMPTY_ITIM_EXTRAS);
   const [kioskOn, setKioskOn] = useState(false);
   const [kioskMsg, setKioskMsg] = useState('');
   const [carouselIdx, setCarouselIdx] = useState(0);
@@ -202,18 +206,20 @@ export function Display({ synagogueId }: Props) {
   useEffect(() => {
     if (!synagogueId) return;
     const id = decodeURIComponent(synagogueId);
-    trackEvent(id, 'display_open', config?.layout || 'loading');
-    return startHeartbeat(id, () => config?.layout || 'loading');
-  }, [synagogueId, config?.layout]);
+    const layoutTag = () =>
+      config?.displayStyle === 'rotating' ? 'rotating' : config?.layout || 'loading';
+    trackEvent(id, 'display_open', layoutTag());
+    return startHeartbeat(id, layoutTag);
+  }, [synagogueId, config?.layout, config?.displayStyle]);
 
   useEffect(() => {
     if (!config) return;
     let cancelled = false;
     async function loadZmanim() {
       const now = new Date();
-      const result = await fetchHebcalZmanim(config!.cityId, now);
+      const result = await fetchHebcalZmanim(config!.cityId, now, configZmanimSource(config));
       const shabbatDate = getShabbatZmanimDate(now, result.times);
-      const shabbatResult = await fetchHebcalZmanim(config!.cityId, shabbatDate);
+      const shabbatResult = await fetchHebcalZmanim(config!.cityId, shabbatDate, configZmanimSource(config));
       if (cancelled) return;
       setZmanimMap(result.times);
       setShabbatZmanimMap(shabbatResult.times);
@@ -227,7 +233,24 @@ export function Display({ synagogueId }: Props) {
       clearInterval(interval);
       window.removeEventListener('online', loadZmanim);
     };
-  }, [config?.cityId, config?.enabledZmanim]);
+  }, [config?.cityId, config?.enabledZmanim, config?.zmanimSource]);
+
+  useEffect(() => {
+    if (!config) return;
+    let cancelled = false;
+    async function loadExtras() {
+      const extras = await fetchItimExtras(config!.cityId);
+      if (!cancelled) setItimExtras(extras);
+    }
+    loadExtras();
+    const interval = setInterval(loadExtras, 15 * 60_000);
+    window.addEventListener('online', loadExtras);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('online', loadExtras);
+    };
+  }, [config?.cityId]);
 
   useEffect(() => {
     function tick() {
@@ -340,6 +363,7 @@ export function Display({ synagogueId }: Props) {
   if (bgSrc) style['--bg-image'] = `url(${bgSrc})`;
 
   const special = config.modes.specialMode ?? 'normal';
+  const isRotating = (config.displayStyle ?? 'studio') === 'rotating' && special === 'normal';
   const effectiveLayout =
     special === 'event' ? 'event' : special === 'mourning' ? 'mourning' : layout;
 
@@ -347,7 +371,7 @@ export function Display({ synagogueId }: Props) {
   const className = [
     'display',
     `theme-${config.theme}`,
-    `layout-${effectiveLayout}`,
+    `layout-${isRotating ? 'rotating' : effectiveLayout}`,
     `panel-${d.panelStyle}`,
     `header-${d.headerStyle}`,
     `clock-${d.clockStyle}`,
@@ -369,7 +393,7 @@ export function Display({ synagogueId }: Props) {
     effectiveLayout === 'dual';
   const centeredHeader = d.headerStyle === 'centered';
   const carouselItem = activeAnnouncements[carouselIdx % Math.max(activeAnnouncements.length, 1)];
-  const isCanvas = effectiveLayout === 'canvas';
+  const isCanvas = !isRotating && effectiveLayout === 'canvas';
 
   const nowForSchedule = new Date();
   const shabbatFriday = getShabbatZmanimDate(nowForSchedule, zmanimMap);
@@ -425,6 +449,7 @@ export function Display({ synagogueId }: Props) {
     weatherDesc: config.showWeather ? weather?.description : undefined,
     countdownLabel: modeInfo?.countdownLabel,
     candleBoard: modeInfo?.candleBoard ?? null,
+    itim: itimExtras,
   };
 
   async function confirmExit() {
@@ -562,7 +587,7 @@ export function Display({ synagogueId }: Props) {
         </div>
       ) : null}
 
-      {modeInfo?.candleBoard &&
+      {isRotating ? null : modeInfo?.candleBoard &&
       (modeInfo.mode !== 'weekday' || modeInfo.countdownLabel) ? (
         <div
           className={`mode-banner mode-${modeInfo.mode !== 'weekday' ? modeInfo.mode : 'erev-shabbat'} candle-banner`}
@@ -575,7 +600,7 @@ export function Display({ synagogueId }: Props) {
             className="candle-banner-board"
           />
         </div>
-      ) : modeInfo && modeInfo.mode !== 'weekday' ? (
+      ) : !isRotating && modeInfo && modeInfo.mode !== 'weekday' ? (
         <div className={`mode-banner mode-${modeInfo.mode}`}>
           <strong>{modeInfo.label}</strong>
           {modeInfo.countdownLabel ? <span>{modeInfo.countdownLabel}</span> : null}
@@ -606,7 +631,24 @@ export function Display({ synagogueId }: Props) {
         <video className="loop-video" src={media.loopVideoUrl} autoPlay muted loop playsInline />
       ) : null}
 
-      {isCanvas ? (
+      {isRotating ? (
+        <RotatingShow
+          config={config}
+          clock={clock}
+          day={day}
+          zmanim={zmanim}
+          blocks={displayBlocks}
+          announcements={activeAnnouncements}
+          zmanimMap={zmanimMap}
+          shabbatZmanimMap={shabbatZmanimMap}
+          shabbatFriday={shabbatFriday}
+          now={nowForSchedule}
+          modeInfo={modeInfo}
+          weather={weather}
+          logoSrc={logoSrc}
+          itim={itimExtras}
+        />
+      ) : isCanvas ? (
         <div className="canvas-viewport">
           <CanvasStage
             key={`cv-${config.revision ?? 0}-${config.updatedAt ?? ''}`}
@@ -616,7 +658,7 @@ export function Display({ synagogueId }: Props) {
         </div>
       ) : null}
 
-      {isCanvas ? null : (
+      {isCanvas || isRotating ? null : (
       <header className="display-header">
         <div className="brand">
           {logoSrc ? <img className="brand-logo" src={logoSrc} alt={config.name} /> : null}
@@ -637,7 +679,7 @@ export function Display({ synagogueId }: Props) {
       </header>
       )}
 
-      {isCanvas ? null : (
+      {isCanvas || isRotating ? null : (
       <main className={`display-grid layout-${effectiveLayout}`}>
         {effectiveLayout !== 'minimal' && effectiveLayout !== 'event' ? (
           <section className="panel zmanim-panel">

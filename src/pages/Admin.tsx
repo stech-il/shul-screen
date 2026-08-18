@@ -36,6 +36,8 @@ import {
   resolveScheduleItemAt,
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
+import { configZmanimSource } from '../lib/itimZmanim';
+import { EMPTY_ITIM_EXTRAS, fetchItimExtras, type ItimExtras } from '../lib/itimExtras';
 import { getHistoryEntry, loadHistory } from '../lib/history';
 import { ensureCustomFontsLoaded } from '../lib/customFonts';
 import { expandConfigMedia } from '../lib/mediaPersist';
@@ -43,6 +45,7 @@ import { getDayInfo } from '../lib/jewish';
 import { HebrewDatePicker } from '../components/HebrewDatePicker';
 import { daysLeft, isLicenseValid } from '../lib/license';
 import { upsertGallery } from '../lib/gallery';
+import { normalizeRotatingScreens } from '../lib/rotatingScreens';
 import { useUndoHistory } from '../lib/undoHistory';
 import { isNativeCapacitorShell } from '../lib/androidKiosk';
 import { MANAGE_STUDIO_TABS, loginPathFor } from '../lib/manageApp';
@@ -215,6 +218,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   const [previewZmanimMap, setPreviewZmanimMap] = useState<HebcalZmanimResult['times']>({});
   const [previewShabbatZmanimMap, setPreviewShabbatZmanimMap] =
     useState<HebcalZmanimResult['times']>({});
+  const [previewItim, setPreviewItim] = useState<ItimExtras>(EMPTY_ITIM_EXTRAS);
   const [itemDrag, setItemDrag] = useState<{ blockId: string; index: number } | null>(null);
   const [inquiryUnreadMessages, setInquiryUnreadMessages] = useState(0);
   const [inquiryTopicPrefill, setInquiryTopicPrefill] = useState<InquiryTopic | null>(null);
@@ -444,18 +448,21 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     if (tab !== 'canvas' || !canvasCityId) return;
     let cancelled = false;
     const now = new Date();
-    void fetchHebcalZmanim(canvasCityId, now).then(async (result) => {
+    void fetchHebcalZmanim(canvasCityId, now, configZmanimSource(config)).then(async (result) => {
       const shabbatDate = getShabbatZmanimDate(now, result.times);
-      const shabbatResult = await fetchHebcalZmanim(canvasCityId, shabbatDate);
+      const shabbatResult = await fetchHebcalZmanim(canvasCityId, shabbatDate, configZmanimSource(config));
       if (cancelled) return;
       setPreviewZmanimMap(result.times);
       setPreviewShabbatZmanimMap(shabbatResult.times);
       setPreviewZmanim(pickEnabledZmanim(result, (canvasEnabledZmanim ?? []) as ZmanKey[]));
     });
+    void fetchItimExtras(canvasCityId).then((extras) => {
+      if (!cancelled) setPreviewItim(extras);
+    });
     return () => {
       cancelled = true;
     };
-  }, [tab, canvasCityId, canvasEnabledZmanim]);
+  }, [tab, canvasCityId, canvasEnabledZmanim, config?.zmanimSource]);
 
   useEffect(() => {
     if (tab !== 'canvas' || !config || manageMode) return;
@@ -564,6 +571,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       exitRTLabel: t('admin.candleExitRT'),
       countdownLabel: t('admin.candleCountdownPreview'),
     },
+    itim: previewItim,
   };
 
   function update(patch: Partial<SynagogueConfig>) {
@@ -1527,7 +1535,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                     type="button"
                     className="btn primary"
                     onClick={() => {
-                      update({ layout: 'canvas' });
+                      update({ layout: 'canvas', displayStyle: 'studio' });
                       setStatus(t('admin.canvasLayoutHintSave'));
                     }}
                   >
@@ -1632,6 +1640,20 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 </select>
               </label>
               <label>
+                {t('admin.zmanimSource')}
+                <select
+                  value={config.zmanimSource === 'itim' ? 'itim' : 'hebcal'}
+                  onChange={(e) =>
+                    update({ zmanimSource: e.target.value === 'itim' ? 'itim' : 'hebcal' })
+                  }
+                  disabled={!isOwner}
+                >
+                  <option value="hebcal">{t('admin.zmanimSourceHebcal')}</option>
+                  <option value="itim">{t('admin.zmanimSourceItim')}</option>
+                </select>
+              </label>
+              <p className="hint">{t('admin.zmanimSourceHint')}</p>
+              <label>
                 {t('admin.dedication')}
                 <input
                   value={config.dedication ?? ''}
@@ -1641,6 +1663,72 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
             </section>
             <section className="card">
               <h2>{t('admin.displayTitle')}</h2>
+              <p className="hint">{t('admin.displayStyleHint')}</p>
+              <div className="display-style-picks">
+                <button
+                  type="button"
+                  className={`preset-card${(config.displayStyle ?? 'studio') === 'studio' ? ' active' : ''}`}
+                  onClick={() => update({ displayStyle: 'studio' })}
+                >
+                  <strong>{t('admin.displayStyleStudio')}</strong>
+                  <em>{t('admin.displayStyleStudioHint')}</em>
+                </button>
+                <button
+                  type="button"
+                  className={`preset-card${config.displayStyle === 'rotating' ? ' active' : ''}`}
+                  onClick={() =>
+                    update({
+                      displayStyle: 'rotating',
+                      rotatingScreens: normalizeRotatingScreens(config.rotatingScreens),
+                    })
+                  }
+                >
+                  <strong>{t('admin.displayStyleRotating')}</strong>
+                  <em>{t('admin.displayStyleRotatingHint')}</em>
+                </button>
+              </div>
+              {config.displayStyle === 'rotating' ? (
+                <>
+                  <label>
+                    {t('admin.rotatingSeconds')}
+                    <input
+                      type="number"
+                      min={4}
+                      max={60}
+                      value={normalizeRotatingScreens(config.rotatingScreens).seconds}
+                      onChange={(e) =>
+                        update({
+                          rotatingScreens: {
+                            ...normalizeRotatingScreens(config.rotatingScreens),
+                            seconds: Math.max(4, Number(e.target.value) || 10),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                  <p className="hint">{t('admin.rotatingSlidesHint')}</p>
+                  {normalizeRotatingScreens(config.rotatingScreens).slides.map((slide) => (
+                    <label key={slide.id} className="check">
+                      <input
+                        type="checkbox"
+                        checked={slide.enabled}
+                        onChange={(e) => {
+                          const current = normalizeRotatingScreens(config.rotatingScreens);
+                          update({
+                            rotatingScreens: {
+                              ...current,
+                              slides: current.slides.map((s) =>
+                                s.id === slide.id ? { ...s, enabled: e.target.checked } : s,
+                              ),
+                            },
+                          });
+                        }}
+                      />
+                      {t(`admin.rotatingSlide.${slide.id}`)}
+                    </label>
+                  ))}
+                </>
+              ) : null}
               {(
                 [
                   ['showClock', 'admin.showClock'],

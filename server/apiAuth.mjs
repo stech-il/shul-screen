@@ -15,6 +15,14 @@ const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const PLATFORM_API_KEY = String(process.env.PLATFORM_API_KEY || process.env.CLOUD_API_SECRET || '').trim();
 const CRON_SECRET = String(process.env.CRON_SECRET || '').trim();
 const BILLING_WEBHOOK_SECRET = String(process.env.BILLING_WEBHOOK_SECRET || '').trim();
+
+/** Vite / local Node — not Render. Lets admin save without a cloud session token. */
+export function isLocalDevApi() {
+  if (process.env.RENDER) return false;
+  if (String(process.env.LOCK_API_AUTH || '') === '1') return false;
+  if (String(process.env.SCREENSMART_LOCAL_API || '') === '1') return true;
+  return String(process.env.NODE_ENV || '').toLowerCase() !== 'production';
+}
 const MAX_JSON_BODY = Number(process.env.MAX_JSON_BODY || 1_500_000);
 const MAX_MEDIA_BODY = Number(process.env.MAX_MEDIA_BODY || 12_000_000);
 
@@ -229,6 +237,14 @@ export function requireWebhookSecret(req, res) {
 export function requireSynagogueAccess(req, res, synagogueId) {
   const auth = resolveAuth(req);
   if (!auth) {
+    if (isLocalDevApi()) {
+      return {
+        kind: 'member',
+        synagogueId: String(synagogueId || ''),
+        username: 'local-dev',
+        viaLocalDev: true,
+      };
+    }
     sendJson(res, 401, { ok: false, error: 'נדרשת התחברות' }, req);
     return null;
   }

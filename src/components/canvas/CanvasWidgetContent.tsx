@@ -15,6 +15,7 @@ import { CandleTimesBoard, PLACEHOLDER_CANDLE_BOARD } from '../CandleTimesBoard'
 import { RichAnnounce } from '../RichAnnounce';
 import { AnalogClock, DigitalClock } from './ClockWidget';
 import { WIDGET_LABELS } from './widgets';
+import type { ItimExtraLine, ItimExtras } from '../../lib/itimExtras';
 
 export interface CanvasData {
   name: string;
@@ -35,6 +36,7 @@ export interface CanvasData {
   weatherDesc?: string;
   countdownLabel?: string;
   candleBoard?: CandleBoard | null;
+  itim?: ItimExtras | null;
 }
 
 interface Props {
@@ -52,6 +54,39 @@ function Placeholder({ label }: { label: string }) {
     /* ignore */
   }
   return <p className="cw-empty">{label}</p>;
+}
+
+function ItimLines({
+  heading,
+  showTitle,
+  lines,
+  placeholder,
+  sample,
+}: {
+  heading: string;
+  showTitle: boolean;
+  lines?: ItimExtraLine[] | null;
+  placeholder?: boolean;
+  sample: ItimExtraLine[];
+}) {
+  const items = lines?.length ? lines : placeholder ? sample : [];
+  if (!items.length) return <Placeholder label={heading} />;
+  return (
+    <div className="cw-list-wrap cw-itim">
+      {showTitle ? <h3>{heading}</h3> : null}
+      <ul className="cw-itim-list">
+        {items.map((line, i) => {
+          const label = [line.dateLabel, line.title].filter(Boolean).join(' · ');
+          return (
+            <li key={`${label}-${i}`}>
+              {label ? <strong>{label}</strong> : null}
+              <span>{toPlainDisplayText(line.text)}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }
 
 export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
@@ -424,6 +459,53 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <img className="cw-image" src={widget.imageUrl} alt="" />
       ) : (
         <Placeholder label="תמונה — העלה בהגדרות הווידג׳ט" />
+      );
+
+    case 'itimMoon':
+      return (
+        <ItimLines
+          heading={title || 'זמני ירח'}
+          showTitle={widget.showTitle}
+          lines={data.itim?.moon}
+          placeholder={placeholder}
+          sample={[
+            { title: 'המולד · אלול', text: 'יום חמישי, 13.8, 08:54' },
+            { title: 'תחילת קידוש לבנה', text: 'יום ראשון, 16.8, 19:35' },
+          ]}
+        />
+      );
+    case 'itimHalachot':
+      return (
+        <ItimLines
+          heading={title || 'הלכות השבוע'}
+          showTitle={widget.showTitle}
+          lines={data.itim?.halachot}
+          placeholder={placeholder}
+          sample={[{ title: 'הליכות אלול', text: 'חודש אלול הוא מובחר ומוכן יותר לתשובה…', dateLabel: '5 אלול' }]}
+        />
+      );
+    case 'itimEvents':
+      return (
+        <ItimLines
+          heading={title || 'מאורעות היום'}
+          showTitle={widget.showTitle}
+          lines={data.itim?.events}
+          placeholder={placeholder}
+          sample={[{ title: 'שנת 5336', text: 'ר׳ משה פרובינצאלו' }]}
+        />
+      );
+    case 'itimLimud':
+      return (
+        <ItimLines
+          heading={title || 'הלימוד היומי'}
+          showTitle={widget.showTitle}
+          lines={data.itim?.limud}
+          placeholder={placeholder}
+          sample={[
+            { title: 'דף היומי', text: 'מסכת חולין דף קט' },
+            { title: 'משנה יומית', text: 'מסכת כלים כה, ב-ג' },
+          ]}
+        />
       );
 
     default:

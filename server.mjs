@@ -24,6 +24,7 @@ import { handleLandingAnalytics } from './server/landingAnalytics.mjs';
 import { handlePublicDirectory } from './server/publicDirectory.mjs';
 import { handleCloud } from './server/cloudHttp.mjs';
 import { handleAppVersion } from './server/appVersion.mjs';
+import { handleItimZmanim } from './server/itimZmanim.mjs';
 import { sendJson } from './server/apiAuth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -161,6 +162,10 @@ const server = http.createServer((req, res) => {
     void handlePublicDirectory(req, res, url).then((handled) => {
       if (!handled) sendJson(res, 404, { error: 'not found' }, req);
     });
+    return;
+  }
+  if (url.pathname.startsWith('/api/itim')) {
+    void handleItimZmanim(req, res, url);
     return;
   }
   if (url.pathname.startsWith('/api/auth')) {

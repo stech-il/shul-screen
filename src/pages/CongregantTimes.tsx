@@ -11,6 +11,7 @@ import {
   resolveScheduleItemAt,
   type HebcalZmanimResult,
 } from '../lib/hebcalZmanim';
+import { configZmanimSource } from '../lib/itimZmanim';
 import { DEMO_TIMES_CONFIG } from '../data/defaults';
 import { getDayInfo, parashaSpecialsForConfig } from '../lib/jewish';
 import { subscribeLiveUpdates } from '../lib/liveSync';
@@ -94,9 +95,9 @@ export function CongregantTimes() {
     let cancelled = false;
     async function loadZmanim() {
       const now = new Date();
-      const result = await fetchHebcalZmanim(config!.cityId, now);
+      const result = await fetchHebcalZmanim(config!.cityId, now, configZmanimSource(config));
       const shabbatDate = getShabbatZmanimDate(now, result.times);
-      const shabbatResult = await fetchHebcalZmanim(config!.cityId, shabbatDate);
+      const shabbatResult = await fetchHebcalZmanim(config!.cityId, shabbatDate, configZmanimSource(config));
       if (cancelled) return;
       setZmanimMap(result.times);
       setShabbatZmanimMap(shabbatResult.times);
@@ -111,7 +112,7 @@ export function CongregantTimes() {
       clearInterval(interval);
       window.removeEventListener('online', onOnline);
     };
-  }, [config?.cityId, config?.enabledZmanim]);
+  }, [config?.cityId, config?.enabledZmanim, config?.zmanimSource]);
 
   useEffect(() => {
     function tick() {

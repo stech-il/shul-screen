@@ -23,6 +23,46 @@ export type ClockStyle = 'bold' | 'elegant' | 'minimal';
 export type DayMode = 'weekday' | 'erev-shabbat' | 'shabbat' | 'holiday';
 export type NusachId = 'ashkenaz' | 'sephard' | 'edot-hamizrach' | 'chabad';
 export type SpecialDisplayMode = 'normal' | 'event' | 'mourning';
+/** One composed layout (classic/canvas) vs rotating full screens */
+export type DisplayStyle = 'studio' | 'rotating';
+export type RotatingSlideId =
+  | 'clock'
+  | 'prayers'
+  | 'zmanim'
+  | 'sunrise'
+  | 'shema'
+  | 'parasha'
+  | 'announcements'
+  | 'candles'
+  | 'holidays'
+  | 'roshChodesh'
+  | 'mevarchim'
+  | 'molad'
+  | 'specialShabbat'
+  | 'memorials'
+  | 'memorialBoard'
+  | 'yahrzeit'
+  | 'yahrzeitWeek'
+  | 'omer'
+  | 'dafYomi'
+  | 'mishnaYomi'
+  | 'hebrewDate'
+  | 'weather'
+  | 'itimMoon'
+  | 'itimHalachot'
+  | 'itimEvents'
+  | 'itimLimud';
+
+export interface RotatingSlideSetting {
+  id: RotatingSlideId;
+  enabled: boolean;
+}
+
+export interface RotatingScreensSettings {
+  /** Seconds each full screen stays on */
+  seconds: number;
+  slides: RotatingSlideSetting[];
+}
 
 export interface ScheduleItem {
   id: string;
@@ -110,7 +150,11 @@ export type CanvasWidgetType =
   | 'image'
   | 'video'
   | 'divider'
-  | 'button';
+  | 'button'
+  | 'itimMoon'
+  | 'itimHalachot'
+  | 'itimEvents'
+  | 'itimLimud';
 
 export type CanvasWidgetBg = 'none' | 'panel' | 'solid' | 'dark' | 'ghost';
 export type CanvasTitleLayout = 'above' | 'below' | 'side' | 'side-reverse';
@@ -284,9 +328,14 @@ export interface SynagogueConfig {
   id: string;
   name: string;
   cityId: string;
+  /** Daily zmanim: standard Hebcal calc, or עיתים לבינה by city */
+  zmanimSource?: 'hebcal' | 'itim';
   dedication?: string;
   theme: 'light' | 'dark';
   layout: ScreenLayout;
+  /** studio = current single layout; rotating = designed interchangeable screens */
+  displayStyle: DisplayStyle;
+  rotatingScreens: RotatingScreensSettings;
   nusach: NusachId;
   branding?: {
     logoUrl?: string;
@@ -353,11 +402,20 @@ export interface ComputedZman {
   formatted: string;
 }
 
+export interface MemorialPlaque {
+  name: string;
+  hebrewDate: string;
+  note?: string;
+  today: boolean;
+  thisWeek: boolean;
+}
+
 export interface DayInfo {
   hebrewDate: string;
   weekday: string;
   parasha: string;
   dafYomi: string;
+  mishnaYomi: string;
   /** Chag / minor holidays (today) */
   holidays: string[];
   memorials: string[];
@@ -366,6 +424,9 @@ export interface DayInfo {
   molad: string[];
   specialShabbat: string[];
   yahrzeitNames: string[];
+  yahrzeitWeek: { name: string; label: string }[];
+  /** Full memorial board (all enabled yahrzeits) */
+  memorialBoard: MemorialPlaque[];
   /** Present only during Sefirat HaOmer */
   omer?: {
     day: number;

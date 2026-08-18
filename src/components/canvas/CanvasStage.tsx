@@ -1,12 +1,13 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { CanvasLayoutConfig, CanvasWidget, CanvasWidgetType, DayInfo } from '../../types';
+import type { CanvasLayoutConfig, CanvasWidget, CanvasWidgetType } from '../../types';
 import { CANVAS_REF_WIDTH } from '../../types';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ASPECT_RATIOS } from './widgets';
 import './canvas.css';
 
-/** Calendar widgets that must not leave an empty box on the live screen. */
-function seasonalWidgetHasContent(type: CanvasWidgetType, day: DayInfo): boolean | null {
+/** Calendar / seasonal widgets that must not leave an empty box on the live screen. */
+function seasonalWidgetHasContent(type: CanvasWidgetType, data: CanvasData): boolean | null {
+  const day = data.day;
   switch (type) {
     case 'calendar':
       return Boolean((day.holidays?.length ?? 0) + (day.memorials?.length ?? 0));
@@ -22,6 +23,14 @@ function seasonalWidgetHasContent(type: CanvasWidgetType, day: DayInfo): boolean
       return Boolean(day.omer);
     case 'yahrzeit':
       return Boolean(day.yahrzeitNames?.length);
+    case 'itimMoon':
+      return Boolean(data.itim?.moon?.length);
+    case 'itimHalachot':
+      return Boolean(data.itim?.halachot?.length);
+    case 'itimEvents':
+      return Boolean(data.itim?.events?.length);
+    case 'itimLimud':
+      return Boolean(data.itim?.limud?.length);
     default:
       return null;
   }
@@ -106,7 +115,7 @@ export function CanvasStage({ canvas, data, children, placeholder, className }: 
         .filter((w) => w.visible)
         .filter((w) => {
           if (placeholder) return true;
-          const has = seasonalWidgetHasContent(w.type, data.day);
+          const has = seasonalWidgetHasContent(w.type, data);
           return has === null ? true : has;
         })
         .map((w) => (

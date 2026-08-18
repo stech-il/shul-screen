@@ -1,5 +1,5 @@
 import { HDate, HebrewCalendar, months, flags } from '@hebcal/core';
-import { DafYomi } from '@hebcal/learning';
+import { DafYomi, MishnaYomiEvent, MishnaYomiIndex } from '@hebcal/learning';
 import type { DayInfo, SynagogueConfig, YahrzeitEntry } from '../types';
 
 const WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -132,6 +132,12 @@ export function parashaSpecialsForConfig(
   return out;
 }
 
+let mishnaIndex: MishnaYomiIndex | null = null;
+function getMishnaIndex(): MishnaYomiIndex {
+  mishnaIndex ??= new MishnaYomiIndex();
+  return mishnaIndex;
+}
+
 export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): DayInfo {
   const hd = new HDate(date);
   const calOpts = {
@@ -174,6 +180,14 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
     dafYomi = new DafYomi(date).render('he');
   } catch {
     dafYomi = '';
+  }
+
+  let mishnaYomi = '';
+  try {
+    const reading = getMishnaIndex().lookup(date);
+    mishnaYomi = new MishnaYomiEvent(hd, reading).render('he');
+  } catch {
+    mishnaYomi = '';
   }
 
   const holidays: string[] = [];
@@ -247,11 +261,45 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
     .filter((y) => y.enabled && y.hebrewMonth === month && y.hebrewDay === day)
     .map((y) => y.name);
 
+  const yahrzeitWeek: DayInfo['yahrzeitWeek'] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(date);
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() + i);
+    const whd = new HDate(d);
+    const names = yahrzeits
+      .filter((y) => y.enabled && y.hebrewMonth === whd.getMonth() && y.hebrewDay === whd.getDate())
+      .map((y) => y.name);
+    for (const name of names) {
+      yahrzeitWeek.push({
+        name,
+        label: i === 0 ? 'היום' : `יום ${WEEKDAYS[d.getDay()]!}`,
+      });
+    }
+  }
+
+  const weekNames = new Set(yahrzeitWeek.map((x) => x.name));
+  const todayNames = new Set(yahrzeitNames);
+  const memorialBoard = yahrzeits
+    .filter((y) => y.enabled && String(y.name || '').trim())
+    .map((y) => {
+      const name = y.name.trim();
+      return {
+        name,
+        hebrewDate: formatHebrewDate(y.hebrewDay, y.hebrewMonth),
+        note: y.note,
+        today: todayNames.has(name),
+        thisWeek: weekNames.has(name),
+      };
+    })
+    .sort((a, b) => Number(b.today) - Number(a.today) || Number(b.thisWeek) - Number(a.thisWeek));
+
   return {
     hebrewDate: hd.renderGematriya(true),
     weekday: WEEKDAYS[date.getDay()]!,
     parasha,
     dafYomi,
+    mishnaYomi,
     holidays,
     memorials,
     roshChodesh,
@@ -259,6 +307,8 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
     molad,
     specialShabbat,
     yahrzeitNames,
+    yahrzeitWeek,
+    memorialBoard,
     omer,
   };
 }
