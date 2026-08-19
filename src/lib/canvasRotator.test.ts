@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ROTATOR_TYPES,
+  normalizeRotatorEventsScroll,
   normalizeRotatorSeconds,
   normalizeRotatorShowTitles,
   normalizeRotatorTypes,
@@ -49,5 +50,14 @@ describe('rotatorShowTitles', () => {
       parasha: false,
     });
     expect(normalizeRotatorShowTitles(null)).toBeUndefined();
+  });
+});
+
+describe('normalizeRotatorEventsScroll', () => {
+  it('is off unless explicitly true', () => {
+    expect(normalizeRotatorEventsScroll(undefined)).toBe(false);
+    expect(normalizeRotatorEventsScroll(false)).toBe(false);
+    expect(normalizeRotatorEventsScroll('true')).toBe(false);
+    expect(normalizeRotatorEventsScroll(true)).toBe(true);
   });
 });

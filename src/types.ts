@@ -225,6 +225,8 @@ export interface CanvasWidget {
   rotatorSeconds?: number;
   /** Rotating slot: show title per inner widget type (missing = true) */
   rotatorShowTitles?: Partial<Record<CanvasWidgetType, boolean>>;
+  /** Rotating slot: scroll "events of the day" from bottom to top */
+  rotatorEventsScroll?: boolean;
 }
 
 /**

@@ -1056,6 +1056,8 @@ export const en: DeepString<typeof he> = {
     rotatorTitlesHint: 'Choose whether each widget shows a title.',
     rotatorShowTitlesAll: 'Show title on all selected widgets',
     rotatorItemTitle: 'Title',
+    rotatorEventsScroll: 'Events of the day — scroll from bottom to top',
+    rotatorEventsScrollHint: 'The list rises like credits inside the box. If it is long, increase seconds per widget.',
     customTitle: 'Custom title',
     customTitlePh: 'Empty = default',
     prayerBlock: 'Prayer block',

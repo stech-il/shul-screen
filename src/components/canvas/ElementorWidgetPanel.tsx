@@ -318,6 +318,15 @@ export function ElementorWidgetPanel({
                         }
                       />
                     </label>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(selected.rotatorEventsScroll)}
+                        onChange={(e) => patch({ rotatorEventsScroll: e.target.checked })}
+                      />
+                      {t('canvas.rotatorEventsScroll')}
+                    </label>
+                    <p className="cb-hint">{t('canvas.rotatorEventsScrollHint')}</p>
                     <div className="cb-label">{t('canvas.rotatorPick')}</div>
                     <p className="cb-hint">{t('canvas.rotatorTitlesHint')}</p>
                     {(() => {

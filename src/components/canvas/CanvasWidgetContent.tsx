@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type {
   Announcement,
   CandleBoard,
@@ -113,18 +113,69 @@ function RotatingCanvasSlot({
   );
 }
 
+function ItimCredits({ children, itemsKey }: { children: ReactNode; itemsKey: string }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [metrics, setMetrics] = useState<{ from: number; to: number; dur: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const vp = viewportRef.current;
+    const content = contentRef.current;
+    if (!vp || !content) return;
+
+    const measure = () => {
+      const vh = vp.clientHeight;
+      const ch = content.scrollHeight;
+      if (vh <= 0 || ch <= 0) return;
+      const dur = Math.max(10, (vh + ch) / 36);
+      setMetrics((prev) => {
+        if (prev && prev.from === vh && prev.to === -ch && Math.abs(prev.dur - dur) < 0.05) return prev;
+        return { from: vh, to: -ch, dur };
+      });
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(vp);
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, [itemsKey]);
+
+  return (
+    <div ref={viewportRef} className="cw-itim-marquee">
+      <div
+        ref={contentRef}
+        className={metrics ? 'cw-itim-credits' : 'cw-itim-credits is-pending'}
+        style={
+          metrics
+            ? {
+                ['--cw-credits-from' as string]: `${metrics.from}px`,
+                ['--cw-credits-to' as string]: `${metrics.to}px`,
+                animationDuration: `${metrics.dur}s`,
+              }
+            : undefined
+        }
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function ItimLines({
   heading,
   showTitle,
   lines,
   placeholder,
   sample,
+  scrollUp,
 }: {
   heading: string;
   showTitle: boolean;
   lines?: ItimExtraLine[] | null;
   placeholder?: boolean;
   sample: ItimExtraLine[];
+  scrollUp?: boolean;
 }) {
   const items = lines?.length ? lines : placeholder ? sample : [];
   if (!items.length) {
@@ -135,20 +186,29 @@ function ItimLines({
       </div>
     );
   }
+  const list = (
+    <ul className="cw-itim-list">
+      {items.map((line, i) => {
+        const label = [line.dateLabel, line.title].filter(Boolean).join(' · ');
+        return (
+          <li key={`${label}-${i}`}>
+            {label ? <strong>{label}</strong> : null}
+            <span>{toPlainDisplayText(line.text)}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
   return (
-    <div className="cw-list-wrap cw-itim">
+    <div className={`cw-list-wrap cw-itim${scrollUp ? ' cw-itim-scroll' : ''}`}>
       {showTitle ? <h3>{heading}</h3> : null}
-      <ul className="cw-itim-list">
-        {items.map((line, i) => {
-          const label = [line.dateLabel, line.title].filter(Boolean).join(' · ');
-          return (
-            <li key={`${label}-${i}`}>
-              {label ? <strong>{label}</strong> : null}
-              <span>{toPlainDisplayText(line.text)}</span>
-            </li>
-          );
-        })}
-      </ul>
+      {scrollUp ? (
+        <ItimCredits itemsKey={items.map((line) => `${line.dateLabel}|${line.title}|${line.text}`).join('~')}>
+          {list}
+        </ItimCredits>
+      ) : (
+        list
+      )}
     </div>
   );
 }
@@ -555,7 +615,13 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
           showTitle={widget.showTitle}
           lines={data.itim?.events}
           placeholder={placeholder}
-          sample={[{ title: 'שנת ה׳של״ו', text: 'ר׳ משה פרובינצאלו' }]}
+          sample={[
+            { title: 'שנת ה׳של״ו', text: 'ר׳ משה פרובינצאלו' },
+            { title: 'שנת ה׳תק״ם', text: 'פטירת ר׳ חיים ויטאל' },
+            { title: 'שנת ה׳תר״ח', text: 'עליית תלמידי הגר״א' },
+            { title: 'שנת ה׳תרצ״ג', text: 'יסוד ישיבת חברון' },
+          ]}
+          scrollUp={widget.rotatorEventsScroll === true}
         />
       );
     case 'itimLimud':

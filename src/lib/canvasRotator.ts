@@ -69,6 +69,10 @@ export function normalizeRotatorShowTitles(
   return any ? out : undefined;
 }
 
+export function normalizeRotatorEventsScroll(raw: unknown): boolean {
+  return raw === true;
+}
+
 export function widgetTypeHasContent(type: CanvasWidgetType, data: CanvasData): boolean {
   const day = data.day;
   switch (type) {

@@ -1050,6 +1050,8 @@ export const he = {
     rotatorTitlesHint: 'לכל וידג׳ט אפשר לבחור אם להציג כותרת.',
     rotatorShowTitlesAll: 'כותרת לכל הווידג׳טים שנבחרו',
     rotatorItemTitle: 'כותרת',
+    rotatorEventsScroll: 'מאורעות היום — גלילה מלמטה למעלה',
+    rotatorEventsScrollHint: 'הרשימה עולה כמו כתוביות בתוך התיבה. אם היא ארוכה, הגדילו את השניות לכל וידג׳ט.',
     customTitle: 'כותרת מותאמת',
     customTitlePh: 'ריק = ברירת מחדל',
     prayerBlock: 'בלוק תפילות',

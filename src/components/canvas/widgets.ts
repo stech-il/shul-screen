@@ -3,6 +3,7 @@ import { ZMAN_DEFS } from '../../data/zmanim';
 import { decodeHtmlEntities } from '../../lib/sanitizeHtml';
 import {
   DEFAULT_ROTATOR_TYPES,
+  normalizeRotatorEventsScroll,
   normalizeRotatorSeconds,
   normalizeRotatorShowTitles,
   normalizeRotatorTypes,
@@ -290,6 +291,10 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
     rotatorShowTitles:
       w.type === 'rotator' || fallback.type === 'rotator'
         ? normalizeRotatorShowTitles(w.rotatorShowTitles ?? fallback.rotatorShowTitles)
+        : undefined,
+    rotatorEventsScroll:
+      w.type === 'rotator' || fallback.type === 'rotator'
+        ? normalizeRotatorEventsScroll(w.rotatorEventsScroll ?? fallback.rotatorEventsScroll)
         : undefined,
   };
 }
