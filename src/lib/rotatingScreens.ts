@@ -40,6 +40,7 @@ export const ROTATING_SLIDE_ORDER: RotatingSlideId[] = [
   'itimHalachot',
   'itimEvents',
   'itimLimud',
+  'itimHaftara',
 ];
 
 export const ROTATING_SLIDE_LABELS: Record<RotatingSlideId, string> = {
@@ -69,6 +70,7 @@ export const ROTATING_SLIDE_LABELS: Record<RotatingSlideId, string> = {
   itimHalachot: 'הלכות השבוע',
   itimEvents: 'מאורעות היום',
   itimLimud: 'הלימוד היומי',
+  itimHaftara: 'הפטרה',
 };
 
 const CALENDAR_SPLIT: RotatingSlideId[] = [
@@ -89,7 +91,7 @@ const SHEMA_KEYS = [
 
 const SUNRISE_KEYS = ['sunrise'] as const;
 
-const ITIM_SLIDES: RotatingSlideId[] = ['itimMoon', 'itimHalachot', 'itimEvents', 'itimLimud'];
+const ITIM_SLIDES: RotatingSlideId[] = ['itimMoon', 'itimHalachot', 'itimEvents', 'itimLimud', 'itimHaftara'];
 
 export function defaultRotatingScreens(): RotatingScreensSettings {
   return {
@@ -306,6 +308,9 @@ export function buildActiveRotatingSlides(opts: {
         break;
       case 'itimLimud':
         if (itim?.limud?.length) out.push({ key: 'itimLimud', id });
+        break;
+      case 'itimHaftara':
+        if (itim?.haftara?.length) out.push({ key: 'itimHaftara', id });
         break;
       default:
         break;

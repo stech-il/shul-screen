@@ -23,14 +23,6 @@ function seasonalWidgetHasContent(type: CanvasWidgetType, data: CanvasData): boo
       return Boolean(day.omer);
     case 'yahrzeit':
       return Boolean(day.yahrzeitNames?.length);
-    case 'itimMoon':
-      return Boolean(data.itim?.moon?.length);
-    case 'itimHalachot':
-      return Boolean(data.itim?.halachot?.length);
-    case 'itimEvents':
-      return Boolean(data.itim?.events?.length);
-    case 'itimLimud':
-      return Boolean(data.itim?.limud?.length);
     default:
       return null;
   }
@@ -115,6 +107,7 @@ export function CanvasStage({ canvas, data, children, placeholder, className }: 
         .filter((w) => w.visible)
         .filter((w) => {
           if (placeholder) return true;
+          if (w.type === 'rotator') return true;
           const has = seasonalWidgetHasContent(w.type, data);
           return has === null ? true : has;
         })

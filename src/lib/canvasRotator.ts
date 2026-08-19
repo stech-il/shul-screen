@@ -1,0 +1,102 @@
+import type { CanvasWidgetType } from '../types';
+import type { CanvasData } from '../components/canvas/CanvasWidgetContent';
+
+/** Widget types that can appear inside a rotating canvas slot. */
+export const ROTATOR_CHOICES: CanvasWidgetType[] = [
+  'clock',
+  'hebrewDate',
+  'parasha',
+  'dafYomi',
+  'weather',
+  'zmanim',
+  'announcements',
+  'yahrzeit',
+  'calendar',
+  'roshChodesh',
+  'shabbatMevarchim',
+  'molad',
+  'specialShabbat',
+  'countdown',
+  'omer',
+  'itimMoon',
+  'itimHalachot',
+  'itimEvents',
+  'itimLimud',
+  'itimHaftara',
+];
+
+export const DEFAULT_ROTATOR_TYPES: CanvasWidgetType[] = ['parasha', 'dafYomi', 'itimHaftara'];
+
+const ALLOWED = new Set<CanvasWidgetType>(ROTATOR_CHOICES);
+
+export function normalizeRotatorTypes(raw: unknown): CanvasWidgetType[] {
+  if (!Array.isArray(raw)) return [...DEFAULT_ROTATOR_TYPES];
+  const seen = new Set<string>();
+  const out: CanvasWidgetType[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string' || !ALLOWED.has(item as CanvasWidgetType) || seen.has(item)) continue;
+    seen.add(item);
+    out.push(item as CanvasWidgetType);
+  }
+  return out;
+}
+
+export function normalizeRotatorSeconds(raw: unknown): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 8;
+  return Math.min(60, Math.max(3, Math.round(n)));
+}
+
+export function widgetTypeHasContent(type: CanvasWidgetType, data: CanvasData): boolean {
+  const day = data.day;
+  switch (type) {
+    case 'rotator':
+      return false;
+    case 'logo':
+      return Boolean(data.logoSrc);
+    case 'parasha':
+      return Boolean(day.parasha);
+    case 'dafYomi':
+      return Boolean(day.dafYomi);
+    case 'weather':
+      return data.weatherTemp != null;
+    case 'zmanim':
+      return data.zmanim.length > 0;
+    case 'block':
+      return data.blocks.some((b) => b.items.length);
+    case 'announcements':
+      return Boolean(data.announcement);
+    case 'yahrzeit':
+      return Boolean(day.yahrzeitNames?.length);
+    case 'calendar':
+      return Boolean((day.holidays?.length ?? 0) + (day.memorials?.length ?? 0));
+    case 'roshChodesh':
+      return Boolean(day.roshChodesh?.length);
+    case 'shabbatMevarchim':
+      return Boolean(day.shabbatMevarchim?.length);
+    case 'molad':
+      return Boolean(day.molad?.length);
+    case 'specialShabbat':
+      return Boolean(day.specialShabbat?.length);
+    case 'omer':
+      return Boolean(day.omer);
+    case 'countdown':
+      return Boolean(data.candleBoard);
+    case 'itimMoon':
+      return data.itimLoading || Boolean(data.itim?.moon?.length);
+    case 'itimHalachot':
+      return data.itimLoading || Boolean(data.itim?.halachot?.length);
+    case 'itimEvents':
+      return data.itimLoading || Boolean(data.itim?.events?.length);
+    case 'itimLimud':
+      return data.itimLoading || Boolean(data.itim?.limud?.length);
+    case 'itimHaftara':
+      return data.itimLoading || Boolean(data.itim?.haftara?.length);
+    default:
+      return true;
+  }
+}
+
+export function rotatorHasContent(types: CanvasWidgetType[], data: CanvasData): boolean {
+  return types.some((type) => widgetTypeHasContent(type, data));
+}

@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n';
 import { RichTextEditor } from '../RichTextEditor';
 import { ANALOG_DESIGNS, DIGITAL_DESIGNS } from './ClockWidget';
 import { clamp } from './widgets';
+import { DEFAULT_ROTATOR_TYPES, ROTATOR_CHOICES, normalizeRotatorSeconds } from '../../lib/canvasRotator';
 
 export type ElementorTab = 'content' | 'style' | 'advanced';
 
@@ -296,6 +297,49 @@ export function ElementorWidgetPanel({
                   </div>
                 ) : null}
 
+                {selected.type === 'rotator' ? (
+                  <>
+                    <p className="cb-hint">{t('canvas.rotatorHint')}</p>
+                    <label className="cb-el-field">
+                      <span>{t('canvas.rotatorSeconds')}</span>
+                      <input
+                        type="number"
+                        dir="ltr"
+                        min={3}
+                        max={60}
+                        value={selected.rotatorSeconds ?? 8}
+                        onChange={(e) =>
+                          patch({ rotatorSeconds: normalizeRotatorSeconds(e.target.value) })
+                        }
+                      />
+                    </label>
+                    <div className="cb-label">{t('canvas.rotatorPick')}</div>
+                    <div className="cb-rotator-picks">
+                      {ROTATOR_CHOICES.map((type) => {
+                        const current = selected.rotatorTypes ?? DEFAULT_ROTATOR_TYPES;
+                        const on = current.includes(type);
+                        return (
+                          <label key={type} className="check">
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() => {
+                                const current = selected.rotatorTypes ?? DEFAULT_ROTATOR_TYPES;
+                                patch({
+                                  rotatorTypes: on
+                                    ? current.filter((x) => x !== type)
+                                    : [...current, type],
+                                });
+                              }}
+                            />
+                            {t(`widgets.${type}`)}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : null}
+
                 {selected.type === 'divider' ? (
                   <p className="cb-hint">{t('canvas.dividerHint')}</p>
                 ) : null}
@@ -331,7 +375,8 @@ export function ElementorWidgetPanel({
                 selected.type !== 'button' &&
                 selected.type !== 'video' &&
                 selected.type !== 'image' &&
-                selected.type !== 'divider' ? (
+                selected.type !== 'divider' &&
+                selected.type !== 'rotator' ? (
                   <label className="cb-el-field">
                     <span>{t('canvas.customTitle')}</span>
                     <input
@@ -408,7 +453,8 @@ export function ElementorWidgetPanel({
                 selected.type !== 'button' &&
                 selected.type !== 'divider' &&
                 selected.type !== 'video' &&
-                selected.type !== 'image' ? (
+                selected.type !== 'image' &&
+                selected.type !== 'rotator' ? (
                   <label className="check">
                     <input
                       type="checkbox"

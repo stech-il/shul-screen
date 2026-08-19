@@ -467,8 +467,12 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   useEffect(() => {
     if (tab !== 'canvas' || !config || manageMode) return;
     if (!session || !canEditSettings(session.role)) return;
-    if (config.layout === 'canvas') return;
-    setConfig((c) => (c && c.layout !== 'canvas' ? { ...c, layout: 'canvas' } : c));
+    if (config.layout === 'canvas' && (config.displayStyle ?? 'studio') === 'studio') return;
+    setConfig((c) =>
+      c && (c.layout !== 'canvas' || c.displayStyle === 'rotating')
+        ? { ...c, layout: 'canvas', displayStyle: 'studio' }
+        : c,
+    );
     setStatus(t('admin.canvasLayoutHint'));
   }, [tab, session?.role, config?.layout, t, manageMode]);
 

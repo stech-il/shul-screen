@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   Announcement,
   CandleBoard,
@@ -16,6 +17,10 @@ import { RichAnnounce } from '../RichAnnounce';
 import { AnalogClock, DigitalClock } from './ClockWidget';
 import { WIDGET_LABELS } from './widgets';
 import type { ItimExtraLine, ItimExtras } from '../../lib/itimExtras';
+import {
+  normalizeRotatorSeconds,
+  normalizeRotatorTypes,
+} from '../../lib/canvasRotator';
 
 export interface CanvasData {
   name: string;
@@ -37,6 +42,8 @@ export interface CanvasData {
   countdownLabel?: string;
   candleBoard?: CandleBoard | null;
   itim?: ItimExtras | null;
+  /** True until the first extras fetch finishes — keep Itim widgets visible. */
+  itimLoading?: boolean;
 }
 
 interface Props {
@@ -56,6 +63,46 @@ function Placeholder({ label }: { label: string }) {
   return <p className="cw-empty">{label}</p>;
 }
 
+function RotatingCanvasSlot({
+  widget,
+  data,
+  placeholder,
+}: {
+  widget: CanvasWidget;
+  data: CanvasData;
+  placeholder?: boolean;
+}) {
+  const types = useMemo(() => normalizeRotatorTypes(widget.rotatorTypes), [widget.rotatorTypes]);
+  const seconds = normalizeRotatorSeconds(widget.rotatorSeconds);
+  const shown = types;
+
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    setTick(0);
+  }, [shown.join('|')]);
+
+  useEffect(() => {
+    if (shown.length < 2) return;
+    const id = window.setInterval(() => setTick((n) => n + 1), seconds * 1000);
+    return () => window.clearInterval(id);
+  }, [shown.length, shown.join('|'), seconds]);
+
+  if (!shown.length) {
+    return <Placeholder label="וידג׳ט מתחלף — בחרו רכיבים בהגדרות" />;
+  }
+
+  const type = shown[tick % shown.length];
+  const inner: CanvasWidget = { ...widget, type, title: undefined, showTitle: true };
+  return (
+    <div className="cw-rotator" data-rotator-type={type}>
+      <div key={`${type}-${tick}`} className="cw-rotator-inner">
+        <CanvasWidgetContent widget={inner} data={data} placeholder={placeholder} />
+      </div>
+    </div>
+  );
+}
+
 function ItimLines({
   heading,
   showTitle,
@@ -70,7 +117,14 @@ function ItimLines({
   sample: ItimExtraLine[];
 }) {
   const items = lines?.length ? lines : placeholder ? sample : [];
-  if (!items.length) return <Placeholder label={heading} />;
+  if (!items.length) {
+    return (
+      <div className="cw-list-wrap cw-itim">
+        {showTitle ? <h3>{heading}</h3> : null}
+        {placeholder ? <Placeholder label={heading} /> : null}
+      </div>
+    );
+  }
   return (
     <div className="cw-list-wrap cw-itim">
       {showTitle ? <h3>{heading}</h3> : null}
@@ -481,7 +535,7 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
           showTitle={widget.showTitle}
           lines={data.itim?.halachot}
           placeholder={placeholder}
-          sample={[{ title: 'הליכות אלול', text: 'חודש אלול הוא מובחר ומוכן יותר לתשובה…', dateLabel: '5 אלול' }]}
+          sample={[{ title: 'הליכות אלול', text: 'חודש אלול הוא מובחר ומוכן יותר לתשובה…', dateLabel: 'ה׳ אלול' }]}
         />
       );
     case 'itimEvents':
@@ -491,7 +545,7 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
           showTitle={widget.showTitle}
           lines={data.itim?.events}
           placeholder={placeholder}
-          sample={[{ title: 'שנת 5336', text: 'ר׳ משה פרובינצאלו' }]}
+          sample={[{ title: 'שנת ה׳של״ו', text: 'ר׳ משה פרובינצאלו' }]}
         />
       );
     case 'itimLimud':
@@ -507,6 +561,19 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
           ]}
         />
       );
+    case 'itimHaftara':
+      return (
+        <ItimLines
+          heading={title || 'הפטרה'}
+          showTitle={widget.showTitle}
+          lines={data.itim?.haftara}
+          placeholder={placeholder}
+          sample={[{ text: 'הפטרה: רני עקרה (ישעיה נ״ד)' }]}
+        />
+      );
+
+    case 'rotator':
+      return <RotatingCanvasSlot widget={widget} data={data} placeholder={placeholder} />;
 
     default:
       return <Placeholder label={WIDGET_LABELS[widget.type] ?? ''} />;

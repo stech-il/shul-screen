@@ -20,12 +20,12 @@ const PALETTE_SECTION_DEFS: {
   {
     id: 'extra',
     labelKey: 'panels.paletteExtra',
-    types: ['parasha', 'dafYomi', 'omer', 'weather', 'yahrzeit', 'calendar', 'roshChodesh', 'shabbatMevarchim', 'molad', 'specialShabbat', 'countdown'],
+    types: ['parasha', 'dafYomi', 'omer', 'weather', 'yahrzeit', 'calendar', 'roshChodesh', 'shabbatMevarchim', 'molad', 'specialShabbat', 'countdown', 'rotator'],
   },
   {
     id: 'itim',
     labelKey: 'panels.paletteItim',
-    types: ['itimMoon', 'itimHalachot', 'itimEvents', 'itimLimud'],
+    types: ['itimMoon', 'itimHalachot', 'itimEvents', 'itimLimud', 'itimHaftara'],
   },
 ];
 
@@ -59,6 +59,8 @@ const ICONS: Record<CanvasWidgetType, string> = {
   itimHalachot: '§',
   itimEvents: '✦',
   itimLimud: 'ל',
+  itimHaftara: 'ה',
+  rotator: '⟳',
 };
 
 interface Props {

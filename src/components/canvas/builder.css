@@ -294,6 +294,19 @@
   font: inherit;
 }
 
+.cb-rotator-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.2rem 0 0.4rem;
+}
+
+.cb-rotator-picks .check {
+  font-size: 0.86rem;
+}
+
 .cb-el-field-ctrl {
   display: flex;
   align-items: center;

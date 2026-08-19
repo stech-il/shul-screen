@@ -11,6 +11,7 @@ export interface ItimExtras {
   halachot: ItimExtraLine[];
   events: ItimExtraLine[];
   limud: ItimExtraLine[];
+  haftara: ItimExtraLine[];
 }
 
 export const EMPTY_ITIM_EXTRAS: ItimExtras = {
@@ -18,9 +19,10 @@ export const EMPTY_ITIM_EXTRAS: ItimExtras = {
   halachot: [],
   events: [],
   limud: [],
+  haftara: [],
 };
 
-const CACHE_PREFIX = 'shul-screen:itim-extras:';
+const CACHE_PREFIX = 'shul-screen:itim-extras:v6:';
 
 function dateKey(date: Date): string {
   const year = date.getFullYear();
@@ -60,6 +62,7 @@ function loadCache(cityId: string, date: Date): ItimExtras | null {
       halachot: asLines(parsed.halachot),
       events: asLines(parsed.events),
       limud: asLines(parsed.limud),
+      haftara: asLines(parsed.haftara),
     };
   } catch {
     return null;
@@ -76,7 +79,11 @@ function saveCache(cityId: string, date: Date, extras: ItimExtras): void {
 
 function hasAny(extras: ItimExtras): boolean {
   return Boolean(
-    extras.moon.length || extras.halachot.length || extras.events.length || extras.limud.length,
+    extras.moon.length ||
+      extras.halachot.length ||
+      extras.events.length ||
+      extras.limud.length ||
+      extras.haftara.length,
   );
 }
 
@@ -104,6 +111,7 @@ export async function fetchItimExtras(
         halachot: asLines(data.halachot),
         events: asLines(data.events),
         limud: asLines(data.limud),
+        haftara: asLines(data.haftara),
       };
       if (hasAny(extras)) saveCache(cityId, date, extras);
       return extras;

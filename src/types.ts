@@ -51,7 +51,8 @@ export type RotatingSlideId =
   | 'itimMoon'
   | 'itimHalachot'
   | 'itimEvents'
-  | 'itimLimud';
+  | 'itimLimud'
+  | 'itimHaftara';
 
 export interface RotatingSlideSetting {
   id: RotatingSlideId;
@@ -154,7 +155,9 @@ export type CanvasWidgetType =
   | 'itimMoon'
   | 'itimHalachot'
   | 'itimEvents'
-  | 'itimLimud';
+  | 'itimLimud'
+  | 'itimHaftara'
+  | 'rotator';
 
 export type CanvasWidgetBg = 'none' | 'panel' | 'solid' | 'dark' | 'ghost';
 export type CanvasTitleLayout = 'above' | 'below' | 'side' | 'side-reverse';
@@ -216,6 +219,10 @@ export interface CanvasWidget {
   clockMode?: 'digital' | 'analog';
   /** Clock widget design variant */
   clockDesign?: string;
+  /** Rotating slot: which widget types to cycle */
+  rotatorTypes?: CanvasWidgetType[];
+  /** Rotating slot: seconds per item */
+  rotatorSeconds?: number;
 }
 
 /**

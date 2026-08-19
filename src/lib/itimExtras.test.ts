@@ -8,12 +8,13 @@ describe('itim extras', () => {
     expect(EMPTY_ITIM_EXTRAS.halachot).toEqual([]);
     expect(EMPTY_ITIM_EXTRAS.events).toEqual([]);
     expect(EMPTY_ITIM_EXTRAS.limud).toEqual([]);
+    expect(EMPTY_ITIM_EXTRAS.haftara).toEqual([]);
   });
 });
 
 describe('itim rotating slides', () => {
   it('are present but off by default', () => {
-    const ids = ['itimMoon', 'itimHalachot', 'itimEvents', 'itimLimud'] as const;
+    const ids = ['itimMoon', 'itimHalachot', 'itimEvents', 'itimLimud', 'itimHaftara'] as const;
     for (const id of ids) {
       expect(ROTATING_SLIDE_ORDER).toContain(id);
     }

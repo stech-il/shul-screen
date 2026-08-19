@@ -126,7 +126,7 @@ export default defineConfig({
             options: {
               cacheName: 'itim-zmanim',
               expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 12 },
-              networkTimeoutSeconds: 10,
+              networkTimeoutSeconds: 20,
             },
           },
           {

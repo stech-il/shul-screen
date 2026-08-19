@@ -393,6 +393,8 @@ export function RotatingShow({
         return itimPoster('מאורעות היום', itim?.events);
       case 'itimLimud':
         return itimPoster('הלימוד היומי', itim?.limud);
+      case 'itimHaftara':
+        return itimPoster('הפטרה', itim?.haftara);
       default:
         return null;
     }

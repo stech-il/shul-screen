@@ -323,6 +323,57 @@ function truncate(text, max = 220) {
   return `${s.slice(0, max - 1).trim()}…`;
 }
 
+const GERESH = '\u05F3';
+const GERSHAYIM = '\u05F4';
+const HEB_ONES = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+const HEB_TENS = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'];
+const HEB_HUNDREDS = ['', 'ק', 'ר', 'ש', 'ת', 'תק', 'תר', 'תש', 'תת', 'תתק'];
+
+/** Hebrew numeral with geresh/gershayim (5 → ה׳, 15 → ט״ו). */
+function gematria(n) {
+  const num = Math.floor(Number(n));
+  if (!Number.isFinite(num) || num <= 0) return '';
+  let rest = num;
+  let letters = '';
+  while (rest >= 1000) {
+    letters += 'תתק';
+    rest -= 900;
+  }
+  letters += HEB_HUNDREDS[Math.floor(rest / 100)] || '';
+  rest %= 100;
+  if (rest === 15) letters += 'טו';
+  else if (rest === 16) letters += 'טז';
+  else {
+    letters += HEB_TENS[Math.floor(rest / 10)] || '';
+    letters += HEB_ONES[rest % 10] || '';
+  }
+  if (!letters) return '';
+  if (letters.length === 1) return `${letters}${GERESH}`;
+  return `${letters.slice(0, -1)}${GERSHAYIM}${letters.slice(-1)}`;
+}
+
+function gematriaYear(year) {
+  const y = Math.floor(Number(year));
+  if (!Number.isFinite(y) || y <= 0) return '';
+  const thousands = Math.floor(y / 1000);
+  const rest = y % 1000;
+  const head = thousands ? gematria(thousands) : '';
+  const tail = rest ? gematria(rest) : '';
+  return `${head}${tail}`;
+}
+
+function hebDayLabel(hebDay, month) {
+  const dayHe = gematria(hebDay);
+  const monthHe = HEB_MONTH_HE[Number(month)] || '';
+  return joinParts(dayHe, monthHe);
+}
+
+function todaysItimDay(days, date) {
+  if (!Array.isArray(days) || !days.length) return null;
+  const weekday = date.getDay() + 1;
+  return days.find((d) => Number(d?.day) === weekday) || days[date.getDay()] || null;
+}
+
 function joinParts(...parts) {
   return parts
     .map((p) => String(p || '').trim())
@@ -392,24 +443,57 @@ function formatLimud(raw) {
     .map(([, title, text]) => ({ title, text }));
 }
 
-function formatHalachot(days) {
-  if (!Array.isArray(days)) return [];
-  const out = [];
-  for (const day of days) {
-    const monthHe = HEB_MONTH_HE[Number(day?.month)] || '';
-    const hebDay = Number(day?.date);
-    const dateLabel = Number.isFinite(hebDay) ? joinParts(String(hebDay), monthHe) : '';
-    for (const ext of Array.isArray(day?.extensions) ? day.extensions : []) {
-      const text = truncate(stripHtml(ext?.text), 240);
-      if (!text) continue;
-      out.push({
-        title: String(ext?.type || '').trim(),
-        text,
-        dateLabel,
-      });
-    }
+function extractHaftaraText(day) {
+  const details = day?.details && typeof day.details === 'object' ? day.details : day;
+  const h = details?.haftara;
+  if (typeof h === 'string' && h.trim() && h.trim() !== '0') return h;
+  if (h && typeof h === 'object' && typeof h.text === 'string' && h.text.trim() && h.text.trim() !== '0') {
+    return h.text;
   }
-  return out.slice(0, 8);
+  return '';
+}
+
+function formatHaftara(days, date) {
+  if (!Array.isArray(days) || !days.length) return [];
+  const today = todaysItimDay(days, date);
+  const shabbat = days.find((d) => Number(d?.day) === 7);
+  const ordered = [today, shabbat, ...days].filter(Boolean);
+  let raw = '';
+  for (const row of ordered) {
+    raw = extractHaftaraText(row);
+    if (raw) break;
+  }
+  const text = truncate(stripHtml(raw), 180);
+  if (!text) return [];
+  return [{ text }];
+}
+
+function formatHalachotForDay(day) {
+  if (!day) return [];
+  const dateLabel = hebDayLabel(day.date, day.month);
+  const out = [];
+  for (const ext of Array.isArray(day.extensions) ? day.extensions : []) {
+    const text = truncate(stripHtml(ext?.text), 420);
+    if (!text) continue;
+    out.push({
+      title: String(ext?.type || '').trim(),
+      text,
+      dateLabel,
+    });
+  }
+  return out;
+}
+
+function formatHalachot(days, date) {
+  const todayItems = formatHalachotForDay(todaysItimDay(days, date));
+  if (todayItems.length) return todayItems.slice(0, 4);
+  if (!Array.isArray(days)) return [];
+  const week = [];
+  for (const day of days) {
+    week.push(...formatHalachotForDay(day));
+    if (week.length >= 6) break;
+  }
+  return week.slice(0, 6);
 }
 
 function formatEvents(items) {
@@ -418,9 +502,9 @@ function formatEvents(items) {
   for (const item of items) {
     const text = truncate(stripHtml(item?.text || item?.textForPrint), 160);
     if (!text) continue;
-    const year = Number(item?.year);
+    const yearHe = gematriaYear(item?.year);
     out.push({
-      title: Number.isFinite(year) && year > 0 ? `שנת ${year}` : '',
+      title: yearHe ? `שנת ${yearHe}` : '',
       text,
     });
     if (out.length >= 8) break;
@@ -479,8 +563,7 @@ function formatMoon(payload, hebYear, hebMonth, weekStart, weekEnd) {
 }
 
 async function fetchCityExtras(city, date) {
-  const place = await placeForCity(city);
-  const cacheKey = `${city.id}|${dateKey(date)}|${place.lat.toFixed(5)}`;
+  const cacheKey = `${city.id}|${dateKey(date)}|v6`;
   const cached = cache.extras.get(cacheKey);
   if (cached && Date.now() - cached.at < EXTRAS_TTL_MS) {
     return { ...cached.value, cached: true };
@@ -491,20 +574,25 @@ async function fetchCityExtras(city, date) {
   const startUtc = encodeURIComponent(utcDateString(start));
   const endUtc = encodeURIComponent(utcDateString(end));
 
-  const [limudRes, halachaRes, moladRes] = await Promise.allSettled([
+  const [limudRes, daysRes] = await Promise.allSettled([
     itimGet(`/api/limudim/${dayUtc}`),
-    itimGet(`/api/years/days/extensions/range/${startUtc}/${endUtc}/true`),
-    itimPost(`/api/times/moladot/${startUtc}/${endUtc}/${place.lat}/${place.lng}/${place.elevation}`, {
-      timeZone: 'Asia/Jerusalem',
-      alt: 0,
-    }),
+    itimGet(`/api/years/days/range/${startUtc}/${endUtc}/true/true`),
   ]);
 
-  const limud = limudRes.status === 'fulfilled' ? formatLimud(limudRes.value) : [];
-  const weekDays = halachaRes.status === 'fulfilled' && Array.isArray(halachaRes.value) ? halachaRes.value : [];
-  const halachot = formatHalachot(weekDays);
+  let weekDays = daysRes.status === 'fulfilled' && Array.isArray(daysRes.value) ? daysRes.value : [];
+  if (!weekDays.length) {
+    try {
+      const fallback = await itimGet(`/api/years/days/extensions/range/${startUtc}/${endUtc}/true`);
+      if (Array.isArray(fallback)) weekDays = fallback;
+    } catch {
+      /* keep empty */
+    }
+  }
 
-  const todayHeb = weekDays[date.getDay()] || weekDays.find((d) => d && d.month && d.date) || null;
+  const limud = limudRes.status === 'fulfilled' ? formatLimud(limudRes.value) : [];
+  const todayHeb = todaysItimDay(weekDays, date);
+  const halachot = formatHalachot(weekDays, date);
+  const haftara = formatHaftara(weekDays, date);
   let events = [];
   const month = Number(todayHeb?.month);
   const hebDay = Number(todayHeb?.date);
@@ -516,9 +604,23 @@ async function fetchCityExtras(city, date) {
     }
   }
 
-  const moladPayload = moladRes.status === 'fulfilled' ? moladRes.value : null;
-  const hebYear = Number(Object.keys(moladPayload?.moladot || {})[0]) || 0;
-  const moon = formatMoon(moladPayload, hebYear, Number.isFinite(month) ? month : 0, start, end);
+  let moon = [];
+  try {
+    const place = await placeForCity(city);
+    const moladPayload = await Promise.race([
+      itimPost(`/api/times/moladot/${startUtc}/${endUtc}/${place.lat}/${place.lng}/${place.elevation}`, {
+        timeZone: 'Asia/Jerusalem',
+        alt: 0,
+      }),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('molad timeout')), 4000);
+      }),
+    ]);
+    const hebYear = Number(Object.keys(moladPayload?.moladot || {})[0]) || 0;
+    moon = formatMoon(moladPayload, hebYear, Number.isFinite(month) ? month : 0, start, end);
+  } catch {
+    moon = [];
+  }
 
   const value = {
     date: dateKey(date),
@@ -527,6 +629,7 @@ async function fetchCityExtras(city, date) {
     halachot,
     events,
     limud,
+    haftara,
   };
   cache.extras.set(cacheKey, { at: Date.now(), value });
   return value;

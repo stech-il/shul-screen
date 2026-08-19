@@ -251,6 +251,7 @@ function buildConfig({ id, name, cityId, email, phone, contactName, username, pa
         { id: 'itimHalachot', enabled: false },
         { id: 'itimEvents', enabled: false },
         { id: 'itimLimud', enabled: false },
+        { id: 'itimHaftara', enabled: false },
       ],
     },
     nusach: 'ashkenaz',

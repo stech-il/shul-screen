@@ -1,6 +1,7 @@
 import type { CanvasLayoutConfig, CanvasWidget, CanvasWidgetType, ZmanKey } from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { decodeHtmlEntities } from '../../lib/sanitizeHtml';
+import { DEFAULT_ROTATOR_TYPES, normalizeRotatorSeconds, normalizeRotatorTypes } from '../../lib/canvasRotator';
 
 export const WIDGET_LABELS: Record<CanvasWidgetType, string> = {
   title: 'שם בית הכנסת',
@@ -32,6 +33,8 @@ export const WIDGET_LABELS: Record<CanvasWidgetType, string> = {
   itimHalachot: 'הלכות השבוע',
   itimEvents: 'מאורעות היום',
   itimLimud: 'הלימוד היומי',
+  itimHaftara: 'הפטרה',
+  rotator: 'וידג׳ט מתחלף',
 };
 
 const SIZE_DEFAULTS: Partial<Record<CanvasWidgetType, { w: number; h: number }>> = {
@@ -64,6 +67,8 @@ const SIZE_DEFAULTS: Partial<Record<CanvasWidgetType, { w: number; h: number }>>
   itimHalachot: { w: 30, h: 32 },
   itimEvents: { w: 28, h: 28 },
   itimLimud: { w: 28, h: 32 },
+  itimHaftara: { w: 28, h: 16 },
+  rotator: { w: 32, h: 28 },
 };
 
 export function createWidget(
@@ -90,7 +95,8 @@ export function createWidget(
       type === 'itimMoon' ||
       type === 'itimHalachot' ||
       type === 'itimEvents' ||
-      type === 'itimLimud',
+      type === 'itimLimud' ||
+      type === 'itimHaftara',
     titleLayout: type === 'zman' ? 'above' : 'above',
     align:
       type === 'zmanim' ||
@@ -99,7 +105,8 @@ export function createWidget(
       type === 'itimMoon' ||
       type === 'itimHalachot' ||
       type === 'itimEvents' ||
-      type === 'itimLimud'
+      type === 'itimLimud' ||
+      type === 'itimHaftara'
         ? 'right'
         : 'center',
     fontScale: type === 'heading' ? 1.35 : 1,
@@ -126,6 +133,8 @@ export function createWidget(
     text: type === 'heading' ? 'כותרת לדוגמה' : type === 'text' ? 'כתבו כאן טקסט…' : undefined,
     buttonLabel: type === 'button' ? 'לחצו כאן' : undefined,
     showCandles: type === 'countdown' ? true : undefined,
+    rotatorTypes: type === 'rotator' ? [...DEFAULT_ROTATOR_TYPES] : undefined,
+    rotatorSeconds: type === 'rotator' ? 8 : undefined,
     title:
       type === 'countdown'
         ? 'הדלקת נרות'
@@ -137,7 +146,9 @@ export function createWidget(
               ? 'מאורעות היום'
               : type === 'itimLimud'
                 ? 'הלימוד היומי'
-                : undefined,
+                : type === 'itimHaftara'
+                  ? 'הפטרה'
+                  : undefined,
     ...extras,
   };
 }
@@ -263,6 +274,14 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
       w.type === 'countdown' || fallback.type === 'countdown'
         ? w.showCandles ?? fallback.showCandles ?? true
         : w.showCandles,
+    rotatorTypes:
+      w.type === 'rotator' || fallback.type === 'rotator'
+        ? normalizeRotatorTypes(w.rotatorTypes ?? fallback.rotatorTypes)
+        : undefined,
+    rotatorSeconds:
+      w.type === 'rotator' || fallback.type === 'rotator'
+        ? normalizeRotatorSeconds(w.rotatorSeconds ?? fallback.rotatorSeconds)
+        : undefined,
   };
 }
 

@@ -69,6 +69,7 @@ export function Display({ synagogueId }: Props) {
   const [clock, setClock] = useState('');
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [itimExtras, setItimExtras] = useState<ItimExtras>(EMPTY_ITIM_EXTRAS);
+  const [itimLoading, setItimLoading] = useState(true);
   const [kioskOn, setKioskOn] = useState(false);
   const [kioskMsg, setKioskMsg] = useState('');
   const [carouselIdx, setCarouselIdx] = useState(0);
@@ -240,7 +241,10 @@ export function Display({ synagogueId }: Props) {
     let cancelled = false;
     async function loadExtras() {
       const extras = await fetchItimExtras(config!.cityId);
-      if (!cancelled) setItimExtras(extras);
+      if (!cancelled) {
+        setItimExtras(extras);
+        setItimLoading(false);
+      }
     }
     loadExtras();
     const interval = setInterval(loadExtras, 15 * 60_000);
@@ -363,7 +367,9 @@ export function Display({ synagogueId }: Props) {
   if (bgSrc) style['--bg-image'] = `url(${bgSrc})`;
 
   const special = config.modes.specialMode ?? 'normal';
-  const isRotating = (config.displayStyle ?? 'studio') === 'rotating' && special === 'normal';
+  const isCanvas = (config.layout ?? 'classic') === 'canvas' && special === 'normal';
+  const isRotating =
+    (config.displayStyle ?? 'studio') === 'rotating' && !isCanvas && special === 'normal';
   const effectiveLayout =
     special === 'event' ? 'event' : special === 'mourning' ? 'mourning' : layout;
 
@@ -393,7 +399,6 @@ export function Display({ synagogueId }: Props) {
     effectiveLayout === 'dual';
   const centeredHeader = d.headerStyle === 'centered';
   const carouselItem = activeAnnouncements[carouselIdx % Math.max(activeAnnouncements.length, 1)];
-  const isCanvas = !isRotating && effectiveLayout === 'canvas';
 
   const nowForSchedule = new Date();
   const shabbatFriday = getShabbatZmanimDate(nowForSchedule, zmanimMap);
@@ -450,6 +455,7 @@ export function Display({ synagogueId }: Props) {
     countdownLabel: modeInfo?.countdownLabel,
     candleBoard: modeInfo?.candleBoard ?? null,
     itim: itimExtras,
+    itimLoading,
   };
 
   async function confirmExit() {
