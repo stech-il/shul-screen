@@ -3,6 +3,7 @@ import type { CanvasLayoutConfig, CanvasWidget, CanvasWidgetType } from '../../t
 import { CANVAS_REF_WIDTH } from '../../types';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
 import { ASPECT_RATIOS } from './widgets';
+import { normalizeRotatorTypes, rotatorHasContent } from '../../lib/canvasRotator';
 import './canvas.css';
 
 /** Calendar / seasonal widgets that must not leave an empty box on the live screen. */
@@ -107,7 +108,9 @@ export function CanvasStage({ canvas, data, children, placeholder, className }: 
         .filter((w) => w.visible)
         .filter((w) => {
           if (placeholder) return true;
-          if (w.type === 'rotator') return true;
+          if (w.type === 'rotator') {
+            return rotatorHasContent(normalizeRotatorTypes(w.rotatorTypes), data);
+          }
           const has = seasonalWidgetHasContent(w.type, data);
           return has === null ? true : has;
         })

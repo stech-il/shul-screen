@@ -4,7 +4,12 @@ import { useI18n } from '../../i18n';
 import { RichTextEditor } from '../RichTextEditor';
 import { ANALOG_DESIGNS, DIGITAL_DESIGNS } from './ClockWidget';
 import { clamp } from './widgets';
-import { DEFAULT_ROTATOR_TYPES, ROTATOR_CHOICES, normalizeRotatorSeconds } from '../../lib/canvasRotator';
+import {
+  DEFAULT_ROTATOR_TYPES,
+  ROTATOR_CHOICES,
+  normalizeRotatorSeconds,
+  rotatorItemShowsTitle,
+} from '../../lib/canvasRotator';
 
 export type ElementorTab = 'content' | 'style' | 'advanced';
 
@@ -314,26 +319,72 @@ export function ElementorWidgetPanel({
                       />
                     </label>
                     <div className="cb-label">{t('canvas.rotatorPick')}</div>
+                    <p className="cb-hint">{t('canvas.rotatorTitlesHint')}</p>
+                    {(() => {
+                      const current = selected.rotatorTypes ?? DEFAULT_ROTATOR_TYPES;
+                      const titles = selected.rotatorShowTitles ?? {};
+                      const titledCount = current.filter((type) => rotatorItemShowsTitle(titles, type)).length;
+                      const allOn = current.length > 0 && titledCount === current.length;
+                      const mixed = current.length > 0 && titledCount > 0 && !allOn;
+                      return (
+                        <label className="check cb-rotator-all-titles">
+                          <input
+                            type="checkbox"
+                            checked={allOn}
+                            ref={(el) => {
+                              if (el) el.indeterminate = mixed;
+                            }}
+                            onChange={() => {
+                              const nextOn = !allOn;
+                              const next = { ...titles };
+                              for (const type of current) next[type] = nextOn;
+                              patch({ rotatorShowTitles: next });
+                            }}
+                          />
+                          {t('canvas.rotatorShowTitlesAll')}
+                        </label>
+                      );
+                    })()}
                     <div className="cb-rotator-picks">
                       {ROTATOR_CHOICES.map((type) => {
                         const current = selected.rotatorTypes ?? DEFAULT_ROTATOR_TYPES;
                         const on = current.includes(type);
+                        const titles = selected.rotatorShowTitles ?? {};
+                        const showTitle = rotatorItemShowsTitle(titles, type);
                         return (
-                          <label key={type} className="check">
-                            <input
-                              type="checkbox"
-                              checked={on}
-                              onChange={() => {
-                                const current = selected.rotatorTypes ?? DEFAULT_ROTATOR_TYPES;
-                                patch({
-                                  rotatorTypes: on
-                                    ? current.filter((x) => x !== type)
-                                    : [...current, type],
-                                });
-                              }}
-                            />
-                            {t(`widgets.${type}`)}
-                          </label>
+                          <div key={type} className="cb-rotator-pick">
+                            <label className="check">
+                              <input
+                                type="checkbox"
+                                checked={on}
+                                onChange={() => {
+                                  const current = selected.rotatorTypes ?? DEFAULT_ROTATOR_TYPES;
+                                  patch({
+                                    rotatorTypes: on
+                                      ? current.filter((x) => x !== type)
+                                      : [...current, type],
+                                  });
+                                }}
+                              />
+                              {t(`widgets.${type}`)}
+                            </label>
+                            <label className={`check cb-rotator-title-opt${on ? '' : ' is-off'}`}>
+                              <input
+                                type="checkbox"
+                                disabled={!on}
+                                checked={on && showTitle}
+                                onChange={() => {
+                                  patch({
+                                    rotatorShowTitles: {
+                                      ...titles,
+                                      [type]: !showTitle,
+                                    },
+                                  });
+                                }}
+                              />
+                              {t('canvas.rotatorItemTitle')}
+                            </label>
+                          </div>
                         );
                       })}
                     </div>

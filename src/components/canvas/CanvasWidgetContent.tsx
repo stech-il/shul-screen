@@ -20,6 +20,8 @@ import type { ItimExtraLine, ItimExtras } from '../../lib/itimExtras';
 import {
   normalizeRotatorSeconds,
   normalizeRotatorTypes,
+  rotatorItemShowsTitle,
+  widgetTypeHasContent,
 } from '../../lib/canvasRotator';
 
 export interface CanvasData {
@@ -74,7 +76,10 @@ function RotatingCanvasSlot({
 }) {
   const types = useMemo(() => normalizeRotatorTypes(widget.rotatorTypes), [widget.rotatorTypes]);
   const seconds = normalizeRotatorSeconds(widget.rotatorSeconds);
-  const shown = types;
+  const shown = useMemo(() => {
+    if (placeholder) return types;
+    return types.filter((type) => widgetTypeHasContent(type, data));
+  }, [types, data, placeholder]);
 
   const [tick, setTick] = useState(0);
 
@@ -89,11 +94,16 @@ function RotatingCanvasSlot({
   }, [shown.length, shown.join('|'), seconds]);
 
   if (!shown.length) {
-    return <Placeholder label="וידג׳ט מתחלף — בחרו רכיבים בהגדרות" />;
+    return placeholder ? <Placeholder label="וידג׳ט מתחלף — בחרו רכיבים בהגדרות" /> : null;
   }
 
   const type = shown[tick % shown.length];
-  const inner: CanvasWidget = { ...widget, type, title: undefined, showTitle: true };
+  const inner: CanvasWidget = {
+    ...widget,
+    type,
+    title: undefined,
+    showTitle: rotatorItemShowsTitle(widget.rotatorShowTitles, type),
+  };
   return (
     <div className="cw-rotator" data-rotator-type={type}>
       <div key={`${type}-${tick}`} className="cw-rotator-inner">

@@ -303,8 +303,34 @@
   padding: 0.2rem 0 0.4rem;
 }
 
+.cb-rotator-all-titles {
+  margin: 0.15rem 0 0.2rem;
+  font-size: 0.86rem;
+}
+
+.cb-rotator-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
 .cb-rotator-picks .check {
   font-size: 0.86rem;
+}
+
+.cb-rotator-pick .check:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.cb-rotator-title-opt {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.cb-rotator-title-opt.is-off {
+  opacity: 0.42;
 }
 
 .cb-el-field-ctrl {

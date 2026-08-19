@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ROTATOR_TYPES,
   normalizeRotatorSeconds,
+  normalizeRotatorShowTitles,
   normalizeRotatorTypes,
+  rotatorItemShowsTitle,
 } from './canvasRotator';
 
 describe('normalizeRotatorTypes', () => {
@@ -28,5 +30,24 @@ describe('normalizeRotatorSeconds', () => {
     expect(normalizeRotatorSeconds(1)).toBe(3);
     expect(normalizeRotatorSeconds(99)).toBe(60);
     expect(normalizeRotatorSeconds('x')).toBe(8);
+  });
+});
+
+describe('rotatorShowTitles', () => {
+  it('defaults to showing a title', () => {
+    expect(rotatorItemShowsTitle(undefined, 'parasha')).toBe(true);
+    expect(rotatorItemShowsTitle({}, 'dafYomi')).toBe(true);
+  });
+
+  it('respects an explicit false', () => {
+    expect(rotatorItemShowsTitle({ parasha: false, dafYomi: true }, 'parasha')).toBe(false);
+    expect(rotatorItemShowsTitle({ parasha: false, dafYomi: true }, 'dafYomi')).toBe(true);
+  });
+
+  it('drops unknown keys when normalizing', () => {
+    expect(normalizeRotatorShowTitles({ parasha: false, rotator: true, nope: false })).toEqual({
+      parasha: false,
+    });
+    expect(normalizeRotatorShowTitles(null)).toBeUndefined();
   });
 });

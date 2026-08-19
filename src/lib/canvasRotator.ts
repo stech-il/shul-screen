@@ -47,6 +47,28 @@ export function normalizeRotatorSeconds(raw: unknown): number {
   return Math.min(60, Math.max(3, Math.round(n)));
 }
 
+/** Missing keys default to showing a title. */
+export function rotatorItemShowsTitle(
+  map: Partial<Record<CanvasWidgetType, boolean>> | undefined,
+  type: CanvasWidgetType,
+): boolean {
+  return map?.[type] !== false;
+}
+
+export function normalizeRotatorShowTitles(
+  raw: unknown,
+): Partial<Record<CanvasWidgetType, boolean>> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out: Partial<Record<CanvasWidgetType, boolean>> = {};
+  let any = false;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!ALLOWED.has(key as CanvasWidgetType) || typeof value !== 'boolean') continue;
+    out[key as CanvasWidgetType] = value;
+    any = true;
+  }
+  return any ? out : undefined;
+}
+
 export function widgetTypeHasContent(type: CanvasWidgetType, data: CanvasData): boolean {
   const day = data.day;
   switch (type) {
@@ -83,15 +105,15 @@ export function widgetTypeHasContent(type: CanvasWidgetType, data: CanvasData): 
     case 'countdown':
       return Boolean(data.candleBoard);
     case 'itimMoon':
-      return data.itimLoading || Boolean(data.itim?.moon?.length);
+      return Boolean(data.itim?.moon?.length);
     case 'itimHalachot':
-      return data.itimLoading || Boolean(data.itim?.halachot?.length);
+      return Boolean(data.itim?.halachot?.length);
     case 'itimEvents':
-      return data.itimLoading || Boolean(data.itim?.events?.length);
+      return Boolean(data.itim?.events?.length);
     case 'itimLimud':
-      return data.itimLoading || Boolean(data.itim?.limud?.length);
+      return Boolean(data.itim?.limud?.length);
     case 'itimHaftara':
-      return data.itimLoading || Boolean(data.itim?.haftara?.length);
+      return Boolean(data.itim?.haftara?.length);
     default:
       return true;
   }

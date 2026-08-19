@@ -1,7 +1,12 @@
 import type { CanvasLayoutConfig, CanvasWidget, CanvasWidgetType, ZmanKey } from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { decodeHtmlEntities } from '../../lib/sanitizeHtml';
-import { DEFAULT_ROTATOR_TYPES, normalizeRotatorSeconds, normalizeRotatorTypes } from '../../lib/canvasRotator';
+import {
+  DEFAULT_ROTATOR_TYPES,
+  normalizeRotatorSeconds,
+  normalizeRotatorShowTitles,
+  normalizeRotatorTypes,
+} from '../../lib/canvasRotator';
 
 export const WIDGET_LABELS: Record<CanvasWidgetType, string> = {
   title: 'שם בית הכנסת',
@@ -281,6 +286,10 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
     rotatorSeconds:
       w.type === 'rotator' || fallback.type === 'rotator'
         ? normalizeRotatorSeconds(w.rotatorSeconds ?? fallback.rotatorSeconds)
+        : undefined,
+    rotatorShowTitles:
+      w.type === 'rotator' || fallback.type === 'rotator'
+        ? normalizeRotatorShowTitles(w.rotatorShowTitles ?? fallback.rotatorShowTitles)
         : undefined,
   };
 }

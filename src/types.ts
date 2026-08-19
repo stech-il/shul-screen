@@ -223,6 +223,8 @@ export interface CanvasWidget {
   rotatorTypes?: CanvasWidgetType[];
   /** Rotating slot: seconds per item */
   rotatorSeconds?: number;
+  /** Rotating slot: show title per inner widget type (missing = true) */
+  rotatorShowTitles?: Partial<Record<CanvasWidgetType, boolean>>;
 }
 
 /**
