@@ -135,97 +135,106 @@ export function AnalogClock({ time, design = 'classic', color, accentColor }: An
   const minDeg = (m + s / 60) * 6;
   const secDeg = s * 6;
 
-  const cx = 50, cy = 50, r = 44;
+  const cx = 50;
+  const cy = 50;
+  const r = 44;
+  const stroke = color || theme.tick;
+  const numberFill = color || theme.numbers;
+  const border = color || theme.border;
 
-  const ticks: ReactElement[] = [];
-  for (let i = 0; i < 60; i++) {
-    const angle = (i * 6 - 90) * (Math.PI / 180);
-    const isMajor = i % 5 === 0;
-    const r1 = isMajor ? r - 7 : r - 4;
-    const r2 = r - 1;
-    ticks.push(
-      <line
-        key={i}
-        x1={cx + r1 * Math.cos(angle)}
-        y1={cy + r1 * Math.sin(angle)}
-        x2={cx + r2 * Math.cos(angle)}
-        y2={cy + r2 * Math.sin(angle)}
-        stroke={color || theme.tick}
-        strokeWidth={isMajor ? 2 : 0.8}
-        strokeLinecap="round"
-      />,
-    );
-  }
-
-  const numbers: ReactElement[] = [];
-  if (theme.showNumbers || theme.roman) {
-    for (let i = 0; i < 12; i++) {
-      const angle = (i * 30 - 60) * (Math.PI / 180);
-      const nr = r - 14;
-      const label = theme.roman ? ROMAN[i] : String(i === 0 ? 12 : i);
-      numbers.push(
-        <text
+  /** Face markers are stable — rebuild only when design/colors change, not every second. */
+  const face = useMemo(() => {
+    const ticks: ReactElement[] = [];
+    for (let i = 0; i < 60; i++) {
+      const angle = (i * 6 - 90) * (Math.PI / 180);
+      const isMajor = i % 5 === 0;
+      const r1 = isMajor ? r - 7 : r - 4;
+      const r2 = r - 1;
+      ticks.push(
+        <line
           key={i}
-          x={cx + nr * Math.cos(angle)}
-          y={cy + nr * Math.sin(angle)}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fill={color || theme.numbers}
-          fontSize={theme.roman ? 5.5 : 7}
-          fontFamily="'Secular One', 'Heebo', sans-serif"
-          fontWeight={600}
-        >
-          {label}
-        </text>,
-      );
-    }
-  }
-
-  if (theme.dotMarkers) {
-    for (let i = 0; i < 12; i++) {
-      const angle = (i * 30 - 90) * (Math.PI / 180);
-      const dr = r - 8;
-      numbers.push(
-        <circle
-          key={`dot-${i}`}
-          cx={cx + dr * Math.cos(angle)}
-          cy={cy + dr * Math.sin(angle)}
-          r={i % 3 === 0 ? 2.2 : 1.2}
-          fill={color || theme.tick}
+          x1={cx + r1 * Math.cos(angle)}
+          y1={cy + r1 * Math.sin(angle)}
+          x2={cx + r2 * Math.cos(angle)}
+          y2={cy + r2 * Math.sin(angle)}
+          stroke={stroke}
+          strokeWidth={isMajor ? 2 : 0.8}
+          strokeLinecap="round"
         />,
       );
     }
-  }
+
+    const numbers: ReactElement[] = [];
+    if (theme.showNumbers || theme.roman) {
+      for (let i = 0; i < 12; i++) {
+        const angle = (i * 30 - 60) * (Math.PI / 180);
+        const nr = r - 14;
+        const label = theme.roman ? ROMAN[i] : String(i === 0 ? 12 : i);
+        numbers.push(
+          <text
+            key={i}
+            x={cx + nr * Math.cos(angle)}
+            y={cy + nr * Math.sin(angle)}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill={numberFill}
+            fontSize={theme.roman ? 5.5 : 7}
+            fontFamily="'Secular One', 'Heebo', sans-serif"
+            fontWeight={600}
+          >
+            {label}
+          </text>,
+        );
+      }
+    }
+
+    if (theme.dotMarkers) {
+      for (let i = 0; i < 12; i++) {
+        const angle = (i * 30 - 90) * (Math.PI / 180);
+        const dr = r - 8;
+        numbers.push(
+          <circle
+            key={`dot-${i}`}
+            cx={cx + dr * Math.cos(angle)}
+            cy={cy + dr * Math.sin(angle)}
+            r={i % 3 === 0 ? 2.2 : 1.2}
+            fill={stroke}
+          />,
+        );
+      }
+    }
+
+    return (
+      <>
+        <circle cx={cx} cy={cy} r={r} fill={theme.face} stroke={border} strokeWidth={2} />
+        {ticks}
+        {numbers}
+      </>
+    );
+  }, [theme, stroke, numberFill, border]);
 
   return (
     <div className="cw-clock cw-clock-analog" style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
       <svg viewBox="0 0 100 100" style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio: '1' }}>
-        {/* face */}
-        <circle cx={cx} cy={cy} r={r} fill={theme.face} stroke={color || theme.border} strokeWidth={2} />
-        {ticks}
-        {numbers}
-        {/* hour */}
+        {face}
         <line
           x1={cx} y1={cy}
           x2={cx + 22 * Math.cos((hourDeg - 90) * Math.PI / 180)}
           y2={cy + 22 * Math.sin((hourDeg - 90) * Math.PI / 180)}
           stroke={color || theme.hourHand} strokeWidth={3.2} strokeLinecap="round"
         />
-        {/* minute */}
         <line
           x1={cx} y1={cy}
           x2={cx + 32 * Math.cos((minDeg - 90) * Math.PI / 180)}
           y2={cy + 32 * Math.sin((minDeg - 90) * Math.PI / 180)}
           stroke={color || theme.minuteHand} strokeWidth={2.2} strokeLinecap="round"
         />
-        {/* second */}
         <line
           x1={cx} y1={cy}
           x2={cx + 35 * Math.cos((secDeg - 90) * Math.PI / 180)}
           y2={cy + 35 * Math.sin((secDeg - 90) * Math.PI / 180)}
           stroke={accentColor || theme.secondHand} strokeWidth={1} strokeLinecap="round"
         />
-        {/* center dot */}
         <circle cx={cx} cy={cy} r={2.5} fill={accentColor || theme.center} />
       </svg>
     </div>

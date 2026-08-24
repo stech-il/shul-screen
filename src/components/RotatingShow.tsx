@@ -109,6 +109,8 @@ export function RotatingShow({
   itim,
 }: Props) {
   const settings = normalizeRotatingScreens(config.rotatingScreens);
+  /** Rebuild slide list at most once per minute — not every clock second. */
+  const minuteBucket = Math.floor(now.getTime() / 60_000);
   const slides = useMemo(
     () =>
       buildActiveRotatingSlides({
@@ -119,10 +121,10 @@ export function RotatingShow({
         zmanim,
         modeInfo,
         weather,
-        now,
+        now: new Date(minuteBucket * 60_000),
         itim,
       }),
-    [config, day, blocks, announcements, zmanim, modeInfo, weather, now, itim],
+    [config, day, blocks, announcements, zmanim, modeInfo, weather, minuteBucket, itim],
   );
   const [idx, setIdx] = useState(0);
   const slideKey = slides.map((s) => s.key).join('|');

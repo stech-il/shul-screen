@@ -127,3 +127,36 @@ export function startAppVersionWatch(intervalMs = 15 * 60_000): () => void {
     document.removeEventListener('visibilitychange', onVisible);
   };
 }
+
+/**
+ * Soft-reload once a day (default 03:00 local) so long-running kiosk tabs
+ * release Chromium memory before Out-of-Memory crashes.
+ */
+export function startDailySoftReload(hour = 3, minute = 0): () => void {
+  if (typeof window === 'undefined') return () => {};
+
+  let stopped = false;
+  let timer = 0;
+
+  function msUntilNext(): number {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(hour, minute, 0, 0);
+    if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
+    return Math.max(5_000, next.getTime() - now.getTime());
+  }
+
+  function arm() {
+    if (stopped) return;
+    timer = window.setTimeout(() => {
+      if (stopped) return;
+      window.location.reload();
+    }, msUntilNext());
+  }
+
+  arm();
+  return () => {
+    stopped = true;
+    window.clearTimeout(timer);
+  };
+}

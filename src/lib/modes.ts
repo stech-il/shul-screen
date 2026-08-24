@@ -29,6 +29,40 @@ function formatCountdown(ms: number): string {
   return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
 }
 
+/**
+ * Refresh only the candle countdown string (cheap) so the live screen can tick
+ * every second without recomputing Hebcal / Zmanim mode detection.
+ */
+export function withLiveCountdown(
+  info: ModeInfo | null,
+  now = new Date(),
+  showCandleCountdown = true,
+): ModeInfo | null {
+  if (!info?.candleLighting || !showCandleCountdown) return info;
+  const dow = now.getDay();
+  let countdownLabel: string | undefined = info.countdownLabel;
+  if (dow === 5 || (dow === 4 && now.getHours() >= 12)) {
+    if (info.candleLighting.getTime() > now.getTime()) {
+      countdownLabel = `הדלקת נרות בעוד ${formatCountdown(info.candleLighting.getTime() - now.getTime())}`;
+    } else if (dow === 5) {
+      countdownLabel = 'זמן הדלקת נרות עבר';
+    }
+  }
+  if (
+    countdownLabel === info.countdownLabel &&
+    info.candleBoard?.countdownLabel === countdownLabel
+  ) {
+    return info;
+  }
+  return {
+    ...info,
+    countdownLabel,
+    candleBoard: info.candleBoard
+      ? { ...info.candleBoard, countdownLabel }
+      : info.candleBoard,
+  };
+}
+
 function formatHm(d: Date): string {
   return d.toLocaleTimeString('he-IL', {
     hour: '2-digit',

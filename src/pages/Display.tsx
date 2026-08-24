@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BrandLogo } from '../components/BrandLogo';
 import { NotFoundScreen } from '../components/NotFoundScreen';
@@ -25,7 +25,7 @@ import { EMPTY_ITIM_EXTRAS, fetchItimExtras, type ItimExtras } from '../lib/itim
 import { disableKiosk, enableKiosk, isFullscreen, watchWakeLock } from '../lib/kiosk';
 import { isAndroidKiosk } from '../lib/androidKiosk';
 import { verifyPin } from '../lib/auth';
-import { getModeInfo } from '../lib/modes';
+import { getModeInfo, withLiveCountdown } from '../lib/modes';
 import {
   categoryLabel,
   fetchOrefDrill,
@@ -33,7 +33,7 @@ import {
   type MatchedOrefAlert,
 } from '../lib/orefAlerts';
 import { startHeartbeat, trackEvent } from '../lib/analytics';
-import { APP_VERSION } from '../lib/appVersion';
+import { APP_VERSION, startDailySoftReload } from '../lib/appVersion';
 import { playOrefTone } from '../lib/sound';
 import { getScreenLicenseStatus } from '../lib/license';
 import { RichAnnounce } from '../components/RichAnnounce';
@@ -46,7 +46,7 @@ import {
 import { isUpcomingWithinMinutes } from '../lib/upcomingTime';
 import { subscribeLiveUpdates } from '../lib/liveSync';
 import { subscribeWeather, weatherCodeToIcon, type WeatherData } from '../lib/weather';
-import type { ComputedZman, DayInfo, ModeInfo, SynagogueConfig, ZmanKey } from '../types';
+import type { ComputedZman, DayInfo, ModeInfo, ScheduleBlock, ScheduleItem, SynagogueConfig, ZmanKey } from '../types';
 import './Display.css';
 
 interface Props {
@@ -257,28 +257,161 @@ export function Display({ synagogueId }: Props) {
   }, [config?.cityId]);
 
   useEffect(() => {
-    function tick() {
-      const now = new Date();
-      setClock(
-        now.toLocaleTimeString('he-IL', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        }),
-      );
+    function formatClock(now: Date) {
+      return now.toLocaleTimeString('he-IL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+    }
+
+    function refreshDayMode(now = new Date()) {
       setDay(getDayInfo(now, config?.yahrzeits ?? []));
       if (config) setModeInfo(getModeInfo(config.cityId, config.modes, now));
     }
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+
+    function tickClock() {
+      setClock(formatClock(new Date()));
+    }
+
+    tickClock();
+    refreshDayMode();
+
+    const clockId = window.setInterval(tickClock, 1000);
+    // Heavy Hebcal / mode work once a minute — not every second.
+    const msToNextMinute = 60_000 - (Date.now() % 60_000) + 80;
+    let dayId = 0;
+    const alignId = window.setTimeout(() => {
+      refreshDayMode();
+      dayId = window.setInterval(() => refreshDayMode(), 60_000);
+    }, msToNextMinute);
+
+    return () => {
+      window.clearInterval(clockId);
+      window.clearTimeout(alignId);
+      if (dayId) window.clearInterval(dayId);
+    };
   }, [config?.cityId, config?.modes, config?.yahrzeits]);
+
+  useEffect(() => {
+    return startDailySoftReload(3, 0);
+  }, []);
+
+  const liveModeInfo = useMemo(
+    () =>
+      withLiveCountdown(
+        modeInfo,
+        new Date(),
+        config?.modes?.showCandleCountdown !== false,
+      ),
+    [modeInfo, clock, config?.modes?.showCandleCountdown],
+  );
 
   const activeAnnouncements = useMemo(() => {
     if (!config) return [];
     return config.announcements.filter((a) => isAnnouncementActive(a));
   }, [config, day.hebrewDate]);
+
+  const nowForSchedule = useMemo(() => new Date(), [clock]);
+
+  const shabbatFriday = useMemo(
+    () => getShabbatZmanimDate(nowForSchedule, zmanimMap),
+    [day.hebrewDate, zmanimMap],
+  );
+
+  const displayBlocks = useMemo(() => {
+    if (!config) return [];
+    return config.blocks
+      .filter((b) => b.enabled)
+      .filter((b) => {
+        if (!liveModeInfo || liveModeInfo.mode === 'weekday' || liveModeInfo.mode === 'erev-shabbat') {
+          return true;
+        }
+        if (liveModeInfo.mode === 'shabbat') {
+          const t = b.title;
+          if (/חול/.test(t) && /שבת/.test(t) === false) return false;
+        }
+        return true;
+      });
+  }, [config, liveModeInfo?.mode]);
+
+  const resolveTime = useCallback(
+    (item: ScheduleItem, block?: ScheduleBlock) =>
+      resolveFromZmanimMap(
+        block && isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap,
+        item.time,
+        item.fromZman,
+        item.offsetMinutes ?? 0,
+      ),
+    [zmanimMap, shabbatZmanimMap],
+  );
+
+  const resolveItemAt = useCallback(
+    (item: ScheduleItem, block?: ScheduleBlock) => {
+      if (item.noTime) return null;
+      return resolveScheduleItemAt(
+        block && isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap,
+        item.time,
+        item.fromZman,
+        item.offsetMinutes ?? 0,
+        {
+          now: new Date(),
+          shabbatFriday: block && isShabbatScheduleBlock(block) ? shabbatFriday : null,
+          block,
+        },
+      );
+    },
+    [zmanimMap, shabbatZmanimMap, shabbatFriday],
+  );
+
+  const carouselItem = activeAnnouncements[carouselIdx % Math.max(activeAnnouncements.length, 1)];
+  const logoSrc =
+    config?.media?.logoDataUrl || config?.design?.logoUrl || config?.branding?.logoUrl;
+
+  const canvasData = useMemo((): CanvasData | null => {
+    if (!config) return null;
+    return {
+      name: config.name,
+      dedication: config.dedication,
+      logoSrc,
+      clock,
+      day,
+      zmanim,
+      blocks: displayBlocks,
+      resolveTime,
+      resolveItemAt,
+      announcement: carouselItem ?? null,
+      announcementCount: activeAnnouncements.length,
+      announcementIndex: activeAnnouncements.length
+        ? carouselIdx % activeAnnouncements.length
+        : 0,
+      weatherTemp: config.showWeather ? weather?.tempC ?? null : null,
+      weatherCode: config.showWeather ? weather?.weatherCode : undefined,
+      weatherDesc: config.showWeather ? weather?.description : undefined,
+      countdownLabel: liveModeInfo?.countdownLabel,
+      candleBoard: liveModeInfo?.candleBoard ?? null,
+      itim: itimExtras,
+      itimLoading,
+    };
+  }, [
+    config,
+    logoSrc,
+    clock,
+    day,
+    zmanim,
+    displayBlocks,
+    resolveTime,
+    resolveItemAt,
+    carouselItem,
+    activeAnnouncements.length,
+    carouselIdx,
+    weather,
+    liveModeInfo?.countdownLabel,
+    liveModeInfo?.candleBoard,
+    itimExtras,
+    itimLoading,
+  ]);
 
   useEffect(() => {
     if (activeAnnouncements.length <= 1) return;
@@ -361,7 +494,6 @@ export function Display({ synagogueId }: Props) {
   const d = config.design;
   const layout = config.layout ?? 'classic';
   const media = config.media ?? { gallery: [] };
-  const logoSrc = media.logoDataUrl || d.logoUrl || config.branding?.logoUrl;
   const bgSrc = media.backgroundDataUrl || d.backgroundImageUrl;
   const style: Record<string, string> = { ...designToCssVars(d) };
   if (bgSrc) style['--bg-image'] = `url(${bgSrc})`;
@@ -373,7 +505,7 @@ export function Display({ synagogueId }: Props) {
   const effectiveLayout =
     special === 'event' ? 'event' : special === 'mourning' ? 'mourning' : layout;
 
-  const modeClass = modeInfo ? `mode-${modeInfo.mode}` : '';
+  const modeClass = liveModeInfo ? `mode-${liveModeInfo.mode}` : '';
   const className = [
     'display',
     `theme-${config.theme}`,
@@ -398,65 +530,6 @@ export function Display({ synagogueId }: Props) {
     effectiveLayout === 'board' ||
     effectiveLayout === 'dual';
   const centeredHeader = d.headerStyle === 'centered';
-  const carouselItem = activeAnnouncements[carouselIdx % Math.max(activeAnnouncements.length, 1)];
-
-  const nowForSchedule = new Date();
-  const shabbatFriday = getShabbatZmanimDate(nowForSchedule, zmanimMap);
-  const displayBlocks = config.blocks
-    .filter((b) => b.enabled)
-    .filter((b) => {
-      if (!modeInfo || modeInfo.mode === 'weekday' || modeInfo.mode === 'erev-shabbat') {
-        return true;
-      }
-      if (modeInfo.mode === 'shabbat') {
-        const t = b.title;
-        if (/חול/.test(t) && /שבת/.test(t) === false) return false;
-      }
-      return true;
-    });
-
-  const canvasData: CanvasData = {
-    name: config.name,
-    dedication: config.dedication,
-    logoSrc,
-    clock,
-    day,
-    zmanim,
-    blocks: displayBlocks,
-    resolveTime: (item, block) =>
-      resolveFromZmanimMap(
-        block && isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap,
-        item.time,
-        item.fromZman,
-        item.offsetMinutes ?? 0,
-      ),
-    resolveItemAt: (item, block) => {
-      if (item.noTime) return null;
-      return resolveScheduleItemAt(
-        block && isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap,
-        item.time,
-        item.fromZman,
-        item.offsetMinutes ?? 0,
-        {
-          now: nowForSchedule,
-          shabbatFriday: block && isShabbatScheduleBlock(block) ? shabbatFriday : null,
-          block,
-        },
-      );
-    },
-    announcement: carouselItem ?? null,
-    announcementCount: activeAnnouncements.length,
-    announcementIndex: activeAnnouncements.length
-      ? carouselIdx % activeAnnouncements.length
-      : 0,
-    weatherTemp: config.showWeather ? weather?.tempC ?? null : null,
-    weatherCode: config.showWeather ? weather?.weatherCode : undefined,
-    weatherDesc: config.showWeather ? weather?.description : undefined,
-    countdownLabel: modeInfo?.countdownLabel,
-    candleBoard: modeInfo?.candleBoard ?? null,
-    itim: itimExtras,
-    itimLoading,
-  };
 
   async function confirmExit() {
     if (!config) return;
@@ -593,23 +666,23 @@ export function Display({ synagogueId }: Props) {
         </div>
       ) : null}
 
-      {isRotating ? null : modeInfo?.candleBoard &&
-      (modeInfo.mode !== 'weekday' || modeInfo.countdownLabel) ? (
+      {isRotating ? null : liveModeInfo?.candleBoard &&
+      (liveModeInfo.mode !== 'weekday' || liveModeInfo.countdownLabel) ? (
         <div
-          className={`mode-banner mode-${modeInfo.mode !== 'weekday' ? modeInfo.mode : 'erev-shabbat'} candle-banner`}
+          className={`mode-banner mode-${liveModeInfo.mode !== 'weekday' ? liveModeInfo.mode : 'erev-shabbat'} candle-banner`}
         >
-          {modeInfo.mode !== 'weekday' ? <strong>{modeInfo.label}</strong> : null}
+          {liveModeInfo.mode !== 'weekday' ? <strong>{liveModeInfo.label}</strong> : null}
           <CandleTimesBoard
-            board={modeInfo.candleBoard}
+            board={liveModeInfo.candleBoard}
             showCandles
             showTitle={false}
             className="candle-banner-board"
           />
         </div>
-      ) : !isRotating && modeInfo && modeInfo.mode !== 'weekday' ? (
-        <div className={`mode-banner mode-${modeInfo.mode}`}>
-          <strong>{modeInfo.label}</strong>
-          {modeInfo.countdownLabel ? <span>{modeInfo.countdownLabel}</span> : null}
+      ) : !isRotating && liveModeInfo && liveModeInfo.mode !== 'weekday' ? (
+        <div className={`mode-banner mode-${liveModeInfo.mode}`}>
+          <strong>{liveModeInfo.label}</strong>
+          {liveModeInfo.countdownLabel ? <span>{liveModeInfo.countdownLabel}</span> : null}
         </div>
       ) : null}
 
@@ -649,12 +722,12 @@ export function Display({ synagogueId }: Props) {
           shabbatZmanimMap={shabbatZmanimMap}
           shabbatFriday={shabbatFriday}
           now={nowForSchedule}
-          modeInfo={modeInfo}
+          modeInfo={liveModeInfo}
           weather={weather}
           logoSrc={logoSrc}
           itim={itimExtras}
         />
-      ) : isCanvas ? (
+      ) : isCanvas && canvasData ? (
         <div className="canvas-viewport">
           <CanvasStage
             key={`cv-${config.revision ?? 0}-${config.updatedAt ?? ''}`}

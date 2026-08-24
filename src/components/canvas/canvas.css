@@ -285,7 +285,6 @@
   animation-name: cw-itim-credits;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
-  will-change: transform;
 }
 
 .cw-itim-credits.is-pending {

@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { memo, type CSSProperties, type ReactNode } from 'react';
 import type { CanvasLayoutConfig, CanvasWidget, CanvasWidgetType } from '../../types';
 import { CANVAS_REF_WIDTH } from '../../types';
 import { CanvasWidgetContent, type CanvasData } from './CanvasWidgetContent';
@@ -78,6 +78,93 @@ export function widgetStyle(widget: CanvasWidget): CSSProperties {
   };
 }
 
+/** Widgets that must re-render when the clock string changes. */
+function needsClock(type: CanvasWidgetType): boolean {
+  return type === 'clock' || type === 'rotator' || type === 'zmanim' || type === 'block' || type === 'zman';
+}
+
+function dataEqualForWidget(type: CanvasWidgetType, a: CanvasData, b: CanvasData): boolean {
+  if (a === b) return true;
+  if (
+    a.day !== b.day ||
+    a.zmanim !== b.zmanim ||
+    a.blocks !== b.blocks ||
+    a.name !== b.name ||
+    a.dedication !== b.dedication ||
+    a.logoSrc !== b.logoSrc ||
+    a.announcement !== b.announcement ||
+    a.announcementCount !== b.announcementCount ||
+    a.announcementIndex !== b.announcementIndex ||
+    a.weatherTemp !== b.weatherTemp ||
+    a.weatherCode !== b.weatherCode ||
+    a.weatherDesc !== b.weatherDesc ||
+    a.itim !== b.itim ||
+    a.itimLoading !== b.itimLoading ||
+    a.resolveTime !== b.resolveTime ||
+    a.resolveItemAt !== b.resolveItemAt
+  ) {
+    return false;
+  }
+
+  if (type === 'countdown') {
+    if (a.countdownLabel !== b.countdownLabel) return false;
+    if (a.candleBoard !== b.candleBoard) {
+      const ba = a.candleBoard;
+      const bb = b.candleBoard;
+      if (!ba || !bb) return false;
+      if (
+        ba.entry !== bb.entry ||
+        ba.exit !== bb.exit ||
+        ba.exitRT !== bb.exitRT ||
+        ba.countdownLabel !== bb.countdownLabel
+      ) {
+        return false;
+      }
+    }
+  } else if (a.candleBoard !== b.candleBoard) {
+    const ba = a.candleBoard;
+    const bb = b.candleBoard;
+    if (!ba || !bb) return ba === bb;
+    // Ignore countdownLabel churn on the board for other widgets.
+    if (ba.entry !== bb.entry || ba.exit !== bb.exit || ba.exitRT !== bb.exitRT) return false;
+  }
+
+  if (needsClock(type)) return a.clock === b.clock;
+  return true;
+}
+
+const CanvasWidgetShell = memo(
+  function CanvasWidgetShell({
+    widget,
+    data,
+    placeholder,
+  }: {
+    widget: CanvasWidget;
+    data: CanvasData;
+    placeholder?: boolean;
+  }) {
+    return (
+      <div
+        className={[
+          'canvas-widget',
+          `bg-${widget.bg}`,
+          widget.showBorder ? 'has-border' : 'no-border',
+          widget.textShadow ? 'has-shadow' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        style={widgetStyle(widget)}
+      >
+        <CanvasWidgetContent widget={widget} data={data} placeholder={placeholder} />
+      </div>
+    );
+  },
+  (prev, next) =>
+    prev.placeholder === next.placeholder &&
+    prev.widget === next.widget &&
+    dataEqualForWidget(prev.widget.type, prev.data, next.data),
+);
+
 interface Props {
   canvas: CanvasLayoutConfig;
   data: CanvasData;
@@ -115,20 +202,7 @@ export function CanvasStage({ canvas, data, children, placeholder, className }: 
           return has === null ? true : has;
         })
         .map((w) => (
-          <div
-            key={w.id}
-            className={[
-              'canvas-widget',
-              `bg-${w.bg}`,
-              w.showBorder ? 'has-border' : 'no-border',
-              w.textShadow ? 'has-shadow' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            style={widgetStyle(w)}
-          >
-            <CanvasWidgetContent widget={w} data={data} placeholder={placeholder} />
-          </div>
+          <CanvasWidgetShell key={w.id} widget={w} data={data} placeholder={placeholder} />
         ))}
       {children}
     </div>

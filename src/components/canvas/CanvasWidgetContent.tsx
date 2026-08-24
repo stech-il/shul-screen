@@ -106,7 +106,7 @@ function RotatingCanvasSlot({
   };
   return (
     <div className="cw-rotator" data-rotator-type={type}>
-      <div key={`${type}-${tick}`} className="cw-rotator-inner">
+      <div key={type} className="cw-rotator-inner">
         <CanvasWidgetContent widget={inner} data={data} placeholder={placeholder} />
       </div>
     </div>
