@@ -19,6 +19,8 @@ interface Window {
     onExitRequest?: (cb: () => void) => void;
     fetchOrefAlerts?: () => Promise<string>;
     log?: (msg: string) => Promise<boolean> | void;
+    openLogs?: () => Promise<{ ok: boolean; dir?: string; log?: string; crash?: string; error?: string }>;
+    getLogPaths?: () => Promise<{ dir: string; log: string; crash: string }>;
     getConfig?: () => Promise<{
       shulId: string;
       serverUrl: string;

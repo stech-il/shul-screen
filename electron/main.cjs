@@ -1,16 +1,154 @@
-﻿const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
+﻿const { app, BrowserWindow, globalShortcut, ipcMain, shell, crashReporter } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
+const os = require('os');
 
 const DEFAULT_SERVER = 'https://www.screensmart.co.il';
+const LOG_MAX_BYTES = 2 * 1024 * 1024;
 
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
+let memTimer = null;
+let reloadAfterCrashTimer = null;
 
 function configPath() {
   return path.join(app.getPath('userData'), 'kiosk.json');
+}
+
+function logPath() {
+  return path.join(app.getPath('userData'), 'kiosk.log');
+}
+
+function crashLogPath() {
+  return path.join(app.getPath('userData'), 'kiosk-crash.log');
+}
+
+function rotateLogIfNeeded(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return;
+    const stat = fs.statSync(filePath);
+    if (stat.size < LOG_MAX_BYTES) return;
+    const bak = `${filePath}.1`;
+    try {
+      if (fs.existsSync(bak)) fs.unlinkSync(bak);
+    } catch {
+      /* ignore */
+    }
+    fs.renameSync(filePath, bak);
+  } catch {
+    /* ignore */
+  }
+}
+
+function appendLog(line) {
+  try {
+    if (!app.isReady()) {
+      console.error(`[kiosk] ${line}`);
+      return;
+    }
+    const p = logPath();
+    rotateLogIfNeeded(p);
+    fs.appendFileSync(p, `[${new Date().toISOString()}] ${line}\n`);
+  } catch (err) {
+    console.error(`[kiosk-log-fail] ${line}`, err);
+  }
+}
+
+function appendCrash(line) {
+  try {
+    if (!app.isReady()) {
+      console.error(`[kiosk-crash] ${line}`);
+      return;
+    }
+    const p = crashLogPath();
+    rotateLogIfNeeded(p);
+    fs.appendFileSync(p, `[${new Date().toISOString()}] ${line}\n`);
+    appendLog(`CRASH ${line}`);
+  } catch (err) {
+    console.error(`[kiosk-crash-fail] ${line}`, err);
+  }
+}
+
+function systemSnapshot() {
+  try {
+    const freemem = Math.round(os.freemem() / (1024 * 1024));
+    const totalmem = Math.round(os.totalmem() / (1024 * 1024));
+    return `freeMb=${freemem} totalMb=${totalmem} platform=${process.platform} arch=${process.arch} electron=${process.versions.electron} chrome=${process.versions.chrome}`;
+  } catch (err) {
+    return `snapshot-failed ${err?.message || err}`;
+  }
+}
+
+async function logProcessMemory(tag = 'mem') {
+  try {
+    const info = await process.getProcessMemoryInfo();
+    const metrics = mainWindow && !mainWindow.isDestroyed()
+      ? await mainWindow.webContents.getProcessMemoryInfo()
+      : null;
+    appendLog(
+      `${tag} mainPrivateMb=${Math.round((info.private || 0) / 1024)} mainResidentMb=${Math.round((info.residentSet || 0) / 1024)} rendererPrivateMb=${metrics ? Math.round((metrics.private || 0) / 1024) : '-'} ${systemSnapshot()}`,
+    );
+  } catch (err) {
+    appendLog(`${tag} failed ${err?.message || err}`);
+  }
+}
+
+function scheduleRendererReload(reason) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (reloadAfterCrashTimer) clearTimeout(reloadAfterCrashTimer);
+  appendCrash(`reload-scheduled reason=${reason}`);
+  reloadAfterCrashTimer = setTimeout(() => {
+    reloadAfterCrashTimer = null;
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    try {
+      appendLog(`reload-now reason=${reason}`);
+      void connectAndLoad();
+    } catch (err) {
+      appendCrash(`reload-failed ${err?.message || err}`);
+      try {
+        mainWindow.reload();
+      } catch {
+        /* ignore */
+      }
+    }
+  }, 1500);
+}
+
+function attachWindowDiagnostics(win) {
+  win.webContents.on('did-fail-load', (_e, code, desc, url, isMainFrame) => {
+    appendLog(`did-fail-load code=${code} main=${isMainFrame} desc=${desc} url=${url}`);
+    if (isMainFrame && code !== -3 /* aborted */) {
+      scheduleRendererReload(`did-fail-load:${code}`);
+    }
+  });
+
+  win.webContents.on('render-process-gone', (_e, details) => {
+    appendCrash(
+      `render-process-gone reason=${details?.reason || '?'} exitCode=${details?.exitCode ?? '?'} ${systemSnapshot()}`,
+    );
+    void logProcessMemory('mem-after-gone');
+    scheduleRendererReload(`render-gone:${details?.reason || 'unknown'}`);
+  });
+
+  win.webContents.on('unresponsive', () => {
+    appendCrash(`renderer-unresponsive ${systemSnapshot()}`);
+  });
+
+  win.webContents.on('responsive', () => {
+    appendLog('renderer-responsive-again');
+  });
+
+  win.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+    if (level < 2) return;
+    const lvl = level >= 3 ? 'error' : 'warn';
+    appendLog(`console-${lvl} ${String(message || '').slice(0, 400)} @${sourceId || ''}:${line || 0}`);
+  });
+
+  win.on('unresponsive', () => {
+    appendCrash(`window-unresponsive ${systemSnapshot()}`);
+  });
 }
 
 function readLocalConfig() {
@@ -39,15 +177,6 @@ function writeLocalConfig(patch) {
   fs.mkdirSync(path.dirname(configPath()), { recursive: true });
   fs.writeFileSync(configPath(), JSON.stringify(next, null, 2), 'utf8');
   return next;
-}
-
-function appendLog(line) {
-  try {
-    const p = path.join(app.getPath('userData'), 'kiosk.log');
-    fs.appendFileSync(p, `[${new Date().toISOString()}] ${line}\n`);
-  } catch {
-    /* ignore */
-  }
 }
 
 function normalizeServerUrl(url) {
@@ -310,10 +439,7 @@ function createWindow() {
     },
   });
 
-  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
-    appendLog(`did-fail-load ${code} ${desc} ${url}`);
-  });
-
+  attachWindowDiagnostics(mainWindow);
   bootRoute();
 }
 
@@ -480,6 +606,25 @@ ipcMain.handle('kiosk-connect-and-load', async () => {
   }
 });
 
+ipcMain.handle('kiosk-open-logs', async () => {
+  try {
+    const dir = app.getPath('userData');
+    fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(logPath())) appendLog('log-file-created');
+    await shell.openPath(dir);
+    appendLog('opened log folder');
+    return { ok: true, dir, log: logPath(), crash: crashLogPath() };
+  } catch (err) {
+    return { ok: false, error: String(err?.message || err) };
+  }
+});
+
+ipcMain.handle('kiosk-get-log-paths', () => ({
+  dir: app.getPath('userData'),
+  log: logPath(),
+  crash: crashLogPath(),
+}));
+
 function registerShortcuts() {
   globalShortcut.register('Control+Shift+Q', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -492,9 +637,37 @@ function registerShortcuts() {
       mainWindow.loadURL(assetUrl('setup.html'));
     }
   });
+  globalShortcut.register('Control+Shift+L', () => {
+    appendLog('open logs shortcut');
+    void shell.openPath(app.getPath('userData'));
+  });
 }
 
+try {
+  crashReporter.start({
+    productName: 'screensmart-kiosk',
+    companyName: 'screensmart',
+    submitURL: '',
+    uploadToServer: false,
+    compress: true,
+  });
+} catch (err) {
+  // crashReporter may fail in unpackaged/dev; keep going
+  appendLog(`crashReporter start skipped: ${err?.message || err}`);
+}
+
+process.on('uncaughtException', (err) => {
+  appendCrash(`uncaughtException ${err?.stack || err?.message || err}`);
+});
+
+process.on('unhandledRejection', (reason) => {
+  appendCrash(`unhandledRejection ${reason instanceof Error ? reason.stack || reason.message : String(reason)}`);
+});
+
 app.whenReady().then(() => {
+  appendLog(`app-ready ${systemSnapshot()} version=${app.getVersion?.() || '?'}`);
+  void logProcessMemory('mem-boot');
+
   const cfg = readLocalConfig();
   const openAtLogin = cfg.openAtLogin !== false;
   try {
@@ -511,6 +684,11 @@ app.whenReady().then(() => {
   createWindow();
   registerShortcuts();
 
+  if (memTimer) clearInterval(memTimer);
+  memTimer = setInterval(() => {
+    void logProcessMemory('mem');
+  }, 15 * 60_000);
+
   // Optional updater stub — skipped when package is missing (keeps kiosk light)
   try {
     if (app.isPackaged) {
@@ -524,9 +702,23 @@ app.whenReady().then(() => {
   }
 });
 
+app.on('child-process-gone', (_e, details) => {
+  appendCrash(
+    `child-process-gone type=${details?.type || '?'} reason=${details?.reason || '?'} exitCode=${details?.exitCode ?? '?'} name=${details?.name || ''}`,
+  );
+});
+
+app.on('render-process-gone', (_e, _wc, details) => {
+  appendCrash(
+    `app-render-process-gone reason=${details?.reason || '?'} exitCode=${details?.exitCode ?? '?'}`,
+  );
+});
+
 app.on('window-all-closed', () => {
   globalShortcut.unregisterAll();
   if (retryTimer) clearInterval(retryTimer);
+  if (memTimer) clearInterval(memTimer);
+  if (reloadAfterCrashTimer) clearTimeout(reloadAfterCrashTimer);
   stopMainHeartbeat();
   if (process.platform !== 'darwin') app.quit();
 });
@@ -534,5 +726,8 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   if (retryTimer) clearInterval(retryTimer);
+  if (memTimer) clearInterval(memTimer);
+  if (reloadAfterCrashTimer) clearTimeout(reloadAfterCrashTimer);
   stopMainHeartbeat();
+  appendLog('will-quit');
 });

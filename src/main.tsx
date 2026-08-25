@@ -5,10 +5,12 @@ import { bootstrapAndroidKioskRoute, isAndroidKiosk, isNativeCapacitorShell } fr
 import { isManageShellBuild, markManageSession } from './lib/manageApp';
 import { purgeLegacyDesignTemplateStorage } from './lib/designTemplates';
 import { startAppVersionWatch } from './lib/appVersion';
+import { startKioskClientDiagnostics } from './lib/kioskDiagnostics';
 import './index.css';
 
 // Free localStorage quota left by older template saves (before IndexedDB migration).
 purgeLegacyDesignTemplateStorage();
+startKioskClientDiagnostics();
 
 /**
  * Legacy HashRouter links (`/#/display/12`) → clean paths (`/display/12`).

@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('shulKiosk', {
   },
   fetchOrefAlerts: () => ipcRenderer.invoke('oref-alerts'),
   log: (msg) => ipcRenderer.invoke('kiosk-log', msg),
+  openLogs: () => ipcRenderer.invoke('kiosk-open-logs'),
+  getLogPaths: () => ipcRenderer.invoke('kiosk-get-log-paths'),
   getConfig: () => ipcRenderer.invoke('kiosk-get-config'),
   saveConfig: (body) => ipcRenderer.invoke('kiosk-save-config', body),
   probeConnection: (body) => ipcRenderer.invoke('kiosk-probe-connection', body),

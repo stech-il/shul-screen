@@ -41,12 +41,18 @@
 |--------|--------|
 | `Ctrl+Shift+Q` | יציאה מהקיוסק |
 | `Ctrl+Shift+S` | פתיחת מסך ההגדרות (שינוי מזהה / שרת) |
+| `Ctrl+Shift+L` | פתיחת תיקיית הלוגים |
 
 ## מצב לא מקוון
 
 אם השרת לא זמין, התוכנה מנסה לטעון את `dist` המקומי שנארז ב־installer (`#/display/{shulId}?kiosk=1`) וממשיכה לנסות להתחבר ברקע.
 
-לוגים: `%APPDATA%\screensmart\kiosk.log` (או תיקיית userData המקבילה)
+לוגים:
+- יומי: `%APPDATA%\screensmart\kiosk.log`
+- קריסות: `%APPDATA%\screensmart\kiosk-crash.log`
+- קיצור: `Ctrl+Shift+L` פותח את תיקיית הלוגים
+
+בקריסת Renderer (למשל Out of Memory) נרשם `render-process-gone reason=oom` והמסך נטען מחדש אוטומטית.
 
 ## סטטוס «מחובר» בניהול
 
