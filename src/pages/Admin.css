@@ -654,14 +654,17 @@
 
 .item-row.compact {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(5rem, 7.25rem) auto;
+  flex-wrap: nowrap;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.35rem 0.4rem;
+  gap: 0.35rem 0.45rem;
 }
 
 .item-row.compact .item-drag-handle {
   grid-column: 1;
   grid-row: 1;
+  align-self: start;
+  margin-top: 0.35rem;
 }
 
 .item-row.compact > input:first-of-type {
@@ -673,38 +676,53 @@
 
 .item-row.compact > input[type='time'],
 .item-row.compact > .item-hint {
-  grid-column: 3;
-  grid-row: 1;
+  grid-column: 2;
+  grid-row: 2;
   min-width: 0;
-  width: 100%;
+  width: min(100%, 11rem);
+  justify-self: start;
 }
 
 .item-row-actions {
-  display: inline-flex;
-  flex-wrap: nowrap;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
   flex: 0 0 auto;
 }
 
 .item-row.compact > .item-row-actions {
-  grid-column: 4;
-  grid-row: 1;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  padding-top: 0.35rem;
+  margin-top: 0.1rem;
+  border-top: 1px solid var(--line);
 }
 
 .item-row.compact > .item-more {
   grid-column: 1 / -1;
-  grid-row: 2;
+  grid-row: 4;
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0.25rem;
 }
 
 .item-row-actions .btn {
-  padding: 0.3rem 0.5rem;
-  font-size: 0.82rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
   white-space: nowrap;
 }
 
 .item-row-actions .item-delete {
+  background: #c62828;
+  color: #fff;
+  border-color: #b71c1c;
   font-weight: 700;
+}
+
+.item-row-actions .item-delete:hover {
+  background: #b71c1c;
+  color: #fff;
 }
 
 .item-more {
@@ -1036,6 +1054,7 @@ textarea {
   border-radius: 8px;
   padding: 0.25rem 0.2rem;
 }
+
 .item-row.dragging {
   opacity: 0.55;
   border-color: color-mix(in srgb, var(--accent, #a8893d) 45%, var(--line, #d5d0c6));
@@ -2084,23 +2103,6 @@ input[type='range'] {
 
   .item-row {
     grid-template-columns: 1fr;
-  }
-
-  .item-row.compact {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .item-row.compact > input[type='time'],
-  .item-row.compact > .item-hint {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .item-row.compact > .item-row-actions {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    justify-content: flex-start;
-    flex-wrap: wrap;
   }
 
   .admin-actions {
