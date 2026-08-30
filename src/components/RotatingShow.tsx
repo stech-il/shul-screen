@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { AnalogClock } from './canvas/ClockWidget';
-import { CandleTimesBoard } from './CandleTimesBoard';
 import { RichAnnounce } from './RichAnnounce';
 import {
+  ROTATING_SLIDE_LABELS,
   buildActiveRotatingSlides,
   formatRemain,
   normalizeRotatingScreens,
@@ -25,6 +25,7 @@ import type {
   ComputedZman,
   DayInfo,
   ModeInfo,
+  RotatingSlideId,
   ScheduleBlock,
   SynagogueConfig,
   WeatherInfo,
@@ -46,50 +47,59 @@ interface Props {
   weather: WeatherInfo | null;
   logoSrc?: string;
   itim?: ItimExtras | null;
+  backgroundImage?: string;
 }
 
-function TimeRow({
+function BinaTile({
+  time,
   label,
   note,
-  time,
   upcoming,
+  wide,
 }: {
+  time?: string;
   label: string;
   note?: string;
-  time?: string;
   upcoming?: boolean;
+  wide?: boolean;
 }) {
   return (
-    <li className={upcoming ? 'is-upcoming' : undefined}>
-      <span className="rs-row-label">
-        {label}
-        {note ? <em>{note}</em> : null}
-      </span>
-      <span className="rs-leader" aria-hidden />
-      {time ? <strong className="time-ltr">{time}</strong> : null}
-    </li>
+    <div className={`rs-bina-tile${upcoming ? ' is-upcoming' : ''}${wide ? ' is-wide' : ''}`}>
+      {time ? (
+        <div className="rs-bina-tile-time time-ltr">{time}</div>
+      ) : (
+        <div className="rs-bina-tile-time rs-bina-tile-notime">{label}</div>
+      )}
+      {time ? (
+        <div className="rs-bina-tile-label">
+          {label}
+          {note ? <em>{note}</em> : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
-function Poster({
-  kicker,
-  title,
-  sub,
-  children,
-}: {
-  kicker: string;
-  title?: string;
-  sub?: string;
-  children?: ReactNode;
-}) {
+function BinaSlideTitle({ children }: { children: ReactNode }) {
   return (
-    <div className="rs-poster">
-      <p className="rs-kicker">{kicker}</p>
-      {title ? <h2>{title}</h2> : null}
-      {sub ? <p className="rs-sub">{sub}</p> : null}
-      {children}
+    <div className="rs-bina-slide-title">
+      <h2>{children}</h2>
+      <div className="rs-bina-title-rule" aria-hidden />
     </div>
   );
+}
+
+function slideHeading(id: RotatingSlideId | undefined, modeInfo: ModeInfo | null): string | null {
+  if (!id || id === 'clock') return null;
+  if (id === 'prayers') {
+    return modeInfo?.mode === 'shabbat' || modeInfo?.mode === 'holiday'
+      ? 'זמני תפילות לשבת'
+      : 'זמני תפילות לימות החול';
+  }
+  if (id === 'candles') return 'שבת';
+  if (id === 'zmanim') return 'זמני היום';
+  if (id === 'announcements') return 'הודעות';
+  return ROTATING_SLIDE_LABELS[id] ?? null;
 }
 
 export function RotatingShow({
@@ -107,9 +117,9 @@ export function RotatingShow({
   weather,
   logoSrc,
   itim,
+  backgroundImage,
 }: Props) {
   const settings = normalizeRotatingScreens(config.rotatingScreens);
-  /** Rebuild slide list at most once per minute — not every clock second. */
   const minuteBucket = Math.floor(now.getTime() / 60_000);
   const slides = useMemo(
     () =>
@@ -142,63 +152,76 @@ export function RotatingShow({
   }, [slides.length, settings.seconds, slideKey]);
 
   const slide = slides[slides.length ? idx % slides.length : 0];
+  const nextSlide = slides.length > 1 ? slides[(idx + 1) % slides.length] : null;
+  const heading = slideHeading(slide?.id, modeInfo);
   const specials = parashaSpecialsForConfig(day, config);
   const shemaZman = pickShemaZman(zmanim);
   const sunriseZman = pickSunriseZman(zmanim);
 
-  function namesPoster(kicker: string, items: string[]) {
+  const shellStyle = {
+    ...(backgroundImage
+      ? ({ '--rs-bina-bg-image': `url(${backgroundImage})` } as CSSProperties)
+      : {}),
+  };
+
+  function namesPoster(items: string[]) {
     return (
-      <Poster kicker={kicker}>
-        <ul className="rs-names">
-          {items.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </Poster>
+      <div className="rs-bina-names">
+        {items.map((item) => (
+          <div key={item} className="rs-bina-name-tile">
+            {item}
+          </div>
+        ))}
+      </div>
     );
   }
 
-  function itimPoster(kicker: string, lines: ItimExtraLine[] | undefined) {
+  function itimPoster(lines: ItimExtraLine[] | undefined) {
     return (
-      <Poster kicker={kicker}>
-        <ul className="rs-itim">
-          {(lines ?? []).map((line, i) => {
-            const label = [line.dateLabel, line.title].filter(Boolean).join(' · ');
-            return (
-              <li key={`${label}-${i}`}>
-                {label ? <strong>{label}</strong> : null}
-                <span>{toPlainDisplayText(line.text)}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </Poster>
+      <ul className="rs-bina-itim">
+        {(lines ?? []).map((line, i) => {
+          const label = [line.dateLabel, line.title].filter(Boolean).join(' · ');
+          return (
+            <li key={`${label}-${i}`}>
+              {label ? <strong>{label}</strong> : null}
+              <span>{toPlainDisplayText(line.text)}</span>
+            </li>
+          );
+        })}
+      </ul>
     );
   }
 
-  function countdownPoster(kicker: string, z: typeof shemaZman) {
+  function countdownBody(z: typeof shemaZman) {
     if (!z) return null;
     return (
-      <Poster kicker={kicker} title={z.formatted} sub={z.label}>
-        <p className="rs-remain time-ltr">{formatRemain(now, z.time)}</p>
-        <p className="rs-sub">זמן שנותר</p>
-      </Poster>
+      <div className="rs-bina-countdown">
+        <BinaTile time={z.formatted} label={z.label} wide />
+        <p className="rs-bina-remain time-ltr">{formatRemain(now, z.time)}</p>
+        <p className="rs-bina-remain-label">זמן שנותר</p>
+      </div>
     );
   }
 
   function renderBody() {
     if (!slide) {
-      return <Poster kicker="ברוכים הבאים" title={toPlainDisplayText(config.name)} />;
+      return (
+        <div className="rs-bina-welcome">
+          <p>{toPlainDisplayText(config.name)}</p>
+        </div>
+      );
     }
 
     switch (slide.id) {
       case 'prayers':
         return (
-          <div className={`rs-prayers cols-${Math.min(blocks.length || 1, 4)}`}>
+          <div className="rs-bina-prayers">
             {blocks.map((block) => (
-              <section key={block.id} className="rs-block">
-                <h3>{toPlainDisplayText(block.title)}</h3>
-                <ul>
+              <section key={block.id}>
+                {blocks.length > 1 ? (
+                  <h3 className="rs-bina-block-title">{toPlainDisplayText(block.title)}</h3>
+                ) : null}
+                <div className="rs-bina-tiles rs-bina-tiles--prayers">
                   {block.items.map((item) => {
                     const map = isShabbatScheduleBlock(block) ? shabbatZmanimMap : zmanimMap;
                     const timeStr = item.noTime
@@ -212,124 +235,138 @@ export function RotatingShow({
                           block,
                         });
                     return (
-                      <TimeRow
+                      <BinaTile
                         key={item.id}
+                        time={timeStr || undefined}
                         label={toPlainDisplayText(item.title)}
                         note={item.note ? toPlainDisplayText(item.note) : undefined}
-                        time={timeStr || undefined}
                         upcoming={isUpcomingWithinMinutes(at, now)}
                       />
                     );
                   })}
-                </ul>
+                </div>
               </section>
             ))}
           </div>
         );
       case 'zmanim':
         return (
-          <div className="rs-zmanim-wrap">
-            <ul className="rs-zmanim">
-              {zmanim.map((z) => (
-                <TimeRow
-                  key={z.key}
-                  label={z.label}
-                  time={z.formatted}
-                  upcoming={isUpcomingWithinMinutes(z.time, now)}
-                />
-              ))}
-            </ul>
+          <div className="rs-bina-tiles rs-bina-tiles--zmanim">
+            {zmanim.map((z) => (
+              <BinaTile
+                key={z.key}
+                time={z.formatted}
+                label={z.label}
+                upcoming={isUpcomingWithinMinutes(z.time, now)}
+              />
+            ))}
           </div>
         );
       case 'parasha':
         return (
-          <div className="rs-parasha">
-            <p className="rs-kicker">פרשת השבוע</p>
-            <h2>{day.parasha}</h2>
-            {specials.length ? <p className="rs-sub">{specials.join(' · ')}</p> : null}
+          <div className="rs-bina-parasha-tile is-hero">
+            <span className="rs-bina-parasha-label">פרשת השבוע</span>
+            <strong>{day.parasha}</strong>
+            {specials.length ? <em>{specials.join(' · ')}</em> : null}
           </div>
         );
       case 'announcements': {
         const a = 'announcement' in slide ? slide.announcement : announcements[0];
         if (!a) return null;
         return (
-          <div className="rs-announce">
-            <p className="rs-kicker">הודעות בית הכנסת</p>
-            <div className="rs-announce-body">
-              <RichAnnounce html={a.text} />
-            </div>
+          <div className="rs-bina-announce">
+            <RichAnnounce html={a.text} />
           </div>
         );
       }
-      case 'candles':
-        return modeInfo?.candleBoard ? (
-          <div className="rs-poster rs-candles">
-            <p className="rs-kicker">{modeInfo.label || 'כניסה ויציאה'}</p>
-            <CandleTimesBoard board={modeInfo.candleBoard} showCandles showTitle={false} />
-            {modeInfo.countdownLabel ? <p className="rs-sub">{modeInfo.countdownLabel}</p> : null}
+      case 'candles': {
+        const board = modeInfo?.candleBoard;
+        if (!board) return null;
+        return (
+          <div className="rs-bina-shabbat">
+            <div className="rs-bina-tiles rs-bina-tiles--candles">
+              <BinaTile time={board.entry} label={board.entryLabel} />
+              <BinaTile time={board.exit} label={board.exitLabel} />
+              <BinaTile time={board.exitRT} label={board.exitRTLabel} />
+            </div>
+            {day.parasha ? (
+              <div className="rs-bina-parasha-tile">
+                <span className="rs-bina-parasha-label">פרשת השבוע</span>
+                <strong>{day.parasha}</strong>
+              </div>
+            ) : null}
+            {board.countdownLabel ? (
+              <p className="rs-bina-countdown-banner time-ltr">{board.countdownLabel}</p>
+            ) : null}
           </div>
-        ) : null;
+        );
+      }
       case 'clock':
         return (
-          <div className="rs-clock-hero">
-            <div className="rs-analog-hero" aria-hidden>
+          <div className="rs-bina-main">
+            {logoSrc ? <img className="rs-bina-logo" src={logoSrc} alt="" /> : null}
+            <div className="rs-bina-main-clock" aria-hidden>
               <AnalogClock time={clock} design="gold" />
             </div>
-            <p className="rs-clock-hero-time time-ltr">{clock}</p>
+            <p className="rs-bina-main-time time-ltr">{clock}</p>
             {config.showHebrewDate !== false ? (
-              <p className="rs-sub">
+              <p className="rs-bina-main-date">
                 יום {day.weekday} · {day.hebrewDate}
               </p>
+            ) : null}
+            {config.dedication ? (
+              <p className="rs-bina-dedication">{toPlainDisplayText(config.dedication)}</p>
             ) : null}
           </div>
         );
       case 'sunrise':
-        return countdownPoster('זריחת החמה', sunriseZman);
+        return countdownBody(sunriseZman);
       case 'shema':
-        return countdownPoster('סוף זמן קריאת שמע', shemaZman);
+        return countdownBody(shemaZman);
       case 'hebrewDate':
         return (
-          <Poster kicker={`יום ${day.weekday}`} title={day.hebrewDate} sub={formatGregorianDate(now)} />
+          <div className="rs-bina-parasha-tile is-hero">
+            <span className="rs-bina-parasha-label">יום {day.weekday}</span>
+            <strong>{day.hebrewDate}</strong>
+            <em>{formatGregorianDate(now)}</em>
+          </div>
         );
       case 'holidays':
-        return namesPoster('חגים ומועדים', day.holidays ?? []);
+        return namesPoster(day.holidays ?? []);
       case 'roshChodesh':
-        return namesPoster('ראש חודש', day.roshChodesh ?? []);
+        return namesPoster(day.roshChodesh ?? []);
       case 'mevarchim':
-        return namesPoster('שבת מברכים', day.shabbatMevarchim ?? []);
+        return namesPoster(day.shabbatMevarchim ?? []);
       case 'molad':
-        return namesPoster('המולד', day.molad ?? []);
+        return namesPoster(day.molad ?? []);
       case 'specialShabbat':
-        return namesPoster('שבתות מיוחדות', day.specialShabbat ?? []);
+        return namesPoster(day.specialShabbat ?? []);
       case 'memorials':
-        return namesPoster('ימי זיכרון', day.memorials ?? []);
+        return namesPoster(day.memorials ?? []);
       case 'memorialBoard': {
         const plaques = 'plaques' in slide ? slide.plaques : day.memorialBoard ?? [];
         const page = 'page' in slide ? slide.page : 1;
         const pages = 'pages' in slide ? slide.pages : 1;
         return (
-          <div className="rs-memorial">
-            <p className="rs-kicker">לעילוי נשמת</p>
-            <h2 className="rs-memorial-title">לוח הנצחה</h2>
+          <div className="rs-bina-memorial">
             {config.dedication ? (
-              <p className="rs-sub">{toPlainDisplayText(config.dedication)}</p>
+              <p className="rs-bina-dedication">{toPlainDisplayText(config.dedication)}</p>
             ) : null}
-            <div className="rs-plaques">
+            <div className="rs-bina-plaques">
               {plaques.map((p) => (
                 <article
                   key={`${p.name}-${p.hebrewDate}`}
-                  className={`rs-plaque${p.today ? ' is-today' : p.thisWeek ? ' is-week' : ''}`}
+                  className={`rs-bina-plaque${p.today ? ' is-today' : p.thisWeek ? ' is-week' : ''}`}
                 >
-                  <span className="rs-plaque-mark">נ״ע</span>
+                  <span className="rs-bina-plaque-mark">נ״ע</span>
                   <strong>{p.name}</strong>
                   <em>{p.hebrewDate}</em>
-                  {p.today ? <b>היום</b> : p.thisWeek ? <b>השבוע</b> : null}
-                  {p.note ? <span className="rs-plaque-note">{toPlainDisplayText(p.note)}</span> : null}
+                  {p.note ? <span>{toPlainDisplayText(p.note)}</span> : null}
                 </article>
               ))}
             </div>
             {pages > 1 ? (
-              <p className="rs-page">
+              <p className="rs-bina-page">
                 {page} / {pages}
               </p>
             ) : null}
@@ -338,110 +375,112 @@ export function RotatingShow({
       }
       case 'yahrzeitWeek':
         return (
-          <Poster kicker="אזכרות השבוע">
-            <ul className="rs-names rs-week">
-              {(day.yahrzeitWeek ?? []).map((row) => (
-                <li key={`${row.name}-${row.label}`}>
-                  <span>{row.name}</span>
-                  <em>{row.label}</em>
-                </li>
-              ))}
-            </ul>
-          </Poster>
+          <ul className="rs-bina-yahrzeit-week">
+            {(day.yahrzeitWeek ?? []).map((row) => (
+              <li key={`${row.name}-${row.label}`}>
+                <span>{row.name}</span>
+                <em>{row.label}</em>
+              </li>
+            ))}
+          </ul>
         );
       case 'mishnaYomi':
-        return <Poster kicker="משנה יומית" title={day.mishnaYomi ?? ''} />;
-      case 'yahrzeit':
         return (
-          <Poster kicker="יארצייט היום">
-            <ul className="rs-names">
-              {(day.yahrzeitNames ?? []).map((name) => (
-                <li key={name}>{name}</li>
-              ))}
-            </ul>
-          </Poster>
+          <div className="rs-bina-parasha-tile is-hero">
+            <span className="rs-bina-parasha-label">משנה יומית</span>
+            <strong>{day.mishnaYomi ?? ''}</strong>
+          </div>
         );
+      case 'yahrzeit':
+        return namesPoster(day.yahrzeitNames ?? []);
       case 'omer':
         return day.omer ? (
-          <div className="rs-omer">
-            <p className="rs-kicker">ספירת העומר</p>
-            <p className="rs-omer-num">{day.omer.day}</p>
-            <h2>{day.omer.label}</h2>
-            <p className="rs-sub">
-              {[day.omer.todayIs, day.omer.sefira].filter(Boolean).join(' · ')}
-            </p>
+          <div className="rs-bina-omer">
+            <p className="rs-bina-omer-num">{day.omer.day}</p>
+            <div className="rs-bina-parasha-tile is-hero">
+              <strong>{day.omer.label}</strong>
+              <em>{[day.omer.todayIs, day.omer.sefira].filter(Boolean).join(' · ')}</em>
+            </div>
           </div>
         ) : null;
       case 'dafYomi':
-        return <Poster kicker="הדף היומי" title={day.dafYomi ?? ''} />;
+        return (
+          <div className="rs-bina-parasha-tile is-hero">
+            <span className="rs-bina-parasha-label">הדף היומי</span>
+            <strong>{day.dafYomi ?? ''}</strong>
+          </div>
+        );
       case 'weather': {
         if (!weather) return null;
         const h = now.getHours();
         const icon = weatherCodeToIcon(weather.weatherCode, h < 6 || h >= 20);
         return (
-          <Poster kicker="מזג האוויר" sub={weather.description || undefined}>
-            <h2 className="time-ltr rs-weather-temp">
+          <div className="rs-bina-weather">
+            <p className="rs-bina-weather-temp time-ltr">
               {icon ? <span className="weather-icon">{icon}</span> : null}
               {weather.tempC}°
-            </h2>
-          </Poster>
+            </p>
+            {weather.description ? <p>{weather.description}</p> : null}
+          </div>
         );
       }
       case 'itimMoon':
-        return itimPoster('זמני ירח', itim?.moon);
+        return itimPoster(itim?.moon);
       case 'itimHalachot':
-        return itimPoster('הלכות השבוע', itim?.halachot);
+        return itimPoster(itim?.halachot);
       case 'itimEvents':
-        return itimPoster('מאורעות היום', itim?.events);
+        return itimPoster(itim?.events);
       case 'itimLimud':
-        return itimPoster('הלימוד היומי', itim?.limud);
+        return itimPoster(itim?.limud);
       case 'itimHaftara':
-        return itimPoster('הפטרה', itim?.haftara);
+        return itimPoster(itim?.haftara);
       default:
         return null;
     }
   }
 
   return (
-    <div className="rotating-show" data-slide={slide?.id ?? 'empty'}>
-      <div className="rs-frame">
-        <header className="rs-top">
-          <div className="rs-brand">
-            {logoSrc ? <img src={logoSrc} alt="" /> : null}
-            <div>
-              <strong>{toPlainDisplayText(config.name)}</strong>
-              {config.showHebrewDate !== false ? (
-                <span>
-                  יום {day.weekday} · {day.hebrewDate}
-                </span>
-              ) : null}
-            </div>
+    <div className="rotating-show rs-bina" data-slide={slide?.id ?? 'empty'} style={shellStyle}>
+      <div className="rs-bina-bg" aria-hidden />
+      <div className="rs-bina-shell">
+        <header className="rs-bina-header">
+          <div className="rs-bina-header-bar">
+            <span className="rs-bina-weekday">יום {day.weekday}</span>
+            <strong className="rs-bina-shul">{toPlainDisplayText(config.name)}</strong>
+            <span className="rs-bina-date">{day.hebrewDate}</span>
           </div>
           {config.showClock !== false ? (
-            <div className="rs-clock-cluster">
-              <div className="rs-analog" aria-hidden>
+            <div className="rs-bina-clock-wrap" aria-hidden>
+              <div className="rs-bina-clock-frame">
                 <AnalogClock time={clock} design="gold" />
               </div>
-              <p className="rs-clock time-ltr">{clock}</p>
             </div>
           ) : null}
         </header>
 
-        <div key={slide?.key ?? 'empty'} className="rs-stage">
+        <main key={slide?.key ?? 'empty'} className="rs-bina-stage">
+          {heading ? <BinaSlideTitle>{heading}</BinaSlideTitle> : null}
           {renderBody()}
-        </div>
+        </main>
 
         {slides.length > 1 ? (
-          <footer className="rs-dots" aria-hidden>
-            <div
-              className="rs-progress"
-              style={{ animationDuration: `${settings.seconds}s` }}
-              key={`${slide?.key}-${idx}`}
-            />
-            <div className="rs-dot-row">
-              {slides.map((s, i) => (
-                <span key={s.key} className={i === idx % slides.length ? 'on' : ''} />
-              ))}
+          <footer className="rs-bina-footer">
+            <div className="rs-bina-footer-bar">
+              {nextSlide ? (
+                <span className="rs-bina-next">
+                  למעבר למסך הבא: {ROTATING_SLIDE_LABELS[nextSlide.id]}
+                </span>
+              ) : null}
+              <div className="rs-bina-dots" aria-hidden>
+                {slides.map((s, i) => (
+                  <span key={s.key} className={i === idx % slides.length ? 'on' : ''} />
+                ))}
+              </div>
+              <div
+                className="rs-bina-progress"
+                style={{ animationDuration: `${settings.seconds}s` }}
+                key={`${slide?.key}-${idx}`}
+              />
             </div>
           </footer>
         ) : null}

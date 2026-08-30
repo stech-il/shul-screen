@@ -726,6 +726,7 @@ export function Display({ synagogueId }: Props) {
           weather={weather}
           logoSrc={logoSrc}
           itim={itimExtras}
+          backgroundImage={bgSrc}
         />
       ) : isCanvas && canvasData ? (
         <div className="canvas-viewport">
