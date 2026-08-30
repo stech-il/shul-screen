@@ -652,9 +652,59 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #a8893d) 55%, transparent);
 }
 
+.item-row.compact {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(5rem, 7.25rem) auto;
+  align-items: center;
+  gap: 0.35rem 0.4rem;
+}
+
+.item-row.compact .item-drag-handle {
+  grid-column: 1;
+  grid-row: 1;
+}
+
 .item-row.compact > input:first-of-type {
-  flex: 1 1 10rem;
-  min-width: 8rem;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.item-row.compact > input[type='time'],
+.item-row.compact > .item-hint {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.item-row-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+}
+
+.item-row.compact > .item-row-actions {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.item-row.compact > .item-more {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.item-row-actions .btn {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.item-row-actions .item-delete {
+  font-weight: 700;
 }
 
 .item-more {
@@ -2034,6 +2084,23 @@ input[type='range'] {
 
   .item-row {
     grid-template-columns: 1fr;
+  }
+
+  .item-row.compact {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .item-row.compact > input[type='time'],
+  .item-row.compact > .item-hint {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .item-row.compact > .item-row-actions {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .admin-actions {

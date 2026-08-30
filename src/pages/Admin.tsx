@@ -2443,28 +2443,40 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                           }
                         />
                       )}
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        onClick={() => setExpandedItemId(open ? null : item.id)}
-                      >
-                        {open ? t('common.close') : t('admin.more')}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        title={t('admin.duplicateItem')}
-                        onClick={() => duplicateItem(block.id, item.id)}
-                      >
-                        {t('common.duplicate')}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn danger"
-                        onClick={() => removeItem(block.id, item.id)}
-                      >
-                        {t('common.delete')}
-                      </button>
+                      <div className="item-row-actions">
+                        <button
+                          type="button"
+                          className="btn danger item-delete"
+                          title={t('common.delete')}
+                          aria-label={t('common.delete')}
+                          onClick={() => {
+                            void (async () => {
+                              const label = item.title.trim() || t('admin.itemTitle');
+                              if (!(await askConfirm(t('admin.confirmDeleteItem', { title: label })))) {
+                                return;
+                              }
+                              removeItem(block.id, item.id);
+                            })();
+                          }}
+                        >
+                          {t('common.delete')}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          title={t('admin.duplicateItem')}
+                          onClick={() => duplicateItem(block.id, item.id)}
+                        >
+                          {t('common.duplicate')}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          onClick={() => setExpandedItemId(open ? null : item.id)}
+                        >
+                          {open ? t('common.close') : t('admin.more')}
+                        </button>
+                      </div>
                       {open ? (
                         <div className="item-more">
                           <div className="item-order-actions">
