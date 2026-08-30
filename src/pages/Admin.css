@@ -434,9 +434,15 @@
 
 .quick-prayer-row {
   display: grid;
-  grid-template-columns: minmax(4.5rem, 7rem) 1fr minmax(6.5rem, 8rem);
+  grid-template-columns: minmax(4.5rem, 7rem) 1fr minmax(6.5rem, 8rem) auto;
   gap: 0.45rem;
   align-items: center;
+}
+
+.quick-prayer-delete {
+  flex-shrink: 0;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.82rem;
 }
 
 .quick-prayer-block {

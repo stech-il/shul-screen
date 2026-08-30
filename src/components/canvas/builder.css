@@ -58,6 +58,15 @@
   border-color: var(--accent, #a8893d);
   font-weight: 600;
 }
+.cb-chip.primary {
+  background: var(--accent, #a8893d);
+  border-color: var(--accent, #a8893d);
+  color: #fff;
+  font-weight: 700;
+}
+.cb-chip.primary:hover {
+  filter: brightness(1.05);
+}
 .cb-chip.ghost {
   background: transparent;
   color: var(--muted, #5a6b73);

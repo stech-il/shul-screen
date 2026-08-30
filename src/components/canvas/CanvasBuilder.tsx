@@ -44,6 +44,8 @@ interface Props {
   onStatus?: (msg: string) => void;
   /** Called when a drag/resize gesture ends — useful for undo checkpoints */
   onInteractionEnd?: () => void;
+  /** Open “save canvas as template” flow (parent owns the dialog) */
+  onSaveAsTemplate?: () => void;
 }
 
 type DragMode = 'move' | 'resize';
@@ -133,6 +135,7 @@ export function CanvasBuilder({
   onGalleryChange,
   onStatus,
   onInteractionEnd,
+  onSaveAsTemplate,
 }: Props) {
   const { t, dir } = useI18n();
   const { confirm: askConfirm } = useAppNotice();
@@ -424,6 +427,11 @@ export function CanvasBuilder({
     <div className="canvas-builder">
       <div className="cb-toolbar">
         <div className="cb-toolbar-row">
+          {onSaveAsTemplate ? (
+            <button type="button" className="cb-chip primary" onClick={onSaveAsTemplate}>
+              {t('canvas.saveAsTemplate')}
+            </button>
+          ) : null}
           <Link
             className="cb-chip ghost"
             to={`/display/${synagogueId}`}

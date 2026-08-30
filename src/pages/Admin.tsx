@@ -141,6 +141,10 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [saveTplOpen, setSaveTplOpen] = useState(false);
+  const [saveTplName, setSaveTplName] = useState('');
+  const [saveTplDesc, setSaveTplDesc] = useState('');
+  const [saveTplBusy, setSaveTplBusy] = useState(false);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [passwordReset, setPasswordReset] = useState<{
     memberId: string;
@@ -1010,6 +1014,39 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     setConfig((c) => (c ? { ...c, canvas } : c));
   }
 
+  function openSaveCanvasTemplate() {
+    if (!config) return;
+    setSaveTplName(t('admin.templateNameDefault', { name: config.name }));
+    setSaveTplDesc('');
+    setSaveTplOpen(true);
+  }
+
+  async function confirmSaveCanvasTemplate() {
+    if (!config || saveTplBusy) return;
+    const name = saveTplName.trim() || t('admin.templateNameDefault', { name: config.name });
+    setSaveTplBusy(true);
+    try {
+      const result = await saveDesignTemplate({
+        synagogueId,
+        name,
+        description: saveTplDesc.trim() || t('admin.templateDesc'),
+        theme: config.theme,
+        layout: 'canvas',
+        design: config.design,
+        canvas: config.canvas,
+      });
+      if (!result.ok || !result.template) {
+        setStatus(result.error ?? t('admin.templateSaveFail'));
+        return;
+      }
+      setSaveTplOpen(false);
+      setStatus(t('admin.templateSaved', { name: result.template.name }));
+      toast(t('admin.templateSaved', { name: result.template.name }));
+    } finally {
+      setSaveTplBusy(false);
+    }
+  }
+
   function updateGallery(gallery: GalleryItem[]) {
     setConfig((c) => (c ? { ...c, media: { ...c.media, gallery } } : c));
   }
@@ -1507,37 +1544,15 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                 </Link>
                 <button
                   type="button"
-                  className="btn ghost"
-                  onClick={() => {
-                    void (async () => {
-                      const name = window.prompt(
-                        t('admin.templateNamePrompt'),
-                        t('admin.templateNameDefault', { name: config.name }),
-                      );
-                      if (name == null) return;
-                      const result = await saveDesignTemplate({
-                        synagogueId,
-                        name: name.trim() || t('admin.templateNameDefault', { name: config.name }),
-                        description: t('admin.templateDesc'),
-                        theme: config.theme,
-                        layout: 'canvas',
-                        design: config.design,
-                        canvas: config.canvas,
-                      });
-                      if (!result.ok || !result.template) {
-                        setStatus(result.error ?? t('admin.templateSaveFail'));
-                        return;
-                      }
-                      setStatus(t('admin.templateSaved', { name: result.template.name }));
-                    })();
-                  }}
+                  className="btn primary"
+                  onClick={openSaveCanvasTemplate}
                 >
                   {t('admin.saveAsTemplate')}
                 </button>
                 {config.layout !== 'canvas' ? (
                   <button
                     type="button"
-                    className="btn primary"
+                    className="btn ghost"
                     onClick={() => {
                       update({ layout: 'canvas', displayStyle: 'studio' });
                       setStatus(t('admin.canvasLayoutHintSave'));
@@ -1562,6 +1577,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
               onGalleryChange={updateGallery}
               onStatus={setStatus}
               onInteractionEnd={undo.checkpoint}
+              onSaveAsTemplate={openSaveCanvasTemplate}
             />
           </section>
         ) : null}
@@ -2265,6 +2281,23 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                           onChange={(e) => updateItem(blockId, item.id, { time: e.target.value })}
                         />
                       )}
+                      <button
+                        type="button"
+                        className="btn danger quick-prayer-delete"
+                        title={t('common.delete')}
+                        aria-label={t('common.delete')}
+                        onClick={() => {
+                          void (async () => {
+                            const label = item.title.trim() || t('admin.itemTitle');
+                            if (!(await askConfirm(t('admin.confirmDeleteItem', { title: label })))) {
+                              return;
+                            }
+                            removeItem(blockId, item.id);
+                          })();
+                        }}
+                      >
+                        {t('common.delete')}
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -2889,6 +2922,59 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
             ) : null}
           </button>
         </nav>
+      ) : null}
+
+      {saveTplOpen ? (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onClick={() => (!saveTplBusy ? setSaveTplOpen(false) : undefined)}
+        >
+          <form
+            className="admin-modal"
+            role="dialog"
+            aria-modal
+            aria-labelledby="save-tpl-title"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void confirmSaveCanvasTemplate();
+            }}
+          >
+            <h2 id="save-tpl-title">{t('canvas.saveTemplateTitle')}</h2>
+            <p className="hint">{t('canvas.saveTemplateHint')}</p>
+            <label>
+              {t('design.templateName')}
+              <input
+                value={saveTplName}
+                onChange={(e) => setSaveTplName(e.target.value)}
+                placeholder={t('design.templateNamePh')}
+                autoFocus
+              />
+            </label>
+            <label>
+              {t('admin.templateDescLabel')}
+              <input
+                value={saveTplDesc}
+                onChange={(e) => setSaveTplDesc(e.target.value)}
+                placeholder={t('admin.templateDescPh')}
+              />
+            </label>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={saveTplBusy}
+                onClick={() => setSaveTplOpen(false)}
+              >
+                {t('canvas.saveTemplateCancel')}
+              </button>
+              <button type="submit" className="btn primary" disabled={saveTplBusy}>
+                {saveTplBusy ? '…' : t('canvas.saveTemplateConfirm')}
+              </button>
+            </div>
+          </form>
+        </div>
       ) : null}
 
       {passwordReset ? (
