@@ -2459,7 +2459,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                             })();
                           }}
                         >
-                          {t('common.delete')}
+                          ×
                         </button>
                         <button
                           type="button"
