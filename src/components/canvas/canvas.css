@@ -524,6 +524,16 @@
 
 .cw-omer-day {
   font-family: 'Frank Ruhl Libre', 'David Libre', serif !important;
+  font-size: 1.15em !important;
+  font-weight: 700 !important;
+}
+
+.cw-omer-today {
+  margin-top: 0.4rem !important;
+  font-family: 'Frank Ruhl Libre', 'David Libre', serif !important;
+  font-size: 0.95em !important;
+  line-height: 1.45 !important;
+  font-weight: 600 !important;
 }
 
 .cw-omer-sefira {

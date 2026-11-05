@@ -1,5 +1,12 @@
 import { HDate, HebrewCalendar, months, flags } from '@hebcal/core';
-import { DafYomi, MishnaYomiEvent, MishnaYomiIndex } from '@hebcal/learning';
+import {
+  DafYomi,
+  MishnaYomiEvent,
+  MishnaYomiIndex,
+  YerushalmiYomiEvent,
+  vilna,
+  yerushalmiYomi,
+} from '@hebcal/learning';
 import type { DayInfo, SynagogueConfig, YahrzeitEntry } from '../types';
 
 const WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -182,6 +189,16 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
     dafYomi = '';
   }
 
+  let dafYerushalmi = '';
+  try {
+    const reading = yerushalmiYomi(date, vilna);
+    if (reading) {
+      dafYerushalmi = new YerushalmiYomiEvent(hd, reading).render('he');
+    }
+  } catch {
+    dafYerushalmi = '';
+  }
+
   let mishnaYomi = '';
   try {
     const reading = getMishnaIndex().lookup(date);
@@ -214,9 +231,11 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
       const dayNum = dayMatch ? Number(dayMatch[1]) : oe.getWeeks() * 7 + oe.getDaysWithinWeeks();
       omer = {
         day: dayNum,
-        label: oe.renderBrief('he') || oe.render('he'),
+        label: oe.render('he') || oe.renderBrief('he'),
         todayIs: oe.getTodayIs('he'),
         sefira: oe.sefira('he'),
+        weeks: oe.getWeeks(),
+        daysWithinWeek: oe.getDaysWithinWeeks(),
       };
       return;
     }
@@ -299,6 +318,7 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
     weekday: WEEKDAYS[date.getDay()]!,
     parasha,
     dafYomi,
+    dafYerushalmi,
     mishnaYomi,
     holidays,
     memorials,

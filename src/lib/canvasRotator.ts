@@ -7,6 +7,7 @@ export const ROTATOR_CHOICES: CanvasWidgetType[] = [
   'hebrewDate',
   'parasha',
   'dafYomi',
+  'dafYerushalmi',
   'weather',
   'zmanim',
   'announcements',
@@ -25,7 +26,12 @@ export const ROTATOR_CHOICES: CanvasWidgetType[] = [
   'itimHaftara',
 ];
 
-export const DEFAULT_ROTATOR_TYPES: CanvasWidgetType[] = ['parasha', 'dafYomi', 'itimHaftara'];
+export const DEFAULT_ROTATOR_TYPES: CanvasWidgetType[] = [
+  'dafYomi',
+  'dafYerushalmi',
+  'parasha',
+  'itimHaftara',
+];
 
 const ALLOWED = new Set<CanvasWidgetType>(ROTATOR_CHOICES);
 
@@ -84,6 +90,8 @@ export function widgetTypeHasContent(type: CanvasWidgetType, data: CanvasData): 
       return Boolean(day.parasha);
     case 'dafYomi':
       return Boolean(day.dafYomi);
+    case 'dafYerushalmi':
+      return Boolean(day.dafYerushalmi);
     case 'weather':
       return data.weatherTemp != null;
     case 'zmanim':

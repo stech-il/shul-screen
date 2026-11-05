@@ -499,11 +499,13 @@
   text-align: center;
 }
 
-.rs-bina-omer-num {
-  margin: 0 0 0.35rem;
-  font-size: clamp(2.5rem, 6vw, 4rem);
-  font-weight: 700;
-  color: var(--rs-gold-dark);
+.rs-bina-omer-today {
+  display: block;
+  margin-top: 0.55rem;
+  max-width: 36rem;
+  margin-inline: auto;
+  line-height: 1.45;
+  font-size: clamp(1.05rem, 2vw, 1.45rem) !important;
 }
 
 .rs-bina-weather {

@@ -33,6 +33,7 @@ export const ROTATING_SLIDE_ORDER: RotatingSlideId[] = [
   'yahrzeitWeek',
   'omer',
   'dafYomi',
+  'dafYerushalmi',
   'mishnaYomi',
   'hebrewDate',
   'weather',
@@ -63,6 +64,7 @@ export const ROTATING_SLIDE_LABELS: Record<RotatingSlideId, string> = {
   yahrzeitWeek: 'אזכרות השבוע',
   omer: 'ספירת העומר',
   dafYomi: 'הדף היומי',
+  dafYerushalmi: 'הדף היומי ירושלמי',
   mishnaYomi: 'משנה יומית',
   hebrewDate: 'התאריך',
   weather: 'מזג האוויר',
@@ -287,6 +289,11 @@ export function buildActiveRotatingSlides(opts: {
         break;
       case 'dafYomi':
         if (config.showDafYomi !== false && day.dafYomi) out.push({ key: 'dafYomi', id });
+        break;
+      case 'dafYerushalmi':
+        if (config.showDafYomi !== false && day.dafYerushalmi) {
+          out.push({ key: 'dafYerushalmi', id });
+        }
         break;
       case 'mishnaYomi':
         if (config.showDafYomi !== false && day.mishnaYomi) out.push({ key: 'mishnaYomi', id });

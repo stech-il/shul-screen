@@ -45,6 +45,7 @@ export type RotatingSlideId =
   | 'yahrzeitWeek'
   | 'omer'
   | 'dafYomi'
+  | 'dafYerushalmi'
   | 'mishnaYomi'
   | 'hebrewDate'
   | 'weather'
@@ -133,6 +134,7 @@ export type CanvasWidgetType =
   | 'hebrewDate'
   | 'parasha'
   | 'dafYomi'
+  | 'dafYerushalmi'
   | 'weather'
   | 'zmanim'
   | 'zman'
@@ -426,6 +428,8 @@ export interface DayInfo {
   weekday: string;
   parasha: string;
   dafYomi: string;
+  /** Jerusalem Talmud Daf Yomi (Vilna edition), Hebrew */
+  dafYerushalmi: string;
   mishnaYomi: string;
   /** Chag / minor holidays (today) */
   holidays: string[];
@@ -441,9 +445,13 @@ export interface DayInfo {
   /** Present only during Sefirat HaOmer */
   omer?: {
     day: number;
+    /** Short Hebrew label, e.g. י״ז בָּעוֹמֶר */
     label: string;
+    /** Full liturgical count: הַיּוֹם … לָעוֹמֶר */
     todayIs: string;
     sefira: string;
+    weeks: number;
+    daysWithinWeek: number;
   } | null;
 }
 

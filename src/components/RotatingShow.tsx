@@ -396,10 +396,11 @@ export function RotatingShow({
       case 'omer':
         return day.omer ? (
           <div className="rs-bina-omer">
-            <p className="rs-bina-omer-num">{day.omer.day}</p>
             <div className="rs-bina-parasha-tile is-hero">
+              <span className="rs-bina-parasha-label">ספירת העומר</span>
               <strong>{day.omer.label}</strong>
-              <em>{[day.omer.todayIs, day.omer.sefira].filter(Boolean).join(' · ')}</em>
+              {day.omer.todayIs ? <em className="rs-bina-omer-today">{day.omer.todayIs}</em> : null}
+              {day.omer.sefira ? <em>{day.omer.sefira}</em> : null}
             </div>
           </div>
         ) : null;
@@ -408,6 +409,13 @@ export function RotatingShow({
           <div className="rs-bina-parasha-tile is-hero">
             <span className="rs-bina-parasha-label">הדף היומי</span>
             <strong>{day.dafYomi ?? ''}</strong>
+          </div>
+        );
+      case 'dafYerushalmi':
+        return (
+          <div className="rs-bina-parasha-tile is-hero">
+            <span className="rs-bina-parasha-label">הדף היומי ירושלמי</span>
+            <strong>{day.dafYerushalmi ?? ''}</strong>
           </div>
         );
       case 'weather': {

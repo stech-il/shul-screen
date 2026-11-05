@@ -531,6 +531,14 @@
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+.omer-today {
+  margin: 0.45rem 0 0;
+  font-family: var(--font-heading);
+  font-size: calc(clamp(0.95rem, 1.4vw, 1.15rem) * var(--body-scale));
+  line-height: 1.45;
+  font-weight: 600;
+}
+
 .omer-sefira {
   margin: 0.35rem 0 0;
   font-size: 0.95em;

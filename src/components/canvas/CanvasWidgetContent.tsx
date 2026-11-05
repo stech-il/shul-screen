@@ -265,18 +265,34 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         <Placeholder label="הדף היומי" />
       );
 
+    case 'dafYerushalmi':
+      return data.day.dafYerushalmi ? (
+        <div className="cw-stat">
+          {widget.showTitle ? <h3>{title || 'הדף היומי ירושלמי'}</h3> : null}
+          <p>{data.day.dafYerushalmi}</p>
+        </div>
+      ) : (
+        <Placeholder label="הדף היומי ירושלמי" />
+      );
+
     case 'omer':
       return data.day.omer ? (
         <div className="cw-stat cw-omer">
           {widget.showTitle ? <h3>{title || 'ספירת העומר'}</h3> : null}
           <p className="cw-omer-day">{data.day.omer.label}</p>
+          {data.day.omer.todayIs ? (
+            <p className="cw-omer-today">{data.day.omer.todayIs}</p>
+          ) : null}
           {data.day.omer.sefira ? <p className="cw-omer-sefira">{data.day.omer.sefira}</p> : null}
         </div>
       ) : placeholder ? (
         <div className="cw-stat cw-omer">
           {widget.showTitle ? <h3>{title || 'ספירת העומר'}</h3> : null}
-          <p className="cw-omer-day">עוֹמֶר יוֹם 18</p>
-          <p className="cw-omer-sefira">נצח שבתיפארת</p>
+          <p className="cw-omer-day">י״ח בָּעוֹמֶר</p>
+          <p className="cw-omer-today">
+            הַיּוֹם שְׁמוֹנָה עָשָׂר יוֹם, שֶׁהֵם שְׁנֵי שָׁבוּעוֹת וְאַרְבָּעָה יָמִים לָעֽוֹמֶר
+          </p>
+          <p className="cw-omer-sefira">נֵצַח שֶׁבְּתִפְאֶֽרֶת</p>
         </div>
       ) : null;
 
