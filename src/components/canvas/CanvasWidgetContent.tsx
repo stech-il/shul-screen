@@ -18,6 +18,7 @@ import { AnalogClock, DigitalClock } from './ClockWidget';
 import { WIDGET_LABELS } from './widgets';
 import type { ItimExtraLine, ItimExtras } from '../../lib/itimExtras';
 import {
+  DAF_ROTATOR_TYPES,
   normalizeRotatorSeconds,
   normalizeRotatorTypes,
   rotatorItemShowsTitle,
@@ -74,7 +75,13 @@ function RotatingCanvasSlot({
   data: CanvasData;
   placeholder?: boolean;
 }) {
-  const types = useMemo(() => normalizeRotatorTypes(widget.rotatorTypes), [widget.rotatorTypes]);
+  const types = useMemo(
+    () =>
+      widget.type === 'dafRotator'
+        ? [...DAF_ROTATOR_TYPES]
+        : normalizeRotatorTypes(widget.rotatorTypes),
+    [widget.type, widget.rotatorTypes],
+  );
   const seconds = normalizeRotatorSeconds(widget.rotatorSeconds);
   const shown = useMemo(() => {
     if (placeholder) return types;
@@ -94,7 +101,15 @@ function RotatingCanvasSlot({
   }, [shown.length, shown.join('|'), seconds]);
 
   if (!shown.length) {
-    return placeholder ? <Placeholder label="וידג׳ט מתחלף — בחרו רכיבים בהגדרות" /> : null;
+    return placeholder ? (
+      <Placeholder
+        label={
+          widget.type === 'dafRotator'
+            ? 'דף יומי מתחלף — בבלי ↔ ירושלמי'
+            : 'וידג׳ט מתחלף — בחרו רכיבים בהגדרות'
+        }
+      />
+    ) : null;
   }
 
   const type = shown[tick % shown.length];
@@ -665,6 +680,7 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
       );
 
     case 'rotator':
+    case 'dafRotator':
       return <RotatingCanvasSlot widget={widget} data={data} placeholder={placeholder} />;
 
     default:

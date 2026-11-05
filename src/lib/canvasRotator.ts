@@ -33,6 +33,9 @@ export const DEFAULT_ROTATOR_TYPES: CanvasWidgetType[] = [
   'itimHaftara',
 ];
 
+/** Dedicated daf rotator: Bavli ↔ Yerushalmi only */
+export const DAF_ROTATOR_TYPES: CanvasWidgetType[] = ['dafYomi', 'dafYerushalmi'];
+
 const ALLOWED = new Set<CanvasWidgetType>(ROTATOR_CHOICES);
 
 export function normalizeRotatorTypes(raw: unknown): CanvasWidgetType[] {
@@ -84,6 +87,8 @@ export function widgetTypeHasContent(type: CanvasWidgetType, data: CanvasData): 
   switch (type) {
     case 'rotator':
       return false;
+    case 'dafRotator':
+      return DAF_ROTATOR_TYPES.some((t) => widgetTypeHasContent(t, data));
     case 'logo':
       return Boolean(data.logoSrc);
     case 'parasha':

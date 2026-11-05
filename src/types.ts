@@ -135,6 +135,7 @@ export type CanvasWidgetType =
   | 'parasha'
   | 'dafYomi'
   | 'dafYerushalmi'
+  | 'dafRotator'
   | 'weather'
   | 'zmanim'
   | 'zman'

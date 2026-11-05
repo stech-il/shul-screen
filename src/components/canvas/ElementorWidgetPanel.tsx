@@ -5,6 +5,7 @@ import { RichTextEditor } from '../RichTextEditor';
 import { ANALOG_DESIGNS, DIGITAL_DESIGNS } from './ClockWidget';
 import { clamp } from './widgets';
 import {
+  DAF_ROTATOR_TYPES,
   DEFAULT_ROTATOR_TYPES,
   ROTATOR_CHOICES,
   normalizeRotatorSeconds,
@@ -400,6 +401,52 @@ export function ElementorWidgetPanel({
                   </>
                 ) : null}
 
+                {selected.type === 'dafRotator' ? (
+                  <>
+                    <p className="cb-hint">{t('canvas.dafRotatorHint')}</p>
+                    <label className="cb-el-field">
+                      <span>{t('canvas.rotatorSeconds')}</span>
+                      <input
+                        type="number"
+                        dir="ltr"
+                        min={3}
+                        max={60}
+                        value={selected.rotatorSeconds ?? 8}
+                        onChange={(e) =>
+                          patch({ rotatorSeconds: normalizeRotatorSeconds(e.target.value) })
+                        }
+                      />
+                    </label>
+                    <p className="cb-hint">{t('canvas.rotatorTitlesHint')}</p>
+                    <div className="cb-rotator-picks">
+                      {DAF_ROTATOR_TYPES.map((type) => {
+                        const titles = selected.rotatorShowTitles ?? {};
+                        const showTitle = rotatorItemShowsTitle(titles, type);
+                        return (
+                          <div key={type} className="cb-rotator-pick">
+                            <span className="cb-rotator-fixed-label">{t(`widgets.${type}`)}</span>
+                            <label className="check cb-rotator-title-opt">
+                              <input
+                                type="checkbox"
+                                checked={showTitle}
+                                onChange={() => {
+                                  patch({
+                                    rotatorShowTitles: {
+                                      ...titles,
+                                      [type]: !showTitle,
+                                    },
+                                  });
+                                }}
+                              />
+                              {t('canvas.rotatorItemTitle')}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : null}
+
                 {selected.type === 'divider' ? (
                   <p className="cb-hint">{t('canvas.dividerHint')}</p>
                 ) : null}
@@ -436,7 +483,8 @@ export function ElementorWidgetPanel({
                 selected.type !== 'video' &&
                 selected.type !== 'image' &&
                 selected.type !== 'divider' &&
-                selected.type !== 'rotator' ? (
+                selected.type !== 'rotator' &&
+                selected.type !== 'dafRotator' ? (
                   <label className="cb-el-field">
                     <span>{t('canvas.customTitle')}</span>
                     <input
@@ -514,7 +562,8 @@ export function ElementorWidgetPanel({
                 selected.type !== 'divider' &&
                 selected.type !== 'video' &&
                 selected.type !== 'image' &&
-                selected.type !== 'rotator' ? (
+                selected.type !== 'rotator' &&
+                selected.type !== 'dafRotator' ? (
                   <label className="check">
                     <input
                       type="checkbox"

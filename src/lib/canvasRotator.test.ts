@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DAF_ROTATOR_TYPES,
   DEFAULT_ROTATOR_TYPES,
   normalizeRotatorEventsScroll,
   normalizeRotatorSeconds,
@@ -59,5 +60,11 @@ describe('normalizeRotatorEventsScroll', () => {
     expect(normalizeRotatorEventsScroll(false)).toBe(false);
     expect(normalizeRotatorEventsScroll('true')).toBe(false);
     expect(normalizeRotatorEventsScroll(true)).toBe(true);
+  });
+});
+
+describe('DAF_ROTATOR_TYPES', () => {
+  it('is only Bavli and Yerushalmi', () => {
+    expect(DAF_ROTATOR_TYPES).toEqual(['dafYomi', 'dafYerushalmi']);
   });
 });

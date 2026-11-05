@@ -17,6 +17,7 @@ export const WIDGET_LABELS: Record<CanvasWidgetType, string> = {
   parasha: 'פרשת השבוע',
   dafYomi: 'הדף היומי',
   dafYerushalmi: 'הדף היומי ירושלמי',
+  dafRotator: 'דף יומי מתחלף',
   weather: 'מזג אוויר',
   zmanim: 'רשימת זמנים',
   zman: 'זמן בודד',
@@ -52,6 +53,7 @@ const SIZE_DEFAULTS: Partial<Record<CanvasWidgetType, { w: number; h: number }>>
   parasha: { w: 24, h: 12 },
   dafYomi: { w: 24, h: 12 },
   dafYerushalmi: { w: 28, h: 12 },
+  dafRotator: { w: 30, h: 16 },
   weather: { w: 16, h: 12 },
   zmanim: { w: 30, h: 55 },
   zman: { w: 18, h: 12 },
@@ -142,7 +144,7 @@ export function createWidget(
     buttonLabel: type === 'button' ? 'לחצו כאן' : undefined,
     showCandles: type === 'countdown' ? true : undefined,
     rotatorTypes: type === 'rotator' ? [...DEFAULT_ROTATOR_TYPES] : undefined,
-    rotatorSeconds: type === 'rotator' ? 8 : undefined,
+    rotatorSeconds: type === 'rotator' || type === 'dafRotator' ? 8 : undefined,
     title:
       type === 'countdown'
         ? 'הדלקת נרות'
@@ -287,11 +289,17 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
         ? normalizeRotatorTypes(w.rotatorTypes ?? fallback.rotatorTypes)
         : undefined,
     rotatorSeconds:
-      w.type === 'rotator' || fallback.type === 'rotator'
+      w.type === 'rotator' ||
+      w.type === 'dafRotator' ||
+      fallback.type === 'rotator' ||
+      fallback.type === 'dafRotator'
         ? normalizeRotatorSeconds(w.rotatorSeconds ?? fallback.rotatorSeconds)
         : undefined,
     rotatorShowTitles:
-      w.type === 'rotator' || fallback.type === 'rotator'
+      w.type === 'rotator' ||
+      w.type === 'dafRotator' ||
+      fallback.type === 'rotator' ||
+      fallback.type === 'dafRotator'
         ? normalizeRotatorShowTitles(w.rotatorShowTitles ?? fallback.rotatorShowTitles)
         : undefined,
     rotatorEventsScroll:
