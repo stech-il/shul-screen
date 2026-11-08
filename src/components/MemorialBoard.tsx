@@ -58,8 +58,7 @@ function PlaqueCard({
         {showKicker ? <span className="mb-plaque-kicker">לעילוי נשמת</span> : null}
         <strong className="mb-plaque-name">{toPlainDisplayText(plaque.name)}</strong>
         <em className="mb-plaque-date">
-          {plaque.gender === 'female' ? 'נפטרה' : plaque.gender === 'male' ? 'נפטר' : 'נפטר/ה'}{' '}
-          {plaque.hebrewDate}
+          {plaque.gender === 'female' ? 'נפטרה' : 'נפטר'} {plaque.hebrewDate}
         </em>
         {plaque.note ? (
           <span className="mb-plaque-note">{toPlainDisplayText(plaque.note)}</span>

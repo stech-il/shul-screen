@@ -19,15 +19,18 @@ node scripts/publish-downloads.mjs
 
 ## פריסה בשרת (Render וכו׳)
 
-קבצי `.exe` / `.apk` לא נשמרים ב־git (גדולים מדי). אחרי דיפלוי:
+קבצי `.exe` / `.apk` לא נשמרים ב־git. הקישורים הציבוריים נמצאים ב־`manifest.json`
+וב־GitHub Release `v0.3.6-apps`, וגם ב־`render.yaml` כ־env.
 
-1. העלו את הקבצים לתיקיית `downloads/` בדיסק השרת, **או**
-2. הגדירו כתובות חיצוניות:
+אחרי בנייה מחדש:
 
+```bash
+npm run dist
+npm run android:apk
+npm run publish:downloads
+gh release upload v0.3.6-apps downloads/screensmart-Setup.exe downloads/screensmart-kiosk.apk --clobber
 ```
-DOWNLOAD_WINDOWS_URL=https://…/screensmart-Setup.exe
-DOWNLOAD_ANDROID_URL=https://…/screensmart-kiosk.apk
-DOWNLOAD_ANDROID_MANAGE_URL=https://…/screensmart-manage.apk
-```
+
+עדכנו את ה־`url` ב־`downloads/manifest.json` (ואת `DOWNLOAD_*_URL` ב־`render.yaml` אם צריך).
 
 בניהול → הגדרות → «התקנת אפליקציות» מופיעים כפתורי ההורדה.

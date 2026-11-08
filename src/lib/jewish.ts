@@ -307,9 +307,7 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
         name,
         hebrewDate: formatHebrewDate(y.hebrewDay, y.hebrewMonth),
         note: y.note,
-        gender: (y.gender === 'female' || y.gender === 'male'
-          ? y.gender
-          : undefined) as YahrzeitGender | undefined,
+        gender: (y.gender === 'female' ? 'female' : 'male') as YahrzeitGender,
         today: todayNames.has(name),
         thisWeek: weekNames.has(name),
       };

@@ -50,7 +50,8 @@ android/keystore.properties
 releases/
 !releases/.gitkeep
 
-# Hosted installers (publish with npm run publish:downloads — not in git)
+# Hosted installers (binaries stay local / on GitHub Releases — not in git)
 downloads/*
 !downloads/README.md
 !downloads/.gitkeep
+!downloads/manifest.json

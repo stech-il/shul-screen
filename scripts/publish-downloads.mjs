@@ -31,11 +31,22 @@ const apk =
   latest(RELEASE, /screensmart.*\.apk$/i) ||
   latest(path.join(ROOT, 'android/app/build/outputs/apk/kiosk/debug'), /\.apk$/i);
 
+const prev = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(OUT, 'manifest.json'), 'utf8'));
+  } catch {
+    return {};
+  }
+})();
+
+const RELEASE_TAG = process.env.DOWNLOADS_RELEASE_TAG || `v${PKG.version}-apps`;
+const RELEASE_BASE = `https://github.com/stech-il/shul-screen/releases/download/${RELEASE_TAG}`;
+
 const manifest = {
   version: PKG.version,
   updatedAt: new Date().toISOString(),
-  windows: null,
-  android: null,
+  windows: prev.windows ?? null,
+  android: prev.android ?? null,
 };
 
 if (win) {
@@ -45,6 +56,7 @@ if (win) {
     file: destName,
     version: PKG.version,
     source: win.name,
+    url: prev.windows?.url || `${RELEASE_BASE}/${destName}`,
   };
   console.log(`Windows → downloads/${destName} (from ${win.name})`);
 } else {
@@ -58,6 +70,7 @@ if (apk) {
     file: destName,
     version: PKG.version,
     source: apk.name,
+    url: prev.android?.url || `${RELEASE_BASE}/${destName}`,
   };
   console.log(`Android → downloads/${destName} (from ${apk.name})`);
 } else {

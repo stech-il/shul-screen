@@ -1,4 +1,10 @@
-import type { Announcement, CachedBundle, Member, SynagogueConfig } from '../types';
+import type {
+  Announcement,
+  CachedBundle,
+  Member,
+  SynagogueConfig,
+  YahrzeitEntry,
+} from '../types';
 import { normalizeCanvas } from '../components/canvas/widgets';
 import { normalizeGallery } from './gallery';
 import { DEFAULT_DESIGN } from '../data/designPresets';
@@ -45,6 +51,19 @@ function normalizeMembers(members: Member[] | undefined): Member[] {
       ...(m.pinHash && !m.passwordHash ? { pinHash: m.pinHash } : {}),
     };
   });
+}
+
+function normalizeYahrzeits(list: YahrzeitEntry[] | undefined): YahrzeitEntry[] {
+  return (list ?? []).map((y, i) => ({
+    ...y,
+    id: y.id || `y-${i}`,
+    name: String(y.name ?? ''),
+    hebrewMonth: Number(y.hebrewMonth) || 1,
+    hebrewDay: Number(y.hebrewDay) || 1,
+    gender: y.gender === 'female' ? 'female' : 'male',
+    note: y.note,
+    enabled: y.enabled !== false,
+  }));
 }
 
 export function normalizeConfig(config: SynagogueConfig): SynagogueConfig {
@@ -101,7 +120,7 @@ export function normalizeConfig(config: SynagogueConfig): SynagogueConfig {
       loopVideoUrl: config.media?.loopVideoUrl ?? '',
       customFonts: config.media?.customFonts ?? [],
     },
-    yahrzeits: config.yahrzeits ?? [],
+    yahrzeits: normalizeYahrzeits(config.yahrzeits),
     canvas: normalizeCanvas(config.canvas),
     displayStyle: config.displayStyle === 'rotating' ? 'rotating' : 'studio',
     rotatingScreens: normalizeRotatingScreens(config.rotatingScreens),
