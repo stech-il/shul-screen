@@ -166,6 +166,8 @@ export type CanvasWidgetType =
 export type CanvasWidgetBg = 'none' | 'panel' | 'solid' | 'dark' | 'ghost';
 export type CanvasTitleLayout = 'above' | 'below' | 'side' | 'side-reverse';
 export type CanvasHtmlTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'div';
+/** Visual theme for memorial board / yahrzeit plaques */
+export type MemorialBoardTheme = 'wood' | 'navy' | 'marble' | 'simple';
 
 export interface CanvasWidget {
   id: string;
@@ -219,6 +221,14 @@ export interface CanvasWidget {
   radius: number;
   /** For countdown widget — decorative candles on both sides */
   showCandles?: boolean;
+  /** memorialBoard / yahrzeit plaque look */
+  memorialTheme?: MemorialBoardTheme;
+  /** Highlight today's yahrzeit as a large featured plaque */
+  memorialShowFeatured?: boolean;
+  /** Show «לעילוי נשמת» on each plaque */
+  memorialShowKicker?: boolean;
+  /** Show ת.נ.צ.ב.ה. on each plaque */
+  memorialShowTnz?: boolean;
   /** Clock widget: analog vs digital */
   clockMode?: 'digital' | 'analog';
   /** Clock widget design variant */

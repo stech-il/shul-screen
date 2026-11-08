@@ -1,4 +1,10 @@
-import type { CanvasHtmlTag, CanvasWidget, ScheduleBlock, ZmanKey } from '../../types';
+import type {
+  CanvasHtmlTag,
+  CanvasWidget,
+  MemorialBoardTheme,
+  ScheduleBlock,
+  ZmanKey,
+} from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { useI18n } from '../../i18n';
 import { RichTextEditor } from '../RichTextEditor';
@@ -584,6 +590,60 @@ export function ElementorWidgetPanel({
                         onChange={(e) => patch({ showCandles: e.target.checked })}
                       />
                       {t('canvas.showCandles')}
+                    </label>
+                  </>
+                ) : null}
+
+                {selected.type === 'memorialBoard' || selected.type === 'yahrzeit' ? (
+                  <>
+                    <p className="cb-hint">{t('canvas.memorialHint')}</p>
+                    <label className="cb-el-field">
+                      <span>{t('canvas.memorialTheme')}</span>
+                      <select
+                        value={selected.memorialTheme ?? 'wood'}
+                        onChange={(e) =>
+                          patch({ memorialTheme: e.target.value as MemorialBoardTheme })
+                        }
+                      >
+                        <option value="wood">{t('canvas.memorialThemeWood')}</option>
+                        <option value="navy">{t('canvas.memorialThemeNavy')}</option>
+                        <option value="marble">{t('canvas.memorialThemeMarble')}</option>
+                        <option value="simple">{t('canvas.memorialThemeSimple')}</option>
+                      </select>
+                    </label>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={selected.showCandles !== false}
+                        onChange={(e) => patch({ showCandles: e.target.checked })}
+                      />
+                      {t('canvas.memorialCandles')}
+                    </label>
+                    {selected.type === 'memorialBoard' ? (
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={selected.memorialShowFeatured !== false}
+                          onChange={(e) => patch({ memorialShowFeatured: e.target.checked })}
+                        />
+                        {t('canvas.memorialShowFeatured')}
+                      </label>
+                    ) : null}
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={selected.memorialShowKicker !== false}
+                        onChange={(e) => patch({ memorialShowKicker: e.target.checked })}
+                      />
+                      {t('canvas.memorialShowKicker')}
+                    </label>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={selected.memorialShowTnz !== false}
+                        onChange={(e) => patch({ memorialShowTnz: e.target.checked })}
+                      />
+                      {t('canvas.memorialShowTnz')}
                     </label>
                   </>
                 ) : null}

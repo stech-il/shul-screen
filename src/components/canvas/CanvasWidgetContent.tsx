@@ -431,36 +431,38 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         </div>
       );
 
-    case 'yahrzeit': {
-      const todayPlaques = (data.day.memorialBoard ?? []).filter((p) => p.today);
-      if (todayPlaques.length) {
-        return (
-          <MemorialBoard
-            plaques={todayPlaques}
-            title={title || 'יארצייט היום'}
-            todayOnly
-            compact
-          />
-        );
-      }
-      return placeholder ? (
-        <MemorialBoard plaques={[]} title={title || 'יארצייט היום'} todayOnly compact />
-      ) : null;
-    }
-
+    case 'yahrzeit':
     case 'memorialBoard': {
-      const plaques = data.day.memorialBoard ?? [];
-      if (plaques.length || placeholder) {
-        return (
-          <MemorialBoard
-            plaques={plaques}
-            dedication={data.dedication}
-            title={title || 'לזכרון עולם בהיכל ה׳'}
-            compact
-          />
-        );
-      }
-      return null;
+      const todayOnly = widget.type === 'yahrzeit';
+      const plaques = todayOnly
+        ? (data.day.memorialBoard ?? []).filter((p) => p.today)
+        : data.day.memorialBoard ?? [];
+      if (!plaques.length && !placeholder) return null;
+      const boardStyle =
+        widget.color || widget.fontFamily
+          ? {
+              ...(widget.color ? { color: widget.color } : {}),
+              ...(widget.fontFamily ? { fontFamily: widget.fontFamily } : {}),
+            }
+          : undefined;
+      return (
+        <MemorialBoard
+          plaques={plaques}
+          dedication={todayOnly ? undefined : data.dedication}
+          title={
+            title ||
+            (todayOnly ? 'יארצייט היום' : 'לזכרון עולם בהיכל ה׳')
+          }
+          todayOnly={todayOnly}
+          compact
+          theme={widget.memorialTheme ?? 'wood'}
+          showCandles={widget.showCandles !== false}
+          showFeatured={widget.memorialShowFeatured !== false}
+          showKicker={widget.memorialShowKicker !== false}
+          showTnz={widget.memorialShowTnz !== false}
+          style={boardStyle}
+        />
+      );
     }
 
     case 'calendar': {

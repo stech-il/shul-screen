@@ -1,4 +1,10 @@
-import type { CanvasLayoutConfig, CanvasWidget, CanvasWidgetType, ZmanKey } from '../../types';
+import type {
+  CanvasLayoutConfig,
+  CanvasWidget,
+  CanvasWidgetType,
+  MemorialBoardTheme,
+  ZmanKey,
+} from '../../types';
 import { ZMAN_DEFS } from '../../data/zmanim';
 import { decodeHtmlEntities } from '../../lib/sanitizeHtml';
 import {
@@ -8,6 +14,12 @@ import {
   normalizeRotatorShowTitles,
   normalizeRotatorTypes,
 } from '../../lib/canvasRotator';
+
+const MEMORIAL_THEMES = new Set<MemorialBoardTheme>(['wood', 'navy', 'marble', 'simple']);
+
+function normalizeMemorialTheme(raw: unknown): MemorialBoardTheme {
+  return MEMORIAL_THEMES.has(raw as MemorialBoardTheme) ? (raw as MemorialBoardTheme) : 'wood';
+}
 
 export const WIDGET_LABELS: Record<CanvasWidgetType, string> = {
   title: 'שם בית הכנסת',
@@ -131,12 +143,23 @@ export function createWidget(
       type === 'logo' ||
       type === 'zman' ||
       type === 'divider' ||
-      type === 'video'
+      type === 'video' ||
+      type === 'memorialBoard' ||
+      type === 'yahrzeit'
         ? 'none'
         : type === 'button'
           ? 'solid'
           : 'panel',
-    showBorder: type !== 'zman' && type !== 'text' && type !== 'heading' && type !== 'image' && type !== 'logo' && type !== 'divider' && type !== 'video',
+    showBorder:
+      type !== 'zman' &&
+      type !== 'text' &&
+      type !== 'heading' &&
+      type !== 'image' &&
+      type !== 'logo' &&
+      type !== 'divider' &&
+      type !== 'video' &&
+      type !== 'memorialBoard' &&
+      type !== 'yahrzeit',
     textShadow: type === 'zman',
     opacity: 1,
     radius: type === 'zman' || type === 'divider' ? 0 : type === 'button' ? 10 : 12,
@@ -144,23 +167,32 @@ export function createWidget(
     htmlTag: type === 'heading' ? 'h2' : undefined,
     text: type === 'heading' ? 'כותרת לדוגמה' : type === 'text' ? 'כתבו כאן טקסט…' : undefined,
     buttonLabel: type === 'button' ? 'לחצו כאן' : undefined,
-    showCandles: type === 'countdown' ? true : undefined,
+    showCandles:
+      type === 'countdown' || type === 'memorialBoard' || type === 'yahrzeit' ? true : undefined,
+    memorialTheme: type === 'memorialBoard' || type === 'yahrzeit' ? 'wood' : undefined,
+    memorialShowFeatured: type === 'memorialBoard' ? true : undefined,
+    memorialShowKicker: type === 'memorialBoard' || type === 'yahrzeit' ? true : undefined,
+    memorialShowTnz: type === 'memorialBoard' || type === 'yahrzeit' ? true : undefined,
     rotatorTypes: type === 'rotator' ? [...DEFAULT_ROTATOR_TYPES] : undefined,
     rotatorSeconds: type === 'rotator' || type === 'dafRotator' ? 8 : undefined,
     title:
       type === 'countdown'
         ? 'הדלקת נרות'
-        : type === 'itimMoon'
-          ? 'זמני ירח'
-          : type === 'itimHalachot'
-            ? 'הלכות השבוע'
-            : type === 'itimEvents'
-              ? 'מאורעות היום'
-              : type === 'itimLimud'
-                ? 'הלימוד היומי'
-                : type === 'itimHaftara'
-                  ? 'הפטרה'
-                  : undefined,
+        : type === 'memorialBoard'
+          ? 'לזכרון עולם בהיכל ה׳'
+          : type === 'yahrzeit'
+            ? 'יארצייט היום'
+            : type === 'itimMoon'
+              ? 'זמני ירח'
+              : type === 'itimHalachot'
+                ? 'הלכות השבוע'
+                : type === 'itimEvents'
+                  ? 'מאורעות היום'
+                  : type === 'itimLimud'
+                    ? 'הלימוד היומי'
+                    : type === 'itimHaftara'
+                      ? 'הפטרה'
+                      : undefined,
     ...extras,
   };
 }
@@ -283,9 +315,39 @@ function normalizeWidget(w: Partial<CanvasWidget>, index: number): CanvasWidget 
     opacity: w.opacity ?? 1,
     radius: w.radius ?? fallback.radius,
     showCandles:
-      w.type === 'countdown' || fallback.type === 'countdown'
+      w.type === 'countdown' ||
+      w.type === 'memorialBoard' ||
+      w.type === 'yahrzeit' ||
+      fallback.type === 'countdown' ||
+      fallback.type === 'memorialBoard' ||
+      fallback.type === 'yahrzeit'
         ? w.showCandles ?? fallback.showCandles ?? true
         : w.showCandles,
+    memorialTheme:
+      w.type === 'memorialBoard' ||
+      w.type === 'yahrzeit' ||
+      fallback.type === 'memorialBoard' ||
+      fallback.type === 'yahrzeit'
+        ? normalizeMemorialTheme(w.memorialTheme ?? fallback.memorialTheme)
+        : undefined,
+    memorialShowFeatured:
+      w.type === 'memorialBoard' || fallback.type === 'memorialBoard'
+        ? w.memorialShowFeatured ?? fallback.memorialShowFeatured ?? true
+        : undefined,
+    memorialShowKicker:
+      w.type === 'memorialBoard' ||
+      w.type === 'yahrzeit' ||
+      fallback.type === 'memorialBoard' ||
+      fallback.type === 'yahrzeit'
+        ? w.memorialShowKicker ?? fallback.memorialShowKicker ?? true
+        : undefined,
+    memorialShowTnz:
+      w.type === 'memorialBoard' ||
+      w.type === 'yahrzeit' ||
+      fallback.type === 'memorialBoard' ||
+      fallback.type === 'yahrzeit'
+        ? w.memorialShowTnz ?? fallback.memorialShowTnz ?? true
+        : undefined,
     rotatorTypes:
       w.type === 'rotator' || fallback.type === 'rotator'
         ? normalizeRotatorTypes(w.rotatorTypes ?? fallback.rotatorTypes)
