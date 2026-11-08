@@ -46,5 +46,11 @@ android/.idea/
 android/keystore.properties
 *.jks
 *.keystore
+*.apk
 releases/
 !releases/.gitkeep
+
+# Hosted installers (publish with npm run publish:downloads — not in git)
+downloads/*
+!downloads/README.md
+!downloads/.gitkeep

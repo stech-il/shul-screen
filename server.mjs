@@ -24,6 +24,7 @@ import { handleLandingAnalytics } from './server/landingAnalytics.mjs';
 import { handlePublicDirectory } from './server/publicDirectory.mjs';
 import { handleCloud } from './server/cloudHttp.mjs';
 import { handleAppVersion } from './server/appVersion.mjs';
+import { handleDownloads } from './server/downloads.mjs';
 import { handleItimZmanim } from './server/itimZmanim.mjs';
 import { sendJson } from './server/apiAuth.mjs';
 
@@ -47,6 +48,8 @@ const MIME = {
   '.map': 'application/json',
   '.txt': 'text/plain; charset=utf-8',
   '.xml': 'application/xml; charset=utf-8',
+  '.apk': 'application/vnd.android.package-archive',
+  '.exe': 'application/vnd.microsoft.portable-executable',
 };
 
 function send(res, status, body, headers = {}) {
@@ -132,6 +135,12 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === '/api/app-version') {
     void handleAppVersion(req, res, url);
+    return;
+  }
+  if (url.pathname === '/api/downloads' || url.pathname.startsWith('/downloads/')) {
+    void handleDownloads(req, res, url).then((handled) => {
+      if (!handled) sendJson(res, 404, { error: 'not found' }, req);
+    });
     return;
   }
   if (url.pathname.startsWith('/api/cloud')) {

@@ -7,7 +7,7 @@ import {
   vilna,
   yerushalmiYomi,
 } from '@hebcal/learning';
-import type { DayInfo, SynagogueConfig, YahrzeitEntry } from '../types';
+import type { DayInfo, SynagogueConfig, YahrzeitEntry, YahrzeitGender } from '../types';
 
 const WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
@@ -307,6 +307,9 @@ export function getDayInfo(date = new Date(), yahrzeits: YahrzeitEntry[] = []): 
         name,
         hebrewDate: formatHebrewDate(y.hebrewDay, y.hebrewMonth),
         note: y.note,
+        gender: (y.gender === 'female' || y.gender === 'male'
+          ? y.gender
+          : undefined) as YahrzeitGender | undefined,
         today: todayNames.has(name),
         thisWeek: weekNames.has(name),
       };

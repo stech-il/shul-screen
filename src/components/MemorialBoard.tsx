@@ -57,7 +57,10 @@ function PlaqueCard({
       <div className="mb-plaque-body">
         {showKicker ? <span className="mb-plaque-kicker">לעילוי נשמת</span> : null}
         <strong className="mb-plaque-name">{toPlainDisplayText(plaque.name)}</strong>
-        <em className="mb-plaque-date">נפטר/ה {plaque.hebrewDate}</em>
+        <em className="mb-plaque-date">
+          {plaque.gender === 'female' ? 'נפטרה' : plaque.gender === 'male' ? 'נפטר' : 'נפטר/ה'}{' '}
+          {plaque.hebrewDate}
+        </em>
         {plaque.note ? (
           <span className="mb-plaque-note">{toPlainDisplayText(plaque.note)}</span>
         ) : null}
@@ -72,18 +75,21 @@ const PLACEHOLDER_PLAQUES: MemorialPlaque[] = [
     name: 'משה הכהן בן שרה ז״ל',
     hebrewDate: 'י׳ בכסלו',
     note: '',
+    gender: 'male',
     today: true,
     thisWeek: true,
   },
   {
     name: 'רחל בת אברהם ע״ה',
     hebrewDate: 'ב׳ בטבת',
+    gender: 'female',
     today: false,
     thisWeek: true,
   },
   {
     name: 'יעקב בן יצחק ז״ל',
     hebrewDate: 'ט״ו בשבט',
+    gender: 'male',
     today: false,
     thisWeek: false,
   },

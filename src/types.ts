@@ -117,12 +117,16 @@ export interface Member {
   passkeys?: MemberPasskey[];
 }
 
+export type YahrzeitGender = 'male' | 'female';
+
 export interface YahrzeitEntry {
   id: string;
   name: string;
   /** Hebrew month 1-13 */
   hebrewMonth: number;
   hebrewDay: number;
+  /** Used for «נפטר» / «נפטרה» on the memorial plaque */
+  gender?: YahrzeitGender;
   note?: string;
   enabled: boolean;
 }
@@ -431,6 +435,8 @@ export interface MemorialPlaque {
   name: string;
   hebrewDate: string;
   note?: string;
+  /** male → נפטר · female → נפטרה */
+  gender?: YahrzeitGender;
   today: boolean;
   thisWeek: boolean;
 }

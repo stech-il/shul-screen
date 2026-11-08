@@ -93,6 +93,19 @@ export function cloudApiPlugin(): Plugin {
             }
             return;
           }
+          if (url.startsWith('/api/downloads') || url.startsWith('/downloads/')) {
+            const downloads = await import(
+              /* @vite-ignore */ pathToFileURL(resolve('server/downloads.mjs')).href
+            );
+            const parsed = new URL(url, 'http://localhost');
+            const handled = await downloads.handleDownloads(req, res, parsed);
+            if (!handled) {
+              res.statusCode = 404;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ error: 'not found' }));
+            }
+            return;
+          }
           if (url.startsWith('/api/itim')) {
             const itim = await import(
               /* @vite-ignore */ pathToFileURL(resolve('server/itimZmanim.mjs')).href

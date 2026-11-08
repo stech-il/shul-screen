@@ -24,6 +24,14 @@ npm run android:apk
 
 קובץ: `android/app/build/outputs/apk/kiosk/debug/app-kiosk-debug.apk`
 
+אחרי בנייה — להעלאה להורדה ממערכת הניהול:
+
+```bash
+node scripts/publish-downloads.mjs
+```
+
+ה־APK של הקיוסק עולה אוטומטית אחרי אתחול המכשיר (`BootReceiver`). נתוני המסך נשמרים במכשיר גם בלי אינטרנט.
+
 ## בניית אפליקציית ניהול (Play Store)
 
 בדיקה:

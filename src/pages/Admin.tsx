@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { AppsInstallCard } from '../components/AppsInstallCard';
 import { BillingCard } from '../components/BillingCard';
 import { DesignStudio } from '../components/DesignStudio';
 import { CanvasBuilder } from '../components/canvas/CanvasBuilder';
@@ -1923,6 +1924,8 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
               </div>
             </section>
 
+            <AppsInstallCard />
+
             {isOwner ? (
               <>
                 <section className="card emergency-card">
@@ -2035,6 +2038,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                         name: '',
                         hebrewMonth: 1,
                         hebrewDay: 1,
+                        gender: 'male',
                         enabled: true,
                       },
                     ],
@@ -2058,6 +2062,23 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                   }
                   placeholder={t('admin.yahrzeitNamePh')}
                 />
+                <select
+                  className="yahrzeit-gender"
+                  value={y.gender === 'female' ? 'female' : 'male'}
+                  onChange={(e) =>
+                    update({
+                      yahrzeits: config.yahrzeits.map((x) =>
+                        x.id === y.id
+                          ? { ...x, gender: e.target.value === 'female' ? 'female' : 'male' }
+                          : x,
+                      ),
+                    })
+                  }
+                  aria-label={t('admin.yahrzeitGender')}
+                >
+                  <option value="male">{t('admin.yahrzeitGenderMale')}</option>
+                  <option value="female">{t('admin.yahrzeitGenderFemale')}</option>
+                </select>
                 <HebrewDatePicker
                   value={{ hebrewDay: y.hebrewDay, hebrewMonth: y.hebrewMonth }}
                   onChange={(next) =>

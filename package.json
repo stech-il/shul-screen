@@ -23,7 +23,8 @@
     "android:apk": "npm run android:sync && cd android && .\\gradlew.bat assembleKioskDebug",
     "android:manage-sync": "cross-env VITE_CAPACITOR=1 VITE_APP_SHELL=manage npm run build && cross-env VITE_APP_SHELL=manage npx cap sync android",
     "android:manage-apk": "npm run android:manage-sync && cd android && .\\gradlew.bat assembleManageDebug",
-    "android:manage-bundle": "npm run android:manage-sync && cd android && .\\gradlew.bat bundleManageRelease"
+    "android:manage-bundle": "npm run android:manage-sync && cd android && .\\gradlew.bat bundleManageRelease",
+    "publish:downloads": "node scripts/publish-downloads.mjs"
   },
   "engines": {
     "node": ">=20"

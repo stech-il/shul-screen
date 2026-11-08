@@ -14,6 +14,8 @@
 1. **Electron** — `openAtLogin: true` (ברירת מחדל). לביטול: בקובץ `kiosk.json` הגדירו `"openAtLogin": false`
 2. **NSIS** — קיצור דרך בתיקיית Startup (`screensmart.lnk`) נוצר בהתקנה
 
+הורדה למנהלים: בניהול → הגדרות → «התקנת אפליקציות». אחרי `npm run dist` הריצו `npm run publish:downloads` כדי לעדכן את `downloads/`.
+
 ## איפה נשמר המזהה
 
 `kiosk.json` בתיקיית userData של האפליקציה, בדרך כלל:

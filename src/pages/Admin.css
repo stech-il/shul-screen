@@ -816,6 +816,66 @@
   grid-column: 1 / -1;
 }
 
+.apps-install-features {
+  margin: 0.35rem 0 0.85rem;
+  padding-inline-start: 1.2rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.apps-install-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.apps-install-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--line, #d5dde3) 88%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel, #fff) 92%, var(--accent, #c9a227) 8%);
+}
+
+.apps-install-item.is-missing {
+  opacity: 0.72;
+  background: color-mix(in srgb, var(--panel, #fff) 96%, #888 4%);
+}
+
+.apps-install-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  text-align: start;
+}
+
+.apps-install-item-body strong {
+  font-size: 1.02rem;
+  color: var(--ink);
+}
+
+.apps-install-item-body em {
+  font-style: normal;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.apps-install-missing {
+  font-size: 0.82rem;
+  color: #a15c12;
+}
+
+@media (max-width: 640px) {
+  .apps-install-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 .card h2 {
   margin: 0;
   font-family: 'Frank Ruhl Libre', serif;
@@ -826,6 +886,10 @@
   margin: -0.3rem 0 0.2rem;
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.hint.warn {
+  color: #a15c12;
 }
 
 label {
@@ -1194,14 +1258,19 @@ textarea {
 
 .yahrzeit-row {
   display: grid;
-  grid-template-columns: 1.2fr minmax(14rem, 1.5fr) 1fr auto auto;
+  grid-template-columns: 1.2fr minmax(7rem, 0.55fr) minmax(14rem, 1.5fr) 1fr auto auto;
   gap: 0.55rem;
   align-items: start;
   margin-top: 0.75rem;
 }
 
-.yahrzeit-row > input {
+.yahrzeit-row > input,
+.yahrzeit-row > select.yahrzeit-gender {
   margin-top: 0.15rem;
+}
+
+.yahrzeit-row > select.yahrzeit-gender {
+  min-height: 2.45rem;
 }
 
 .yahrzeit-row .check {
