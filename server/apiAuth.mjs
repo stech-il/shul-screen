@@ -78,6 +78,12 @@ export function allowedCorsOrigin(req) {
       'http://127.0.0.1:5173',
       'http://localhost:4173',
       'http://127.0.0.1:4173',
+      // Capacitor / Ionic Android+iOS WebView origins (kiosk + manage APK)
+      'https://localhost',
+      'http://localhost',
+      'capacitor://localhost',
+      'ionic://localhost',
+      'https://android.localhost',
       ...(String(process.env.CORS_ORIGINS || '')
         .split(',')
         .map((s) => s.trim())
@@ -85,9 +91,18 @@ export function allowedCorsOrigin(req) {
     ].filter(Boolean),
   );
   if (origin && allow.has(origin)) return origin;
-  if (!origin) return allow.has(publicOrigin) ? publicOrigin : '*';
+  // Capacitor sometimes sends a variant host — reflect it when it looks like a local shell.
+  if (
+    origin &&
+    (/^https?:\/\/localhost(?::\d+)?$/i.test(origin) ||
+      /^capacitor:\/\//i.test(origin) ||
+      /^ionic:\/\//i.test(origin))
+  ) {
+    return origin;
+  }
+  if (!origin) return '*';
   // Same-host requests without matching Origin still need a value for credentialed fetches
-  return allow.has(publicOrigin) ? publicOrigin : 'null';
+  return allow.has(publicOrigin) ? publicOrigin : '*';
 }
 
 export function sendJson(res, status, obj, req) {

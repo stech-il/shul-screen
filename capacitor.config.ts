@@ -19,12 +19,18 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
+    // Allow navigating / API calls to the public screensmart host from the WebView.
+    allowNavigation: ['www.screensmart.co.il', 'screensmart.co.il', 'localhost', 'android.localhost'],
   },
   android: {
     backgroundColor: isManage ? '#f5f7fa' : '#0f1c22',
     allowMixedContent: false,
   },
   plugins: {
+    // Native HTTP bypasses WebView CORS — required for cloud API from the APK shell.
+    CapacitorHttp: {
+      enabled: true,
+    },
     SplashScreen: {
       launchAutoHide: true,
       backgroundColor: isManage ? '#f5f7fa' : '#0f1c22',
