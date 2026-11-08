@@ -12,6 +12,7 @@ export const ROTATOR_CHOICES: CanvasWidgetType[] = [
   'zmanim',
   'announcements',
   'yahrzeit',
+  'memorialBoard',
   'calendar',
   'roshChodesh',
   'shabbatMevarchim',
@@ -107,6 +108,8 @@ export function widgetTypeHasContent(type: CanvasWidgetType, data: CanvasData): 
       return Boolean(data.announcement);
     case 'yahrzeit':
       return Boolean(day.yahrzeitNames?.length);
+    case 'memorialBoard':
+      return Boolean(day.memorialBoard?.length);
     case 'calendar':
       return Boolean((day.holidays?.length ?? 0) + (day.memorials?.length ?? 0));
     case 'roshChodesh':

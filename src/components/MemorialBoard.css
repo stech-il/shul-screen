@@ -1,0 +1,344 @@
+.memorial-board {
+  --mb-wood: #3a2416;
+  --mb-wood-deep: #24160e;
+  --mb-gold: #c9a227;
+  --mb-gold-bright: #e8c860;
+  --mb-gold-dark: #8a6a18;
+  --mb-plaque: linear-gradient(180deg, #f0d878 0%, #d4af37 42%, #b8942a 100%);
+  --mb-ink: #2a1a0c;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mb-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: clamp(0.55rem, 1.4vw, 1rem);
+  border-radius: 10px;
+  border: 5px solid #6b4524;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(201, 162, 39, 0.18), transparent 55%),
+    linear-gradient(180deg, #4a2e1c 0%, var(--mb-wood) 35%, var(--mb-wood-deep) 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(201, 162, 39, 0.35),
+    0 12px 36px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.mb-header {
+  text-align: center;
+  flex-shrink: 0;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.35);
+}
+
+.mb-header-flame {
+  display: block;
+  width: 0.85rem;
+  height: 1.15rem;
+  margin: 0 auto 0.25rem;
+  border-radius: 50% 50% 40% 40%;
+  background: radial-gradient(circle at 40% 30%, #fff6c8, #ffb347 45%, #e85d04 80%);
+  box-shadow: 0 0 12px 4px rgba(255, 170, 40, 0.55);
+  animation: mb-top-flame 1.8s ease-in-out infinite;
+}
+
+.mb-title {
+  margin: 0;
+  font-family: 'Frank Ruhl Libre', 'David Libre', serif;
+  font-size: clamp(1.25rem, 2.8vw, 2.2rem);
+  font-weight: 700;
+  color: var(--mb-gold-bright);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+  letter-spacing: 0.02em;
+}
+
+.mb-dedication {
+  margin: 0.35rem auto 0;
+  max-width: 40rem;
+  color: rgba(240, 216, 120, 0.88);
+  font-size: clamp(0.85rem, 1.4vw, 1.1rem);
+  line-height: 1.35;
+}
+
+.mb-featured {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.mb-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  gap: 0.55rem;
+  align-content: start;
+  overflow: auto;
+  padding: 0.15rem;
+}
+
+.mb-grid.is-today-only {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  max-width: 48rem;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.mb-plaque {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.45rem;
+  border-radius: 6px;
+  background: var(--mb-plaque);
+  border: 1px solid var(--mb-gold-dark);
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  color: var(--mb-ink);
+  min-height: 4.6rem;
+}
+
+.mb-plaque.is-featured {
+  flex: 1 1 18rem;
+  max-width: 28rem;
+  min-height: 6.2rem;
+  padding: 0.75rem 0.85rem 0.75rem 0.55rem;
+  border-width: 2px;
+  border-color: var(--mb-gold-bright);
+  box-shadow:
+    0 0 0 2px rgba(232, 200, 96, 0.35),
+    0 8px 22px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.mb-plaque.is-today {
+  outline: 2px solid rgba(255, 200, 80, 0.75);
+}
+
+.mb-plaque.is-week:not(.is-today) {
+  filter: saturate(1.05);
+}
+
+.mb-plaque-body {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.12rem;
+}
+
+.mb-plaque-kicker {
+  font-size: 0.72em;
+  font-weight: 700;
+  opacity: 0.78;
+  letter-spacing: 0.04em;
+}
+
+.mb-plaque-name {
+  font-family: 'Frank Ruhl Libre', 'David Libre', serif;
+  font-size: clamp(0.95rem, 1.55vw, 1.25rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.mb-plaque.is-featured .mb-plaque-name {
+  font-size: clamp(1.25rem, 2.4vw, 1.85rem);
+}
+
+.mb-plaque-date {
+  font-style: normal;
+  font-size: 0.82em;
+  opacity: 0.88;
+}
+
+.mb-plaque-note {
+  font-size: 0.78em;
+  opacity: 0.8;
+  line-height: 1.25;
+}
+
+.mb-plaque-tnz {
+  margin-top: 0.15rem;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+}
+
+/* Neshama candle */
+.mb-candle {
+  flex: 0 0 auto;
+  width: 1.35rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: center;
+  opacity: 0.35;
+}
+
+.mb-candle.is-lit {
+  opacity: 1;
+}
+
+.mb-candle-body {
+  width: 0.55rem;
+  height: 1.15rem;
+  border-radius: 0.12rem 0.12rem 0.2rem 0.2rem;
+  background: linear-gradient(180deg, #fff8e7, #e8d9b0 40%, #c4b48a);
+  box-shadow: inset 0 0 0 1px rgba(90, 70, 30, 0.25);
+}
+
+.mb-candle-flame {
+  width: 0.55rem;
+  height: 0.75rem;
+  margin-bottom: -0.08rem;
+  border-radius: 50% 50% 40% 40%;
+  background: radial-gradient(circle at 40% 30%, #fffce8, #ffc14d 40%, #ff6a00 78%, transparent 82%);
+  opacity: 0;
+  transform-origin: 50% 100%;
+}
+
+.mb-candle.is-lit .mb-candle-flame {
+  opacity: 1;
+}
+
+.mb-candle.is-flicker .mb-candle-flame {
+  animation: mb-flicker 0.9s ease-in-out infinite;
+}
+
+.mb-candle-glow {
+  position: absolute;
+  top: 0.1rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 160, 40, 0.55), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mb-candle.is-lit .mb-candle-glow {
+  opacity: 0.85;
+}
+
+.mb-candle.is-flicker .mb-candle-glow {
+  animation: mb-glow-pulse 1.4s ease-in-out infinite;
+}
+
+.mb-plaque.is-featured .mb-candle {
+  width: 1.7rem;
+}
+
+.mb-plaque.is-featured .mb-candle-body {
+  width: 0.7rem;
+  height: 1.45rem;
+}
+
+.mb-plaque.is-featured .mb-candle-flame {
+  width: 0.7rem;
+  height: 0.95rem;
+}
+
+.mb-page {
+  margin: 0;
+  text-align: center;
+  color: rgba(240, 216, 120, 0.8);
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+/* Compact (canvas widget) */
+.memorial-board.is-compact .mb-frame {
+  padding: 0.4rem;
+  border-width: 3px;
+  gap: 0.4rem;
+}
+
+.memorial-board.is-compact .mb-title {
+  font-size: clamp(0.95rem, 2vw, 1.25rem);
+}
+
+.memorial-board.is-compact .mb-header-flame {
+  width: 0.55rem;
+  height: 0.75rem;
+}
+
+.memorial-board.is-compact .mb-grid {
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.35rem;
+}
+
+.memorial-board.is-compact .mb-plaque {
+  min-height: 3.6rem;
+  padding: 0.4rem 0.4rem 0.4rem 0.3rem;
+}
+
+.memorial-board.is-compact .mb-plaque-name {
+  font-size: 0.88rem;
+}
+
+@keyframes mb-flicker {
+  0%,
+  100% {
+    transform: scaleY(1) scaleX(1) rotate(-2deg);
+    filter: brightness(1);
+  }
+  25% {
+    transform: scaleY(1.12) scaleX(0.92) rotate(3deg);
+    filter: brightness(1.15);
+  }
+  50% {
+    transform: scaleY(0.92) scaleX(1.05) rotate(-1deg);
+    filter: brightness(0.88);
+  }
+  75% {
+    transform: scaleY(1.08) scaleX(0.96) rotate(2deg);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes mb-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes mb-top-flame {
+  0%,
+  100% {
+    transform: scaleY(1) rotate(-3deg);
+  }
+  50% {
+    transform: scaleY(1.12) rotate(4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-candle.is-flicker .mb-candle-flame,
+  .mb-candle.is-flicker .mb-candle-glow,
+  .mb-header-flame {
+    animation: none;
+  }
+}

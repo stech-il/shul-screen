@@ -28,6 +28,8 @@ function seasonalWidgetHasContent(type: CanvasWidgetType, data: CanvasData): boo
       return Boolean(day.omer);
     case 'yahrzeit':
       return Boolean(day.yahrzeitNames?.length);
+    case 'memorialBoard':
+      return Boolean(day.memorialBoard?.length);
     default:
       return null;
   }

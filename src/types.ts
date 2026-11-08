@@ -142,6 +142,7 @@ export type CanvasWidgetType =
   | 'block'
   | 'announcements'
   | 'yahrzeit'
+  | 'memorialBoard'
   | 'calendar'
   | 'roshChodesh'
   | 'shabbatMevarchim'

@@ -13,6 +13,7 @@ import { sanitizeRichHtml, toPlainDisplayText } from '../../lib/sanitizeHtml';
 import { isUpcomingWithinMinutes } from '../../lib/upcomingTime';
 import { weatherCodeToIcon } from '../../lib/weather';
 import { CandleTimesBoard, PLACEHOLDER_CANDLE_BOARD } from '../CandleTimesBoard';
+import { MemorialBoard } from '../MemorialBoard';
 import { RichAnnounce } from '../RichAnnounce';
 import { AnalogClock, DigitalClock } from './ClockWidget';
 import { WIDGET_LABELS } from './widgets';
@@ -430,15 +431,37 @@ export function CanvasWidgetContent({ widget, data, placeholder }: Props) {
         </div>
       );
 
-    case 'yahrzeit':
-      return data.day.yahrzeitNames?.length ? (
-        <div className="cw-stat">
-          {widget.showTitle ? <h3>{title || 'יארצייט'}</h3> : null}
-          <p>{data.day.yahrzeitNames.join(' · ')}</p>
-        </div>
-      ) : placeholder ? (
-        <Placeholder label="יארצייט" />
+    case 'yahrzeit': {
+      const todayPlaques = (data.day.memorialBoard ?? []).filter((p) => p.today);
+      if (todayPlaques.length) {
+        return (
+          <MemorialBoard
+            plaques={todayPlaques}
+            title={title || 'יארצייט היום'}
+            todayOnly
+            compact
+          />
+        );
+      }
+      return placeholder ? (
+        <MemorialBoard plaques={[]} title={title || 'יארצייט היום'} todayOnly compact />
       ) : null;
+    }
+
+    case 'memorialBoard': {
+      const plaques = data.day.memorialBoard ?? [];
+      if (plaques.length || placeholder) {
+        return (
+          <MemorialBoard
+            plaques={plaques}
+            dedication={data.dedication}
+            title={title || 'לזכרון עולם בהיכל ה׳'}
+            compact
+          />
+        );
+      }
+      return null;
+    }
 
     case 'calendar': {
       const items = [...(data.day.holidays ?? []), ...(data.day.memorials ?? [])];

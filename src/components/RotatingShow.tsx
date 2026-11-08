@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { AnalogClock } from './canvas/ClockWidget';
+import { MemorialBoard } from './MemorialBoard';
 import { RichAnnounce } from './RichAnnounce';
 import {
   ROTATING_SLIDE_LABELS,
@@ -91,6 +92,8 @@ function BinaSlideTitle({ children }: { children: ReactNode }) {
 
 function slideHeading(id: RotatingSlideId | undefined, modeInfo: ModeInfo | null): string | null {
   if (!id || id === 'clock') return null;
+  /* Memorial board has its own ornate header */
+  if (id === 'memorialBoard' || id === 'yahrzeit') return null;
   if (id === 'prayers') {
     return modeInfo?.mode === 'shabbat' || modeInfo?.mode === 'holiday'
       ? 'זמני תפילות לשבת'
@@ -348,29 +351,12 @@ export function RotatingShow({
         const page = 'page' in slide ? slide.page : 1;
         const pages = 'pages' in slide ? slide.pages : 1;
         return (
-          <div className="rs-bina-memorial">
-            {config.dedication ? (
-              <p className="rs-bina-dedication">{toPlainDisplayText(config.dedication)}</p>
-            ) : null}
-            <div className="rs-bina-plaques">
-              {plaques.map((p) => (
-                <article
-                  key={`${p.name}-${p.hebrewDate}`}
-                  className={`rs-bina-plaque${p.today ? ' is-today' : p.thisWeek ? ' is-week' : ''}`}
-                >
-                  <span className="rs-bina-plaque-mark">נ״ע</span>
-                  <strong>{p.name}</strong>
-                  <em>{p.hebrewDate}</em>
-                  {p.note ? <span>{toPlainDisplayText(p.note)}</span> : null}
-                </article>
-              ))}
-            </div>
-            {pages > 1 ? (
-              <p className="rs-bina-page">
-                {page} / {pages}
-              </p>
-            ) : null}
-          </div>
+          <MemorialBoard
+            plaques={plaques}
+            dedication={config.dedication}
+            page={page}
+            pages={pages}
+          />
         );
       }
       case 'yahrzeitWeek':
@@ -392,7 +378,13 @@ export function RotatingShow({
           </div>
         );
       case 'yahrzeit':
-        return namesPoster(day.yahrzeitNames ?? []);
+        return (
+          <MemorialBoard
+            plaques={(day.memorialBoard ?? []).filter((p) => p.today)}
+            title="יארצייט היום"
+            todayOnly
+          />
+        );
       case 'omer':
         return day.omer ? (
           <div className="rs-bina-omer">

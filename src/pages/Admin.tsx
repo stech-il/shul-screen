@@ -2056,7 +2056,7 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                       ),
                     })
                   }
-                  placeholder={t('common.name')}
+                  placeholder={t('admin.yahrzeitNamePh')}
                 />
                 <HebrewDatePicker
                   value={{ hebrewDay: y.hebrewDay, hebrewMonth: y.hebrewMonth }}
@@ -2069,6 +2069,17 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                       ),
                     })
                   }
+                />
+                <input
+                  value={y.note ?? ''}
+                  onChange={(e) =>
+                    update({
+                      yahrzeits: config.yahrzeits.map((x) =>
+                        x.id === y.id ? { ...x, note: e.target.value } : x,
+                      ),
+                    })
+                  }
+                  placeholder={t('admin.yahrzeitNotePh')}
                 />
                 <label className="check">
                   <input
