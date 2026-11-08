@@ -24,7 +24,8 @@
     "android:manage-sync": "cross-env VITE_CAPACITOR=1 VITE_APP_SHELL=manage npm run build && cross-env VITE_APP_SHELL=manage npx cap sync android",
     "android:manage-apk": "npm run android:manage-sync && cd android && .\\gradlew.bat assembleManageDebug",
     "android:manage-bundle": "npm run android:manage-sync && cd android && .\\gradlew.bat bundleManageRelease",
-    "publish:downloads": "node scripts/publish-downloads.mjs"
+    "publish:downloads": "node scripts/publish-downloads.mjs",
+    "icons:generate": "node scripts/generate-app-icons.mjs"
   },
   "engines": {
     "node": ">=20"
