@@ -174,6 +174,19 @@
       margin: 0 0 0.75rem;
       min-height: 1.2em;
     }
+    .server-fixed {
+      margin: 0 0 0.85rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      background: #f3f6f8;
+      color: #3a4a52;
+      font-size: 0.92rem;
+    }
+    .server-fixed strong {
+      display: inline-block;
+      margin-inline-start: 0.35rem;
+      color: #1a2f38;
+    }
   </style>
 </head>
 <body>
@@ -185,10 +198,10 @@
       מזהה מסך
       <input id="shulId" class="ltr" required minlength="1" maxlength="12" inputmode="numeric" pattern="[0-9]*" placeholder="12" autocomplete="off" />
     </label>
-    <label>
-      כתובת שרת
-      <input id="serverUrl" class="ltr" required type="url" value="https://www.screensmart.co.il" />
-    </label>
+    <p class="server-fixed">
+      שרת קבוע:
+      <strong class="ltr">https://www.screensmart.co.il</strong>
+    </p>
 
     <ul class="checklist" id="checklist" aria-live="polite">
       <li>
@@ -222,9 +235,9 @@
   </form>
   <script>
     (async function () {
+      const FIXED_SERVER = 'https://www.screensmart.co.il';
       const cfg = (await window.shulKiosk?.getConfig?.()) || {};
       if (cfg.shulId) document.getElementById('shulId').value = cfg.shulId;
-      if (cfg.serverUrl) document.getElementById('serverUrl').value = cfg.serverUrl;
 
       const errEl = document.getElementById('err');
       const submitBtn = document.getElementById('submit');
@@ -249,12 +262,7 @@
       async function runChecks() {
         errEl.textContent = '';
         const shulId = document.getElementById('shulId').value.trim();
-        let serverUrl = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
-        if (!/^https?:\/\//i.test(serverUrl)) {
-          errEl.textContent = 'כתובת שרת לא תקינה';
-          lastServerOk = false;
-          return false;
-        }
+        const serverUrl = FIXED_SERVER;
 
         setDot('dotServer', 'checking');
         setDot('dotConfig', 'checking');
@@ -269,7 +277,7 @@
           setDot('dotServer', lastServerOk ? 'ok' : 'bad');
           document.getElementById('detailServer').textContent = lastServerOk
             ? 'השרת מגיב'
-            : 'לא ניתן להגיע לשרת — בדקו רשת וכתובת';
+            : 'לא ניתן להגיע לשרת — בדקו את החיבור לאינטרנט';
 
           const configOk = Boolean(result?.config?.ok);
           const detail = result?.config?.detail || '';
@@ -302,13 +310,9 @@
         e.preventDefault();
         errEl.textContent = '';
         const shulId = document.getElementById('shulId').value.trim();
-        let serverUrl = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+        const serverUrl = FIXED_SERVER;
         if (!shulId) {
           errEl.textContent = 'נא להזין מזהה';
-          return;
-        }
-        if (!/^https?:\/\//i.test(serverUrl)) {
-          errEl.textContent = 'כתובת שרת לא תקינה';
           return;
         }
 

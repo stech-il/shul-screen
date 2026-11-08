@@ -18,13 +18,11 @@ function configMessage(detail: string, ok: boolean): string {
   if (detail === 'missing-id') return 'נא להזין מזהה';
   if (detail === 'bad-id') return 'מזהה מסך לא תקין — השתמשו במספר';
   if (detail === 'server-down') return 'לא נבדק — השרת לא זמין';
-  if (detail === 'bad-url') return 'כתובת שרת לא תקינה';
   return `לא ניתן לאמת הגדרה (${detail || 'שגיאה'})`;
 }
 
 export function KioskSetup() {
   const [shulId, setShulId] = useState('');
-  const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [serverDot, setServerDot] = useState<Dot>('pending');
@@ -35,20 +33,14 @@ export function KioskSetup() {
   useEffect(() => {
     void loadAndroidKioskConfig().then((cfg) => {
       if (cfg.shulId) setShulId(cfg.shulId);
-      if (cfg.serverUrl) setServerUrl(cfg.serverUrl);
     });
   }, []);
 
   async function runChecks(): Promise<boolean> {
     setErr('');
     const id = shulId.trim();
-    const server = serverUrl.trim().replace(/\/$/, '');
     if (!id) {
       setErr('נא להזין מזהה');
-      return false;
-    }
-    if (!/^https?:\/\//i.test(server)) {
-      setErr('כתובת שרת לא תקינה');
       return false;
     }
 
@@ -57,10 +49,10 @@ export function KioskSetup() {
     setServerDetail('בודקים…');
     setConfigDetail('בודקים…');
 
-    const result = await probeAndroidConnection({ shulId: id, serverUrl: server });
+    const result = await probeAndroidConnection({ shulId: id, serverUrl: DEFAULT_SERVER });
     const serverOk = result.server.ok;
     setServerDot(serverOk ? 'ok' : 'bad');
-    setServerDetail(serverOk ? 'השרת מגיב' : 'לא ניתן להגיע לשרת — בדקו רשת וכתובת');
+    setServerDetail(serverOk ? 'השרת מגיב' : 'לא ניתן להגיע לשרת — בדקו את החיבור לאינטרנט');
 
     const configOk = result.config.ok;
     setConfigDot(configOk ? 'ok' : serverOk ? 'warn' : 'bad');
@@ -79,9 +71,8 @@ export function KioskSetup() {
       const ok = await runChecks();
       if (!ok) return;
       const id = shulId.trim();
-      const server = serverUrl.trim().replace(/\/$/, '');
-      await saveAndroidKioskConfig({ shulId: id, serverUrl: server });
-      goToLiveDisplay(id, server);
+      await saveAndroidKioskConfig({ shulId: id, serverUrl: DEFAULT_SERVER });
+      goToLiveDisplay(id, DEFAULT_SERVER);
     } catch (ex) {
       setErr(ex instanceof Error ? ex.message : 'שגיאה');
       setBusy(false);
@@ -114,17 +105,9 @@ export function KioskSetup() {
             onChange={(e) => setShulId(e.target.value.replace(/\D/g, '').slice(0, 12))}
           />
         </label>
-        <label>
-          כתובת שרת
-          <input
-            className="ltr"
-            required
-            type="url"
-            autoComplete="off"
-            value={serverUrl}
-            onChange={(e) => setServerUrl(e.target.value)}
-          />
-        </label>
+        <p className="kiosk-setup-server-fixed">
+          שרת קבוע: <strong className="ltr">{DEFAULT_SERVER}</strong>
+        </p>
 
         <ul className="kiosk-setup-checks" aria-live="polite">
           <li>

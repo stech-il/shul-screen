@@ -47,44 +47,46 @@ export async function loadAndroidKioskConfig(): Promise<{
   serverUrl: string;
 }> {
   let shulId = readLocal(LS_SHUL);
-  let serverUrl = readLocal(LS_SERVER) || DEFAULT_SERVER;
 
   if (isAndroidKiosk()) {
     try {
-      const [shul, server] = await Promise.all([
-        Preferences.get({ key: KEY_SHUL }),
-        Preferences.get({ key: KEY_SERVER }),
-      ]);
+      const shul = await Preferences.get({ key: KEY_SHUL });
       if (shul.value) shulId = String(shul.value).trim();
-      if (server.value) serverUrl = String(server.value).trim();
     } catch {
       /* Preferences may fail before bridge is ready — localStorage fallback */
     }
   }
 
+  // Always locked to the public screensmart server — never read a custom URL.
+  writeLocal(LS_SERVER, DEFAULT_SERVER);
+  if (isAndroidKiosk()) {
+    try {
+      await Preferences.set({ key: KEY_SERVER, value: DEFAULT_SERVER });
+    } catch {
+      /* ignore */
+    }
+  }
+
   return {
     shulId,
-    serverUrl: serverUrl.replace(/\/$/, '') || DEFAULT_SERVER,
+    serverUrl: DEFAULT_SERVER,
   };
 }
 
 export async function saveAndroidKioskConfig(input: {
   shulId: string;
-  serverUrl: string;
+  serverUrl?: string;
 }): Promise<void> {
   const shulId = normalizeScreenId(input.shulId);
-  const serverUrl = String(input.serverUrl || DEFAULT_SERVER)
-    .trim()
-    .replace(/\/$/, '');
   if (!isValidScreenId(shulId)) {
     throw new Error('מזהה מסך לא תקין — השתמשו במספר (למשל 12)');
   }
   writeLocal(LS_SHUL, shulId);
-  writeLocal(LS_SERVER, serverUrl);
+  writeLocal(LS_SERVER, DEFAULT_SERVER);
   if (!isAndroidKiosk()) return;
   try {
     await Preferences.set({ key: KEY_SHUL, value: shulId });
-    await Preferences.set({ key: KEY_SERVER, value: serverUrl });
+    await Preferences.set({ key: KEY_SERVER, value: DEFAULT_SERVER });
   } catch {
     /* localStorage already saved */
   }
@@ -103,18 +105,13 @@ export function inAppDisplayHash(shulId: string): string {
 
 export async function probeAndroidConnection(input: {
   shulId: string;
-  serverUrl: string;
+  serverUrl?: string;
 }): Promise<{
   server: { ok: boolean };
   config: { ok: boolean; detail: string };
 }> {
-  const serverUrl = String(input.serverUrl || '')
-    .trim()
-    .replace(/\/$/, '');
+  const serverUrl = DEFAULT_SERVER;
   const shulId = String(input.shulId || '').trim();
-  if (!/^https?:\/\//i.test(serverUrl)) {
-    return { server: { ok: false }, config: { ok: false, detail: 'bad-url' } };
-  }
   if (!shulId) {
     return { server: { ok: false }, config: { ok: false, detail: 'missing-id' } };
   }

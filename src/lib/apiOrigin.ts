@@ -1,8 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { DEFAULT_PUBLIC_ORIGIN } from './screenId';
 
-const LS_SERVER = 'screensmart.kiosk.serverUrl';
-
 /** True inside Capacitor Android/iOS WebView. */
 export function isNativeShell(): boolean {
   try {
@@ -15,17 +13,10 @@ export function isNativeShell(): boolean {
 /**
  * Absolute cloud API origin for the native APK (bundled assets have no /api).
  * Empty string = same-origin relative paths (browser / production website).
+ * Native apps are locked to the public screensmart server.
  */
 export function getCloudOrigin(): string {
   if (!isNativeShell()) return '';
-  try {
-    const fromLs = String(localStorage.getItem(LS_SERVER) || '')
-      .trim()
-      .replace(/\/$/, '');
-    if (/^https?:\/\//i.test(fromLs)) return fromLs;
-  } catch {
-    /* ignore */
-  }
   return DEFAULT_PUBLIC_ORIGIN;
 }
 

@@ -47,10 +47,8 @@ export function listEvents(synagogueId?: string): AnalyticsEvent[] {
 /** Absolute origin for cloud API — needed on Electron file:// / Capacitor shells. */
 async function resolveCloudOrigin(): Promise<string> {
   try {
-    if (typeof window !== 'undefined' && window.shulKiosk?.getConfig) {
-      const cfg = await window.shulKiosk.getConfig();
-      const url = String(cfg?.serverUrl || '').trim().replace(/\/$/, '');
-      if (/^https?:\/\//i.test(url)) return url;
+    if (typeof window !== 'undefined' && window.shulKiosk?.isElectron) {
+      return DEFAULT_PUBLIC_ORIGIN;
     }
   } catch {
     /* ignore */

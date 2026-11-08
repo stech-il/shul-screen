@@ -185,11 +185,12 @@ function normalizeServerUrl(url) {
     .replace(/\/$/, '');
 }
 
-function resolveServerUrl(cfg) {
+function resolveServerUrl(_cfg) {
+  // Local electron:dev only — production kiosk is always locked to screensmart.co.il
   if (process.env.ELECTRON_START_URL) {
     return normalizeServerUrl(process.env.ELECTRON_START_URL);
   }
-  return normalizeServerUrl(cfg.serverUrl || DEFAULT_SERVER);
+  return DEFAULT_SERVER;
 }
 
 function displayUrl(cfg) {
@@ -541,7 +542,7 @@ ipcMain.handle('kiosk-get-config', () => {
   const cfg = readLocalConfig();
   return {
     shulId: cfg.shulId || '',
-    serverUrl: normalizeServerUrl(cfg.serverUrl || DEFAULT_SERVER),
+    serverUrl: DEFAULT_SERVER,
     registeredAt: cfg.registeredAt || null,
     openAtLogin: Boolean(cfg.openAtLogin !== false),
   };
@@ -552,15 +553,11 @@ ipcMain.handle('kiosk-save-config', (_e, body) => {
     const shulId = String(body?.shulId || '')
       .trim()
       .slice(0, 80);
-    const serverUrl = normalizeServerUrl(body?.serverUrl || DEFAULT_SERVER);
     if (!shulId || shulId.length < 2) {
       return { ok: false, error: 'מזהה קצר מדי' };
     }
-    if (!/^https?:\/\//i.test(serverUrl)) {
-      return { ok: false, error: 'כתובת שרת לא תקינה' };
-    }
-    const saved = writeLocalConfig({ shulId, serverUrl });
-    appendLog(`config saved ${shulId}`);
+    const saved = writeLocalConfig({ shulId, serverUrl: DEFAULT_SERVER });
+    appendLog(`config saved ${shulId} → ${DEFAULT_SERVER}`);
     startMainHeartbeat();
     return { ok: true, config: saved };
   } catch (err) {
@@ -571,7 +568,7 @@ ipcMain.handle('kiosk-save-config', (_e, body) => {
 ipcMain.handle('kiosk-probe-connection', async (_e, body) => {
   try {
     return await probeConnection({
-      serverUrl: body?.serverUrl,
+      serverUrl: DEFAULT_SERVER,
       shulId: body?.shulId,
     });
   } catch (err) {

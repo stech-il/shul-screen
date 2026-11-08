@@ -59,6 +59,21 @@
   line-height: 1.45;
 }
 
+.kiosk-setup-server-fixed {
+  margin: 0 0 0.95rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel, #fff) 88%, var(--accent, #c9a227) 12%);
+  border: 1px solid var(--line, #d5dde3);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.kiosk-setup-server-fixed strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .kiosk-setup label {
   display: flex;
   flex-direction: column;

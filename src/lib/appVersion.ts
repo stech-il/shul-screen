@@ -35,10 +35,9 @@ export function isOlderVersion(local: string, remote: string): boolean {
 
 async function resolveVersionUrl(): Promise<string> {
   try {
-    if (typeof window !== 'undefined' && window.shulKiosk?.getConfig) {
-      const cfg = await window.shulKiosk.getConfig();
-      const origin = String(cfg?.serverUrl || '').trim().replace(/\/$/, '');
-      if (/^https?:\/\//i.test(origin)) return `${origin}/api/app-version`;
+    // Electron / offline shells always poll the public screensmart server
+    if (typeof window !== 'undefined' && window.shulKiosk?.isElectron) {
+      return `${DEFAULT_PUBLIC_ORIGIN}/api/app-version`;
     }
   } catch {
     /* ignore */
