@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { KeepAwake } from '@capacitor-community/keep-awake';
@@ -103,6 +103,54 @@ export function inAppDisplayHash(shulId: string): string {
   return inAppDisplayPath(shulId);
 }
 
+type ProbeHttpResult = {
+  ok: boolean;
+  status: number;
+  data: unknown;
+  error?: string;
+};
+
+/** Native Android/iOS must use CapacitorHttp — WebView fetch is often blocked. */
+async function probeHttpGet(url: string): Promise<ProbeHttpResult> {
+  if (isNativeCapacitorShell()) {
+    try {
+      const res = await CapacitorHttp.get({
+        url,
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-store' },
+        connectTimeout: 20000,
+        readTimeout: 20000,
+      });
+      const status = Number(res.status) || 0;
+      return { ok: status >= 200 && status < 300, status, data: res.data };
+    } catch (err) {
+      return {
+        ok: false,
+        status: 0,
+        data: null,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    let data: unknown = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    return { ok: res.ok, status: res.status, data };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
 export async function probeAndroidConnection(input: {
   shulId: string;
   serverUrl?: string;
@@ -119,38 +167,33 @@ export async function probeAndroidConnection(input: {
     return { server: { ok: false }, config: { ok: false, detail: 'bad-id' } };
   }
 
-  let serverOk = false;
-  try {
-    const res = await fetch(`${serverUrl}/api/cloud/status?_=${Date.now()}`, {
-      cache: 'no-store',
-    });
-    serverOk = res.ok;
-  } catch {
-    serverOk = false;
+  const stamp = Date.now();
+  let statusHit = await probeHttpGet(`${serverUrl}/api/cloud/status?_=${stamp}`);
+  if (!statusHit.ok) {
+    // Fallback: lightweight health endpoint
+    statusHit = await probeHttpGet(`${serverUrl}/healthz?_=${stamp}`);
   }
-  if (!serverOk) {
+  if (!statusHit.ok) {
     return { server: { ok: false }, config: { ok: false, detail: 'server-down' } };
   }
 
-  try {
-    const res = await fetch(
-      `${serverUrl}/api/cloud/synagogues/${encodeURIComponent(shulId)}?_=${Date.now()}`,
-      { cache: 'no-store' },
-    );
-    if (res.status === 404) {
-      return { server: { ok: true }, config: { ok: false, detail: 'not-found' } };
-    }
-    if (!res.ok) {
-      return { server: { ok: true }, config: { ok: false, detail: `http-${res.status}` } };
-    }
-    const body = (await res.json()) as { config?: unknown };
-    if (!body?.config) {
-      return { server: { ok: true }, config: { ok: false, detail: 'empty' } };
-    }
-    return { server: { ok: true }, config: { ok: true, detail: 'ok' } };
-  } catch {
-    return { server: { ok: true }, config: { ok: false, detail: 'error' } };
+  const cfgHit = await probeHttpGet(
+    `${serverUrl}/api/cloud/synagogues/${encodeURIComponent(shulId)}?_=${stamp}`,
+  );
+  if (cfgHit.status === 404) {
+    return { server: { ok: true }, config: { ok: false, detail: 'not-found' } };
   }
+  if (!cfgHit.ok) {
+    return {
+      server: { ok: true },
+      config: { ok: false, detail: cfgHit.status ? `http-${cfgHit.status}` : 'error' },
+    };
+  }
+  const body = cfgHit.data as { config?: unknown } | null;
+  if (!body || typeof body !== 'object' || !('config' in body) || !body.config) {
+    return { server: { ok: true }, config: { ok: false, detail: 'empty' } };
+  }
+  return { server: { ok: true }, config: { ok: true, detail: 'ok' } };
 }
 
 /** Immersive kiosk chrome: hide status bar, keep screen awake. */

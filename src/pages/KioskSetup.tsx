@@ -59,7 +59,7 @@ export function KioskSetup() {
     setConfigDetail(configMessage(result.config.detail, configOk));
 
     if (!serverOk) {
-      setErr('השרת לא זמין — לא ניתן להמשיך עד שהחיבור יצליח');
+      setErr('כרגע אין חיבור לשרת — אפשר בכל זאת לשמור ולהפעיל; המסך יתחבר כשהרשת תחזור');
     }
     return serverOk;
   }
@@ -68,10 +68,17 @@ export function KioskSetup() {
     e.preventDefault();
     setBusy(true);
     try {
-      const ok = await runChecks();
-      if (!ok) return;
       const id = shulId.trim();
+      if (!id) {
+        setErr('נא להזין מזהה');
+        return;
+      }
+      const ok = await runChecks();
       await saveAndroidKioskConfig({ shulId: id, serverUrl: DEFAULT_SERVER });
+      if (!ok) {
+        // Still launch — display will retry cloud pulls while offline/online.
+        setErr('נשמר מקומית. אין חיבור כרגע — המסך ינסה שוב אוטומטית');
+      }
       goToLiveDisplay(id, DEFAULT_SERVER);
     } catch (ex) {
       setErr(ex instanceof Error ? ex.message : 'שגיאה');

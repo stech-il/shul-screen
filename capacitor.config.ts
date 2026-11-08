@@ -19,8 +19,15 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    // Allow navigating / API calls to the public screensmart host from the WebView.
-    allowNavigation: ['www.screensmart.co.il', 'screensmart.co.il', 'localhost', 'android.localhost'],
+    // Full origins — required for WebView / native bridge to reach the public API.
+    allowNavigation: [
+      'https://www.screensmart.co.il/*',
+      'https://screensmart.co.il/*',
+      'https://www.screensmart.co.il',
+      'https://screensmart.co.il',
+      'localhost',
+      'android.localhost',
+    ],
   },
   android: {
     backgroundColor: isManage ? '#f5f7fa' : '#0f1c22',
