@@ -127,11 +127,14 @@ export function listHeartbeats(): ScreenHeartbeat[] {
 }
 
 /** Server-backed heartbeats — works across kiosk vs admin browsers. */
-export async function fetchHeartbeatsFromCloud(): Promise<ScreenHeartbeat[]> {
+export async function fetchHeartbeatsFromCloud(synagogueId?: string): Promise<ScreenHeartbeat[]> {
   try {
     const { cloudUrl } = await import('./apiOrigin');
     const { apiFetch } = await import('./serverAuth');
-    const res = await apiFetch(cloudUrl(`/api/cloud/heartbeats?_=${Date.now()}`));
+    const q = synagogueId
+      ? `?synagogueId=${encodeURIComponent(normalizeSynagogueId(synagogueId))}&_=${Date.now()}`
+      : `?_=${Date.now()}`;
+    const res = await apiFetch(cloudUrl(`/api/cloud/heartbeats${q}`));
     if (!res.ok) return listHeartbeats();
     const data = (await res.json()) as { items?: ScreenHeartbeat[] };
     const items = Array.isArray(data.items) ? data.items : [];

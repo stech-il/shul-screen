@@ -156,6 +156,20 @@ export async function handleCloud(req, res, url) {
   }
 
   if (url.pathname.startsWith('/api/cloud/heartbeats') && req.method === 'GET') {
+    const qSyn = decodeURIComponent(url.searchParams.get('synagogueId') || '').trim();
+    if (qSyn) {
+      if (!requireSynagogueAccess(req, res, qSyn)) return;
+      try {
+        const all = await listHeartbeats();
+        const items = all.filter(
+          (h) => String(h?.synagogueId || '').trim() === qSyn,
+        );
+        sendJson(res, 200, { items }, req);
+      } catch (err) {
+        sendJson(res, 500, { error: String(err?.message || err) }, req);
+      }
+      return;
+    }
     if (!requirePlatform(req, res)) return;
     try {
       sendJson(res, 200, { items: await listHeartbeats() }, req);

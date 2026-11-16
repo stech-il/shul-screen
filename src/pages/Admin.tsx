@@ -60,6 +60,13 @@ import {
 import { saveDesignTemplate } from '../lib/designTemplates';
 import { fetchInquiries, markInquiriesSeen, type InquiryTopic } from '../lib/inquiries';
 import {
+  fetchHeartbeatsFromCloud,
+  findHeartbeat,
+  isScreenOnline,
+  loadHeartbeat,
+} from '../lib/analytics';
+import {
+  isAnnouncementActive,
   loadLocal,
   pullFromCloud,
   saveConfig,
@@ -129,6 +136,115 @@ interface Props {
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
+}
+
+function TabIcon({ id }: { id: TabId | 'more' }) {
+  const props = {
+    width: 18,
+    height: 18,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.9,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    className: 'admin-tab-svg',
+    'aria-hidden': true as const,
+  };
+  switch (id) {
+    case 'quick':
+      return (
+        <svg {...props}>
+          <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" />
+        </svg>
+      );
+    case 'content':
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      );
+    case 'announce':
+      return (
+        <svg {...props}>
+          <path d="M3 11v2a2 2 0 0 0 2 2h2l4 4v-4h1l7 3V6l-7 3H5a2 2 0 0 0-2 2z" />
+          <path d="M21 10a3 3 0 0 1 0 4" />
+        </svg>
+      );
+    case 'yahrzeit':
+      return (
+        <svg {...props}>
+          <path d="M12 3c1.8 2.2 3 4 3 5.8a3 3 0 1 1-6 0C9 7 10.2 5.2 12 3z" />
+          <path d="M9 13h6v7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-7z" />
+        </svg>
+      );
+    case 'design':
+      return (
+        <svg {...props}>
+          <circle cx="13.5" cy="6.5" r="0.8" fill="currentColor" />
+          <circle cx="17.5" cy="10.5" r="0.8" fill="currentColor" />
+          <circle cx="8.5" cy="7.5" r="0.8" fill="currentColor" />
+          <circle cx="6.5" cy="12.5" r="0.8" fill="currentColor" />
+          <path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 2.5-2.5c0-.6-.2-1.1-.6-1.5-.4-.4-.6-.9-.6-1.5A2.5 2.5 0 0 1 15.8 14H18a4 4 0 0 0 4-4c0-4.4-4.5-8-10-8z" />
+        </svg>
+      );
+    case 'canvas':
+      return (
+        <svg {...props}>
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="5" rx="1.5" />
+          <rect x="14" y="12" width="7" height="9" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+      );
+    case 'media':
+      return (
+        <svg {...props}>
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <circle cx="8.5" cy="9.5" r="1.5" />
+          <path d="M21 16l-5-5L6 20" />
+        </svg>
+      );
+    case 'settings':
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      );
+    case 'users':
+      return (
+        <svg {...props}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    case 'support':
+      return (
+        <svg {...props}>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      );
+    case 'history':
+      return (
+        <svg {...props}>
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      );
+    case 'more':
+      return (
+        <svg {...props}>
+          <circle cx="5" cy="12" r="1.5" fill="currentColor" />
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          <circle cx="19" cy="12" r="1.5" fill="currentColor" />
+        </svg>
+      );
+  }
 }
 
 export function Admin({ synagogueId, manageMode = false }: Props) {
@@ -227,6 +343,9 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
   const [itemDrag, setItemDrag] = useState<{ blockId: string; index: number } | null>(null);
   const [inquiryUnreadMessages, setInquiryUnreadMessages] = useState(0);
   const [inquiryTopicPrefill, setInquiryTopicPrefill] = useState<InquiryTopic | null>(null);
+  const [screenOnline, setScreenOnline] = useState<boolean>(() =>
+    isScreenOnline(loadHeartbeat(synagogueId)),
+  );
 
   const setConfig = (
     updater: SynagogueConfig | null | ((c: SynagogueConfig | null) => SynagogueConfig | null),
@@ -388,6 +507,26 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
       window.clearInterval(id);
     };
   }, [synagogueId, tab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function pollHeartbeat() {
+      try {
+        const list = await fetchHeartbeatsFromCloud(synagogueId);
+        if (cancelled) return;
+        const hb = findHeartbeat(list, synagogueId) ?? loadHeartbeat(synagogueId);
+        setScreenOnline(isScreenOnline(hb));
+      } catch {
+        if (!cancelled) setScreenOnline(isScreenOnline(loadHeartbeat(synagogueId)));
+      }
+    }
+    void pollHeartbeat();
+    const timer = window.setInterval(() => void pollHeartbeat(), 25_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [synagogueId]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -582,6 +721,39 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
     },
     itim: previewItim,
   };
+
+  const activeNoticeCount = config.announcements.filter((a) => isAnnouncementActive(a)).length;
+  const enabledYahrzeitsCount = config.yahrzeits.filter(
+    (y) => y.enabled && String(y.name || '').trim(),
+  ).length;
+  const todayYahrzeitsCount = canvasPreviewData.day.yahrzeitNames.length;
+
+  const nextPrayerSummary = (() => {
+    const candidates: { title: string; timeStr: string; atMs: number }[] = [];
+    for (const block of config.blocks) {
+      if (!block.enabled) continue;
+      for (const item of block.items) {
+        if (item.noTime) continue;
+        const at = canvasPreviewData.resolveItemAt?.(item, block) ?? null;
+        const timeStr = canvasPreviewData.resolveTime(item, block);
+        if (!timeStr) continue;
+        const title = toPlainDisplayText(item.title).trim() || toPlainDisplayText(block.title).trim();
+        if (!title) continue;
+        candidates.push({
+          title,
+          timeStr,
+          atMs: at ? at.getTime() : Number.POSITIVE_INFINITY,
+        });
+      }
+    }
+    const nowMs = previewNow.getTime();
+    const upcoming = candidates
+      .filter((c) => Number.isFinite(c.atMs) && c.atMs >= nowMs - 60_000)
+      .sort((a, b) => a.atMs - b.atMs);
+    if (upcoming[0]) return `${upcoming[0].title} · ${upcoming[0].timeStr}`;
+    if (candidates[0]) return `${candidates[0].title} · ${candidates[0].timeStr}`;
+    return t('admin.overviewNoNextPrayer');
+  })();
 
   function update(patch: Partial<SynagogueConfig>) {
     setConfig((c) => (c ? { ...c, ...patch } : c));
@@ -1394,7 +1566,8 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                     className={`tab ${tab === tabItem.id ? 'active' : ''}`}
                     onClick={() => setTab(tabItem.id)}
                   >
-                    {tabItem.label}
+                    <TabIcon id={tabItem.id} />
+                    <span className="tab-label">{tabItem.label}</span>
                     {tabItem.id === 'support' && inquiryUnreadMessages > 0 ? (
                       <span className="tab-unread-badge">
                         {inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}
@@ -1409,6 +1582,80 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
         ) : null}
 
         <div className="admin-main">
+        {tab !== 'canvas' ? (
+          <section className="admin-overview-strip" aria-label={t('admin.overviewAria')}>
+            <Link
+              to={`/display/${synagogueId}`}
+              target="_blank"
+              rel="noreferrer"
+              className={`overview-stat-card is-link ${screenOnline ? 'is-online' : 'is-standby'}`}
+            >
+              <span className="overview-stat-icon" aria-hidden="true">
+                <span className={`overview-live-dot ${screenOnline ? 'on' : ''}`} />
+              </span>
+              <span className="overview-stat-body">
+                <span className="overview-stat-label">{t('admin.overviewScreenLabel')}</span>
+                <strong className="overview-stat-value">
+                  {screenOnline ? t('admin.overviewScreenOnline') : t('admin.overviewScreenStandby')}
+                </strong>
+              </span>
+            </Link>
+
+            <button
+              type="button"
+              className={`overview-stat-card ${tab === 'content' ? 'is-active' : ''}`}
+              onClick={() => (manageMode ? goManageTab('content') : setTab('content'))}
+            >
+              <span className="overview-stat-icon" aria-hidden="true">
+                <TabIcon id="content" />
+              </span>
+              <span className="overview-stat-body">
+                <span className="overview-stat-label">{t('admin.overviewNextPrayerLabel')}</span>
+                <strong className="overview-stat-value">{nextPrayerSummary}</strong>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`overview-stat-card ${tab === 'announce' ? 'is-active' : ''}`}
+              onClick={() => (manageMode ? goManageTab('announce') : setTab('announce'))}
+            >
+              <span className="overview-stat-icon" aria-hidden="true">
+                <TabIcon id="announce" />
+              </span>
+              <span className="overview-stat-body">
+                <span className="overview-stat-label">{t('admin.overviewNoticesLabel')}</span>
+                <strong className="overview-stat-value">
+                  {activeNoticeCount > 0
+                    ? t('admin.overviewNoticesValue', { n: activeNoticeCount })
+                    : t('admin.overviewNoticesEmpty')}
+                </strong>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`overview-stat-card ${tab === 'yahrzeit' ? 'is-active' : ''}`}
+              onClick={() => (manageMode ? goManageTab('yahrzeit') : setTab('yahrzeit'))}
+            >
+              <span className="overview-stat-icon" aria-hidden="true">
+                <TabIcon id="yahrzeit" />
+              </span>
+              <span className="overview-stat-body">
+                <span className="overview-stat-label">{t('admin.overviewYahrzeitLabel')}</span>
+                <strong className="overview-stat-value">
+                  {todayYahrzeitsCount > 0
+                    ? t('admin.overviewYahrzeitToday', {
+                        today: todayYahrzeitsCount,
+                        total: enabledYahrzeitsCount,
+                      })
+                    : t('admin.overviewYahrzeitTotal', { total: enabledYahrzeitsCount })}
+                </strong>
+              </span>
+            </button>
+          </section>
+        ) : null}
+
         {manageMode && manageMoreOpen ? (
           <div className="manage-more-sheet" role="dialog" aria-label={t('manage.moreTitle')}>
             <div className="manage-more-head">
@@ -1428,7 +1675,8 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                       className={`manage-more-item${tab === tabItem.id ? ' on' : ''}`}
                       onClick={() => goManageTab(tabItem.id)}
                     >
-                      {tabItem.label}
+                      <TabIcon id={tabItem.id} />
+                      <span>{tabItem.label}</span>
                     </button>
                   ))}
                 </div>
@@ -1445,7 +1693,8 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
                       className={`manage-more-item${tab === tabItem.id ? ' on' : ''}`}
                       onClick={() => goManageTab(tabItem.id)}
                     >
-                      {tabItem.label}
+                      <TabIcon id={tabItem.id} />
+                      <span>{tabItem.label}</span>
                       {tabItem.id === 'support' && inquiryUnreadMessages > 0 ? (
                         <span className="tab-unread-badge">
                           {inquiryUnreadMessages > 99 ? '99+' : inquiryUnreadMessages}
@@ -2939,28 +3188,32 @@ export function Admin({ synagogueId, manageMode = false }: Props) {
             className={tab === 'quick' && !manageMoreOpen ? 'on' : ''}
             onClick={() => goManageTab('quick')}
           >
-            {t('manage.navQuick')}
+            <TabIcon id="quick" />
+            <span>{t('manage.navQuick')}</span>
           </button>
           <button
             type="button"
             className={tab === 'content' && !manageMoreOpen ? 'on' : ''}
             onClick={() => goManageTab('content')}
           >
-            {t('manage.navPrayers')}
+            <TabIcon id="content" />
+            <span>{t('manage.navPrayers')}</span>
           </button>
           <button
             type="button"
             className={tab === 'announce' && !manageMoreOpen ? 'on' : ''}
             onClick={() => goManageTab('announce')}
           >
-            {t('manage.navNotices')}
+            <TabIcon id="announce" />
+            <span>{t('manage.navNotices')}</span>
           </button>
           <button
             type="button"
             className={manageMoreActive ? 'on' : ''}
             onClick={() => setManageMoreOpen((open) => !open)}
           >
-            {t('manage.navMore')}
+            <TabIcon id="more" />
+            <span>{t('manage.navMore')}</span>
             {inquiryUnreadMessages > 0 ? (
               <i className="manage-nav-dot" aria-hidden="true" />
             ) : null}
