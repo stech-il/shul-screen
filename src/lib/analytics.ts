@@ -75,7 +75,27 @@ async function resolveCloudOrigin(): Promise<string> {
 async function postHeartbeatToCloud(hb: ScreenHeartbeat): Promise<void> {
   try {
     const origin = await resolveCloudOrigin();
-    const url = `${origin}/api/cloud/heartbeats`;
+    const path = '/api/cloud/heartbeats';
+    const url = origin ? `${origin}${path}` : path;
+
+    try {
+      const { isNativeShell } = await import('./apiOrigin');
+      if (isNativeShell()) {
+        const { CapacitorHttp } = await import('@capacitor/core');
+        const abs = origin ? url : `${DEFAULT_PUBLIC_ORIGIN}${path}`;
+        await CapacitorHttp.post({
+          url: abs,
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          data: hb,
+          connectTimeout: 15_000,
+          readTimeout: 15_000,
+        });
+        return;
+      }
+    } catch {
+      /* fall through to fetch */
+    }
+
     await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -130,26 +150,33 @@ export function listHeartbeats(): ScreenHeartbeat[] {
 export async function fetchHeartbeatsFromCloud(synagogueId?: string): Promise<ScreenHeartbeat[]> {
   try {
     const { cloudUrl } = await import('./apiOrigin');
-    const { apiFetch } = await import('./serverAuth');
     const q = synagogueId
       ? `?synagogueId=${encodeURIComponent(normalizeSynagogueId(synagogueId))}&_=${Date.now()}`
       : `?_=${Date.now()}`;
-    const res = await apiFetch(cloudUrl(`/api/cloud/heartbeats${q}`));
-    if (!res.ok) return listHeartbeats();
+    const path = cloudUrl(`/api/cloud/heartbeats${q}`);
+    // Single-screen presence is public; agency-wide list still needs platform token.
+    const res = synagogueId
+      ? await fetch(path, { cache: 'no-store' })
+      : await (await import('./serverAuth')).apiFetch(path);
+    if (!res.ok) return synagogueId ? [] : listHeartbeats();
     const data = (await res.json()) as { items?: ScreenHeartbeat[] };
     const items = Array.isArray(data.items) ? data.items : [];
-    if (items.length === 0) return listHeartbeats();
+    // Empty cloud result for a specific screen means offline — don't mask with localStorage.
+    if (items.length === 0) return synagogueId ? [] : listHeartbeats();
     return items
       .filter((h) => h?.synagogueId && h?.at)
       .sort((a, b) => String(b.at).localeCompare(String(a.at)));
   } catch {
-    return listHeartbeats();
+    return synagogueId ? [] : listHeartbeats();
   }
 }
 
-export function isScreenOnline(hb: ScreenHeartbeat | null, withinMs = 90_000): boolean {
+/** ~2.5 min — tolerates WebView/timer throttle between 30s beats. */
+export function isScreenOnline(hb: ScreenHeartbeat | null, withinMs = 150_000): boolean {
   if (!hb) return false;
-  return Date.now() - Date.parse(hb.at) < withinMs;
+  const t = Date.parse(hb.at);
+  if (!Number.isFinite(t)) return false;
+  return Date.now() - t < withinMs;
 }
 
 /** Normalize synagogue ids for heartbeat ↔ Agency matching (trim / decode). */

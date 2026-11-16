@@ -7,6 +7,7 @@ import {
   getDesignTemplates,
   getMediaFile,
   listBundles,
+  getHeartbeat,
   listHeartbeats,
   purgeSynagogueData,
   putBundle,
@@ -158,12 +159,11 @@ export async function handleCloud(req, res, url) {
   if (url.pathname.startsWith('/api/cloud/heartbeats') && req.method === 'GET') {
     const qSyn = decodeURIComponent(url.searchParams.get('synagogueId') || '').trim();
     if (qSyn) {
-      if (!requireSynagogueAccess(req, res, qSyn)) return;
+      // Presence-only for one screen — public so Admin status works even without
+      // an API session (local login / expired token). No secrets in heartbeats.
       try {
-        const all = await listHeartbeats();
-        const items = all.filter(
-          (h) => String(h?.synagogueId || '').trim() === qSyn,
-        );
+        const one = await getHeartbeat(qSyn);
+        const items = one?.synagogueId ? [one] : [];
         sendJson(res, 200, { items }, req);
       } catch (err) {
         sendJson(res, 500, { error: String(err?.message || err) }, req);
