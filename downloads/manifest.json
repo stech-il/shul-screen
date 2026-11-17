@@ -1,6 +1,6 @@
 {
-  "version": "0.3.7",
-  "updatedAt": "2026-11-17T16:28:00.000Z",
+  "version": "0.3.8",
+  "updatedAt": "2026-11-17T16:40:00.000Z",
   "windows": {
     "file": "screensmart-Setup.exe",
     "version": "0.3.6",
@@ -8,7 +8,7 @@
   },
   "android": {
     "file": "screensmart-kiosk.apk",
-    "version": "0.3.7",
+    "version": "0.3.8",
     "url": "https://github.com/stech-il/shul-screen/releases/latest/download/screensmart-kiosk.apk"
   }
 }

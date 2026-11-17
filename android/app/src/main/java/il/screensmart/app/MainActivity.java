@@ -1,12 +1,12 @@
 package il.screensmart.app;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.widget.Toast;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -19,6 +19,15 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Android 7 boxes with Chrome/WebView < 60 cannot run Capacitor.
+        // Route to the embedded Gecko (Firefox) engine shipped inside the kiosk APK.
+        if (!BuildConfig.IS_MANAGE_APP && WebViewVersion.needsEmbeddedEngine(this)) {
+            if (launchEmbeddedGecko()) {
+                finish();
+                return;
+            }
+        }
+
         // Dismiss Android 12+ splash into the real activity theme (avoids stuck blank splash).
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
@@ -27,12 +36,27 @@ public class MainActivity extends BridgeActivity {
         WebView.setWebContentsDebuggingEnabled(true);
 
         hardenWebView();
-        warnIfWebViewTooOld();
 
         // Hall kiosk only — management phone app stays a normal Android UI.
         if (!BuildConfig.IS_MANAGE_APP) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             applyImmersive();
+        }
+    }
+
+    private boolean launchEmbeddedGecko() {
+        try {
+            Class<?> cls = Class.forName("il.screensmart.app.GeckoKioskActivity");
+            Intent i = new Intent(this, cls);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            if (getIntent() != null && getIntent().getExtras() != null) {
+                i.putExtras(getIntent().getExtras());
+            }
+            startActivity(i);
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "Embedded Gecko engine unavailable", t);
+            return false;
         }
     }
 
@@ -52,9 +76,7 @@ public class MainActivity extends BridgeActivity {
             WebSettings settings = webView.getSettings();
             settings.setJavaScriptEnabled(true);
             settings.setDomStorageEnabled(true);
-            settings.setDatabaseEnabled(true);
             settings.setMediaPlaybackRequiresUserGesture(false);
-            // Mixed content off; cloud is HTTPS. Keep wide viewport for old tablets.
             settings.setUseWideViewPort(true);
             settings.setLoadWithOverviewMode(true);
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
@@ -62,30 +84,6 @@ public class MainActivity extends BridgeActivity {
             }
         } catch (Exception e) {
             Log.w(TAG, "hardenWebView failed", e);
-        }
-    }
-
-    /** Capacitor needs Chrome/WebView 60+. Many Android 7 boxes never updated WebView. */
-    private void warnIfWebViewTooOld() {
-        try {
-            String ua = WebSettings.getDefaultUserAgent(this);
-            java.util.regex.Matcher m =
-                java.util.regex.Pattern.compile("Chrom(?:e|ium)/(\\d+)", java.util.regex.Pattern.CASE_INSENSITIVE)
-                    .matcher(ua != null ? ua : "");
-            int ver = 0;
-            if (m.find()) {
-                ver = Integer.parseInt(m.group(1));
-            }
-            Log.i(TAG, "WebView UA chrome=" + ver + " ua=" + ua);
-            if (ver > 0 && ver < 60) {
-                Toast.makeText(
-                        this,
-                        "WebView ישן מדי (" + ver + "). עדכנו Chrome / Android System WebView",
-                        Toast.LENGTH_LONG)
-                    .show();
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "WebView version check failed", e);
         }
     }
 

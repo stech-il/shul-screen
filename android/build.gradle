@@ -21,6 +21,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Embedded Firefox engine (GeckoView) for Android 7 kiosks
+        maven { url 'https://maven.mozilla.org/maven2/' }
     }
 }
 
