@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import legacy from '@vitejs/plugin-legacy';
 import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'node:fs';
 import { cloudApiPlugin } from './vite.cloudPlugin';
@@ -33,9 +34,27 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  // Android 7 kiosks often ship Chrome/WebView ~60–80. Default Vite 6 target
+  // (Chrome 111+) blanks those WebViews — plugin-legacy below lowers the target.
+  build: forCapacitor
+    ? {
+        cssTarget: 'chrome64',
+        modulePreload: false,
+      }
+    : undefined,
   plugins: [
     react(),
     cloudApiPlugin(),
+    ...(forCapacitor
+      ? [
+          legacy({
+            // Capacitor minimum: Android 7 + Chrome/WebView 60+
+            targets: ['Chrome >= 60', 'Android >= 7'],
+            modernPolyfills: true,
+            renderLegacyChunks: true,
+          }),
+        ]
+      : []),
     VitePWA({
       disable: forCapacitor,
       // 'prompt' avoids the plugin's automatic full-page reload (that flashes kiosks).

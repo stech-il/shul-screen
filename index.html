@@ -80,6 +80,27 @@
   </head>
   <body style="margin:0;background:#f5f7fa;">
     <div id="root">טוען…</div>
+    <!-- ES5-safe: if the WebView is too old for the app bundle, show Hebrew help. -->
+    <script>
+      (function () {
+        try {
+          var ua = navigator.userAgent || '';
+          var m = ua.match(/Chrom(e|ium)\/(\d+)/i);
+          var ver = m ? parseInt(m[2], 10) : 0;
+          if (ver && ver < 60) {
+            var el = document.getElementById('root');
+            if (el) {
+              el.innerHTML =
+                '<div style="font-family:Arial,sans-serif;padding:24px;max-width:36rem;margin:40px auto;line-height:1.6;color:#1c3140;background:#fff;border:1px solid #d7dee6;border-radius:12px;">' +
+                '<h1 style="font-size:1.25rem;margin:0 0 8px;">המכשיר ישן מדי לאפליקציה</h1>' +
+                '<p style="margin:0 0 8px;">נדרש Android עם Chrome / WebView בגרסה 60 ומעלה (Android 7 ומעלה עם עדכון WebView).</p>' +
+                '<p style="margin:0;">עדכנו את <b>Android System WebView</b> או <b>Chrome</b> בחנות Google, או פתחו את המסך בדפדפן מעודכן: https://www.screensmart.co.il</p>' +
+                '</div>';
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

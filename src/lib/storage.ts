@@ -343,7 +343,58 @@ async function pushLocalCloud(bundle: CachedBundle): Promise<boolean> {
 /** Built-in Render/Node cloud API (/api/cloud) — durable when CLOUD_GITHUB_TOKEN is set */
 let serverCloudChecked: boolean | null = null;
 
+/** Native Android/iOS WebView fetch is unreliable (CORS / old Chromium) — use CapacitorHttp. */
+async function nativeCloudRequest(
+  path: string,
+  init?: RequestInit,
+): Promise<Response | null> {
+  try {
+    const { isNativeShell } = await import('./apiOrigin');
+    if (!isNativeShell()) return null;
+    const { CapacitorHttp } = await import('@capacitor/core');
+    const { getApiToken } = await import('./serverAuth');
+    const { DEFAULT_PUBLIC_ORIGIN } = await import('./screenId');
+    const rel = cloudUrl(path);
+    const url = /^https?:\/\//i.test(rel) ? rel : `${DEFAULT_PUBLIC_ORIGIN}${rel.startsWith('/') ? rel : `/${rel}`}`;
+    const method = String(init?.method || 'GET').toUpperCase();
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Cache-Control': 'no-store',
+    };
+    const token = getApiToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (init?.body) headers['Content-Type'] = 'application/json';
+    const body =
+      typeof init?.body === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(init.body as string);
+            } catch {
+              return init.body;
+            }
+          })()
+        : undefined;
+    const res =
+      method === 'PUT'
+        ? await CapacitorHttp.put({ url, headers, data: body, connectTimeout: 20000, readTimeout: 20000 })
+        : method === 'POST'
+          ? await CapacitorHttp.post({ url, headers, data: body, connectTimeout: 20000, readTimeout: 20000 })
+          : await CapacitorHttp.get({ url, headers, connectTimeout: 20000, readTimeout: 20000 });
+    const status = Number(res.status) || 0;
+    const raw =
+      typeof res.data === 'string' ? res.data : JSON.stringify(res.data ?? null);
+    return new Response(raw, {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function cloudFetch(path: string, init?: RequestInit): Promise<Response> {
+  const native = await nativeCloudRequest(path, init);
+  if (native) return native;
   const { apiFetch } = await import('./serverAuth');
   return apiFetch(cloudUrl(path), init);
 }
@@ -355,6 +406,11 @@ export async function isServerCloudAvailable(): Promise<boolean> {
     return false;
   }
   try {
+    const native = await nativeCloudRequest(`/api/cloud/status?_=${Date.now()}`);
+    if (native) {
+      serverCloudChecked = native.ok;
+      return serverCloudChecked;
+    }
     const res = await fetch(cloudUrl('/api/cloud/status'), { cache: 'no-store' });
     serverCloudChecked = res.ok;
   } catch {

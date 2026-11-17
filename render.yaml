@@ -29,7 +29,7 @@ services:
       - key: DOWNLOAD_WINDOWS_URL
         value: "https://github.com/stech-il/shul-screen/releases/download/v0.3.6-apps/screensmart-Setup.exe"
       - key: DOWNLOAD_ANDROID_URL
-        value: "https://github.com/stech-il/shul-screen/releases/download/v0.3.6-apps/screensmart-kiosk.apk"
+        value: "https://github.com/stech-il/shul-screen/releases/download/v0.3.7-apps/screensmart-kiosk.apk"
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY

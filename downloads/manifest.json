@@ -1,14 +1,14 @@
 {
-  "version": "0.3.6",
-  "updatedAt": "2026-11-08T21:25:10.338Z",
-  "windows": {
-    "file": "screensmart-Setup.exe",
-    "version": "0.3.6",
-    "url": "https://github.com/stech-il/shul-screen/releases/download/v0.3.6-apps/screensmart-Setup.exe"
-  },
-  "android": {
-    "file": "screensmart-kiosk.apk",
-    "version": "0.3.6",
-    "url": "https://github.com/stech-il/shul-screen/releases/download/v0.3.6-apps/screensmart-kiosk.apk"
-  }
+    "updatedAt":  "2026-11-17T16:20:06.1455493Z",
+    "version":  "0.3.7",
+    "android":  {
+                    "url":  "https://github.com/stech-il/shul-screen/releases/download/v0.3.7-apps/screensmart-kiosk.apk",
+                    "file":  "screensmart-kiosk.apk",
+                    "version":  "0.3.7"
+                },
+    "windows":  {
+                    "url":  "https://github.com/stech-il/shul-screen/releases/download/v0.3.6-apps/screensmart-Setup.exe",
+                    "file":  "screensmart-Setup.exe",
+                    "version":  "0.3.6"
+                }
 }
