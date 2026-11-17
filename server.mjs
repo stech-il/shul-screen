@@ -137,7 +137,11 @@ const server = http.createServer((req, res) => {
     void handleAppVersion(req, res, url);
     return;
   }
-  if (url.pathname === '/api/downloads' || url.pathname.startsWith('/downloads/')) {
+  if (
+    url.pathname === '/api/downloads' ||
+    url.pathname.startsWith('/api/downloads/') ||
+    url.pathname.startsWith('/downloads/')
+  ) {
     void handleDownloads(req, res, url).then((handled) => {
       if (!handled) sendJson(res, 404, { error: 'not found' }, req);
     });

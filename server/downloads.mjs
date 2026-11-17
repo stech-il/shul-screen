@@ -107,28 +107,36 @@ function envUrl(platform) {
   return '';
 }
 
+function remoteFor(platform) {
+  const fromEnv = envUrl(platform);
+  if (fromEnv) return { url: fromEnv, source: 'env' };
+  const manifest = readJson(path.join(DOWNLOADS_DIR, 'manifest.json'), {});
+  const m = manifest?.[platform] && typeof manifest[platform] === 'object' ? manifest[platform] : {};
+  if (m.url && /^https?:\/\//i.test(String(m.url))) {
+    return { url: String(m.url), source: 'manifest', meta: m };
+  }
+  return null;
+}
+
 function buildItem(platform, defaults) {
   const manifest = readJson(path.join(DOWNLOADS_DIR, 'manifest.json'), {});
   const m = manifest?.[platform] && typeof manifest[platform] === 'object' ? manifest[platform] : {};
-  const fromEnv = envUrl(platform);
-  if (fromEnv) {
+  const remote = remoteFor(platform);
+  if (remote) {
     return {
       id: platform,
       available: true,
       ...defaults,
       ...m,
-      url: fromEnv,
-      source: 'env',
-    };
-  }
-  if (m.url && /^https?:\/\//i.test(String(m.url))) {
-    return {
-      id: platform,
-      available: true,
-      ...defaults,
-      ...m,
-      url: String(m.url),
-      source: 'manifest',
+      // Same-origin proxy — avoids broken/raw GitHub asset URLs in the admin UI.
+      url: `/api/downloads/file/${platform}`,
+      fileName:
+        platform === 'windows'
+          ? 'screensmart-Setup.exe'
+          : platform === 'androidManage'
+            ? 'screensmart-manage.apk'
+            : 'screensmart-kiosk.apk',
+      source: remote.source,
     };
   }
   let filePath = null;
@@ -219,7 +227,39 @@ function sendFile(res, filePath, downloadName) {
   fs.createReadStream(filePath).pipe(res);
 }
 
-/** GET /api/downloads — catalog · GET /downloads/:file — binary */
+async function proxyRemoteFile(res, remoteUrl, downloadName) {
+  const upstream = await fetch(remoteUrl, {
+    redirect: 'follow',
+    headers: {
+      Accept: 'application/octet-stream',
+      'User-Agent': 'screensmart-downloads/1.0',
+    },
+  });
+  if (!upstream.ok || !upstream.body) {
+    sendJson(res, upstream.status === 404 ? 404 : 502, {
+      ok: false,
+      error: 'upstream download failed',
+      status: upstream.status,
+    });
+    return;
+  }
+  const { Readable } = await import('node:stream');
+  const type =
+    upstream.headers.get('content-type') ||
+    MIME[path.extname(downloadName).toLowerCase()] ||
+    'application/octet-stream';
+  const len = upstream.headers.get('content-length');
+  const headers = {
+    'Content-Type': type,
+    'Content-Disposition': `attachment; filename="${downloadName}"`,
+    'Cache-Control': 'public, max-age=300',
+  };
+  if (len) headers['Content-Length'] = len;
+  res.writeHead(200, headers);
+  Readable.fromWeb(upstream.body).pipe(res);
+}
+
+/** GET /api/downloads — catalog · GET /api/downloads/file/:platform · GET /downloads/:file */
 export async function handleDownloads(req, res, url) {
   if (url.pathname === '/api/downloads') {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -227,6 +267,53 @@ export async function handleDownloads(req, res, url) {
       return true;
     }
     sendJson(res, 200, listDownloads(), req);
+    return true;
+  }
+
+  const fileMatch = url.pathname.match(/^\/api\/downloads\/file\/(windows|android|androidManage)$/);
+  if (fileMatch) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      sendJson(res, 405, { error: 'method not allowed' }, req);
+      return true;
+    }
+    const platform = fileMatch[1];
+    const remote = remoteFor(platform);
+    const localPath = resolveLocal(platform);
+    const downloadName =
+      platform === 'windows'
+        ? 'screensmart-Setup.exe'
+        : platform === 'androidManage'
+          ? 'screensmart-manage.apk'
+          : 'screensmart-kiosk.apk';
+    if (localPath) {
+      if (req.method === 'HEAD') {
+        const ext = path.extname(localPath).toLowerCase();
+        const st = fs.statSync(localPath);
+        res.writeHead(200, {
+          'Content-Type': MIME[ext] || 'application/octet-stream',
+          'Content-Length': st.size,
+          'Content-Disposition': `attachment; filename="${downloadName}"`,
+        });
+        res.end();
+        return true;
+      }
+      sendFile(res, localPath, downloadName);
+      return true;
+    }
+    if (remote?.url) {
+      if (req.method === 'HEAD') {
+        res.writeHead(302, { Location: remote.url, 'Cache-Control': 'no-store' });
+        res.end();
+        return true;
+      }
+      try {
+        await proxyRemoteFile(res, remote.url, downloadName);
+      } catch (err) {
+        sendJson(res, 502, { ok: false, error: String(err?.message || err) }, req);
+      }
+      return true;
+    }
+    sendJson(res, 404, { ok: false, error: 'file not found' }, req);
     return true;
   }
 
